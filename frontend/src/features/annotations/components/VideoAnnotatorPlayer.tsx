@@ -1,80 +1,115 @@
-import { useRef, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAnnotationStore } from '../store/useAnnotationStore';
+import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
+import { LandmarkOverlay } from './LandmarkOverlay';
 
 interface VideoAnnotatorPlayerProps {
+  videoId: string;
   videoUrl: string;
+  artifactId?: string;
+  chunkSizeFrames: number;
+  overlayMode: 'off' | 'roi' | 'mesh';
+  overlayAction?: string;
+  pointSize: number;
+  opacity: number;
 }
 
-export function VideoAnnotatorPlayer({ videoUrl }: VideoAnnotatorPlayerProps) {
+export function VideoAnnotatorPlayer({
+  videoId,
+  videoUrl,
+  artifactId,
+  chunkSizeFrames,
+  overlayMode,
+  overlayAction,
+  pointSize,
+  opacity,
+}: VideoAnnotatorPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { 
-    setCurrentTime, 
-    setDuration, 
-    setIsPlaying, 
-    playbackRate, 
+  const draft = useAnnotationStore((state) => state.draft);
+  const {
     isPlaying,
-    draft 
-  } = useAnnotationStore();
+    playbackRate,
+    seekRequest,
+    setCurrentTimeMs,
+    setDurationMs,
+    setIsPlaying,
+    clearSeekRequest,
+  } = usePlaybackStore();
 
   useEffect(() => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.play().catch(console.error);
-      } else {
-        videoRef.current.pause();
-      }
-    }
-  }, [isPlaying]);
+    const video = videoRef.current;
+    if (!video) return;
+    if (isPlaying) void video.play().catch(() => setIsPlaying(false));
+    else video.pause();
+  }, [isPlaying, setIsPlaying]);
 
   useEffect(() => {
-    if (videoRef.current && videoRef.current.playbackRate !== playbackRate) {
-      videoRef.current.playbackRate = playbackRate;
-    }
+    if (videoRef.current) videoRef.current.playbackRate = playbackRate;
   }, [playbackRate]);
 
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
-    }
-  };
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !seekRequest) return;
+    video.currentTime = Math.max(
+      0,
+      Math.min(video.duration || Number.POSITIVE_INFINITY, seekRequest.timeMs / 1000),
+    );
+    setCurrentTimeMs(video.currentTime * 1000);
+    clearSeekRequest();
+  }, [clearSeekRequest, seekRequest, setCurrentTimeMs]);
 
-  const handleDurationChange = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    let callbackId = 0;
+    const updateClock = () => {
+      setCurrentTimeMs(video.currentTime * 1000);
+      callbackId = video.requestVideoFrameCallback(updateClock);
+    };
+    if ('requestVideoFrameCallback' in video) {
+      callbackId = video.requestVideoFrameCallback(updateClock);
+      return () => video.cancelVideoFrameCallback(callbackId);
     }
-  };
-
-  const handlePlay = () => setIsPlaying(true);
-  const handlePause = () => setIsPlaying(false);
+    return undefined;
+  }, [setCurrentTimeMs, videoUrl]);
 
   return (
-    <div className="relative w-full max-w-5xl aspect-video bg-black rounded-lg overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center">
+    <div className="relative flex aspect-video w-full max-w-5xl items-center justify-center overflow-hidden rounded-lg border border-slate-800 bg-black shadow-2xl">
       {videoUrl ? (
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          className="w-full h-full object-contain"
-          onTimeUpdate={handleTimeUpdate}
-          onDurationChange={handleDurationChange}
-          onPlay={handlePlay}
-          onPause={handlePause}
-          controls={false}
-          autoPlay={false}
-        />
+        <>
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            className="h-full w-full object-contain"
+            onTimeUpdate={(event) =>
+              setCurrentTimeMs(event.currentTarget.currentTime * 1000)
+            }
+            onDurationChange={(event) =>
+              setDurationMs(event.currentTarget.duration * 1000)
+            }
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            controls={false}
+            preload="metadata"
+          />
+          <LandmarkOverlay
+            videoId={videoId}
+            videoRef={videoRef}
+            artifactId={artifactId}
+            chunkSizeFrames={chunkSizeFrames}
+            mode={overlayMode}
+            action={overlayAction}
+            pointSize={pointSize}
+            opacity={opacity}
+          />
+        </>
       ) : (
-        <div className="text-slate-500 flex flex-col items-center">
-          <svg className="w-16 h-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <p>Nenhum vídeo selecionado</p>
-        </div>
+        <div className="text-sm text-slate-500">Vídeo indisponível</div>
       )}
-
-      {/* Draft Overlay Indicator */}
       {draft && (
-        <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-2 animate-pulse shadow-lg">
-          <div className="w-2 h-2 bg-white rounded-full"></div>
-          Gravando: {draft.microActionType}
+        <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full bg-red-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+          Intervalo: {draft.actionLabel}
         </div>
       )}
     </div>

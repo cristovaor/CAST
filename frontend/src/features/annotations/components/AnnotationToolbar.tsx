@@ -1,83 +1,116 @@
-import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
 import { useAnnotationStore } from '../store/useAnnotationStore';
+import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 
-export function AnnotationToolbar() {
-  const { isPlaying, setIsPlaying, playbackRate, setPlaybackRate, draft } = useAnnotationStore();
+interface AnnotationToolbarProps {
+  annotationMode: 'interval' | 'point';
+  onAnnotationModeChange: (mode: 'interval' | 'point') => void;
+  overlayMode: 'off' | 'roi' | 'mesh';
+  onOverlayModeChange: (mode: 'off' | 'roi' | 'mesh') => void;
+  canShowLandmarks: boolean;
+}
 
-  const togglePlay = () => setIsPlaying(!isPlaying);
-
+export function AnnotationToolbar({
+  annotationMode,
+  onAnnotationModeChange,
+  overlayMode,
+  onOverlayModeChange,
+  canShowLandmarks,
+}: AnnotationToolbarProps) {
+  const draft = useAnnotationStore((state) => state.draft);
+  const {
+    isPlaying,
+    setIsPlaying,
+    playbackRate,
+    setPlaybackRate,
+    currentTimeMs,
+    durationMs,
+    fps,
+    requestSeek,
+  } = usePlaybackStore();
   const rates = [0.25, 0.5, 1, 2];
-  const cycleRate = () => {
-    const currentIndex = rates.indexOf(playbackRate);
-    const nextIndex = (currentIndex + 1) % rates.length;
-    setPlaybackRate(rates[nextIndex]);
+
+  const stepFrame = (direction: -1 | 1) => {
+    setIsPlaying(false);
+    requestSeek(
+      Math.max(
+        0,
+        Math.min(durationMs, currentTimeMs + direction * (1000 / fps)),
+      ),
+    );
   };
 
   return (
-    <div className="flex items-center justify-between w-full">
-      {/* Playback Controls */}
+    <div className="flex w-full flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" className="h-9 w-9 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white" disabled>
+        <Button variant="outline" size="icon" onClick={() => stepFrame(-1)}>
           <SkipBack className="h-4 w-4" />
         </Button>
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={togglePlay}
-          className="h-10 w-10 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setIsPlaying(!isPlaying)}
         >
           {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
         </Button>
-        <Button variant="outline" size="icon" className="h-9 w-9 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white" disabled>
+        <Button variant="outline" size="icon" onClick={() => stepFrame(1)}>
           <SkipForward className="h-4 w-4" />
         </Button>
-        
-        <div className="w-px h-6 bg-slate-800 mx-2" />
-        
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={cycleRate}
-          className="font-mono border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white w-16"
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const index = rates.indexOf(playbackRate);
+            setPlaybackRate(rates[(index + 1) % rates.length]);
+          }}
+          className="w-16 font-mono"
         >
           {playbackRate}x
         </Button>
       </div>
 
-      {/* Shortcuts Hint */}
-      <div className="flex items-center gap-4 text-xs text-slate-400">
-        <div className="flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded-md font-mono text-slate-300">Space</kbd>
-          <span>Play/Pause</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded-md font-mono text-slate-300">{"< >"}</kbd>
-          <span>Frames</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded-md font-mono text-slate-300">1-9</kbd>
-          <span>Marcar Evento</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded-md font-mono text-slate-300">Enter</kbd>
-          <span>Salvar</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded-md font-mono text-slate-300">Esc</kbd>
-          <span>Cancelar</span>
-        </div>
+      <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+        {(['interval', 'point'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onAnnotationModeChange(mode)}
+            className={`rounded px-3 py-1.5 text-xs ${
+              annotationMode === mode
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            {mode === 'interval' ? 'Intervalo' : 'Ponto'}
+          </button>
+        ))}
       </div>
 
-      {/* Current Status */}
-      <div className="w-[150px] flex justify-end">
-        {draft ? (
-          <Badge variant="destructive" className="animate-pulse">Gravando...</Badge>
-        ) : (
-          <Badge variant="secondary" className="bg-slate-800 text-slate-400">Aguardando</Badge>
-        )}
+      <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+        {(['off', 'roi', 'mesh'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            disabled={!canShowLandmarks && mode !== 'off'}
+            onClick={() => onOverlayModeChange(mode)}
+            className={`rounded px-2.5 py-1.5 text-xs disabled:opacity-30 ${
+              overlayMode === mode
+                ? 'bg-cyan-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            {mode === 'off' ? 'Pontos desligados' : mode === 'roi' ? 'ROI' : 'Malha'}
+          </button>
+        ))}
       </div>
+
+      {draft ? (
+        <Badge variant="destructive">Intervalo em aberto</Badge>
+      ) : (
+        <Badge variant="secondary">Aguardando</Badge>
+      )}
     </div>
   );
 }

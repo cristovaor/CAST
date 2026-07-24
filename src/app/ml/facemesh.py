@@ -10,13 +10,14 @@ class FaceMeshAdapter:
     def __init__(self):
         self.extractor = FaceMeshExtractor()
 
-    def extract_from_video(self, video_path: str) -> pd.DataFrame:
+    def extract_from_video(self, video_path: str, video_id: str) -> pd.DataFrame:
         """Extract landmarks from a video file.
         
         Args:
             video_path: Path to the local video file.
+            video_id: Stable video identifier persisted with every landmark.
             
         Returns:
             DataFrame containing extracted landmarks.
         """
-        return self.extractor.extract_from_video(video_path)
+        return self.extractor.extract_from_video(video_path, video_id)

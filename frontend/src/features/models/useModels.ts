@@ -50,10 +50,58 @@ export function useRegisterModel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { model_id: string, version: string, action: string, artifact_uri: string, manifest: any }) => 
+    mutationFn: (data: { model_id: string, version: string, action: string, artifact_uri: string, manifest: Record<string, unknown> }) =>
       apiClient.post<ModelVersion>('/models', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['models'] });
+    },
+  });
+}
+
+export interface TrainModelPayload {
+  model_id: string;
+  version: string;
+  action: string;
+  video_asset_ids?: string[];
+  training_config?: Record<string, unknown>;
+}
+
+export function useTrainModel() {
+  return useMutation({
+    mutationFn: (data: TrainModelPayload) =>
+      apiClient.post<{ job_id: string, status: string, message: string }>('/models/train', data),
+  });
+}
+
+export interface TrainJobStatus {
+  id: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled';
+  step: string;
+  progress: number;
+  error?: string | null;
+  result?: { model_version_id: string, status: string } | null;
+}
+
+export function useTrainJobStatus(jobId: string) {
+  return useQuery<TrainJobStatus>({
+    queryKey: ['trainJob', jobId],
+    queryFn: () => apiClient.get<TrainJobStatus>(`/models/train-jobs/${jobId}`),
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'queued' || status === 'running') return 2000;
+      return false;
+    },
+  });
+}
+
+export function useCancelTrainJob() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (jobId: string) => apiClient.post(`/models/train-jobs/${jobId}/cancel`),
+    onSuccess: (_, jobId) => {
+      queryClient.invalidateQueries({ queryKey: ['trainJob', jobId] });
     },
   });
 }

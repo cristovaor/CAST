@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCorrectionExport } from '../api/useCorrectionExport';
@@ -25,12 +25,13 @@ export function CorrectionModal({ event, isOpen, onClose }: CorrectionModalProps
   const [correctedEnd, setCorrectedEnd] = useState(0);
   const [success, setSuccess] = useState(false);
 
-  // Sync state when event changes
-  if (event && correctedAction === '' && !success) {
-    setCorrectedAction(event.microActionType);
+  useEffect(() => {
+    if (!event || !isOpen) return;
+    setCorrectedAction(event.actionCode);
     setCorrectedStart(event.startTime);
     setCorrectedEnd(event.endTime);
-  }
+    setSuccess(false);
+  }, [event, isOpen]);
 
   const handleSubmit = () => {
     if (!event) return;
@@ -95,7 +96,7 @@ export function CorrectionModal({ event, isOpen, onClose }: CorrectionModalProps
               <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
                 <p className="text-[11px] text-slate-500 uppercase tracking-wide font-medium mb-1">Predição Original</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-300">{event.microActionType}</span>
+                  <span className="text-sm font-medium text-slate-300">{event.actionLabel}</span>
                   <span className="text-xs font-mono text-violet-400">conf: {((event.confidence || 0) * 100).toFixed(1)}%</span>
                 </div>
               </div>

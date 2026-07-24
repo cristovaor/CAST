@@ -10,6 +10,7 @@ celery_app = Celery(
     include=[
         "app.workers.tasks_video", "app.workers.tasks_inference",
         "app.workers.tasks_eeg", "app.workers.tasks_dataset", "app.workers.tasks_sync",
+        "app.workers.tasks_train",
     ]
 )
 

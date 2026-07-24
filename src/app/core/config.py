@@ -52,7 +52,14 @@ class Settings(BaseSettings):
     # Triton Inference Server
     TRITON_SERVER_URL: str = "http://localhost:8000"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # The repository-level .env is shared by the API, Docker Compose and Vite.
+    # Ignore variables owned by the other processes instead of failing API
+    # startup when those variables are present.
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

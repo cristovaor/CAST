@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { RotateCcw, PenLine, Info, FileDown } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -9,18 +9,16 @@ import { MetricCard } from '@/components/data-display/MetricCard';
 import { DataTable, type ColumnDef } from '@/components/data-display/DataTable';
 import { MicroActionTimeline } from '@/components/charts/MicroActionTimeline';
 import { VideoQualityPanel } from '@/components/status/VideoQualityPanel';
-import { MicroActionSummaryCards } from '@/components/charts/MicroActionSummaryCards';
+import { MicroActionSummaryCards, type MicroActionType, type SummaryData } from '@/components/charts/MicroActionSummaryCards';
 import { cn } from '@/lib/utils';
 import { formatMs, formatPercentage } from '@/lib/formatters';
-import type { TimelineEvent, KPICardData } from '@/types/domain';
+import type { TimelineEvent, KPICardData, MicroAction } from '@/types/domain';
+import type { TimelineEventDTO } from '@/features/videos/types';
 import { useVideoDetails, useVideoTimeline, useVideoQualityReport, useProcessVideo, useVideoPlaybackUrl } from '@/features/videos/useVideos';
 import { useStartInference } from '@/features/inference/useInference';
 import { downloadDynamicPdf } from '@/features/reports/useReports';
 import { MultimodalPlayer } from '@/features/inference/components/MultimodalPlayer';
 import { CoactivationPanel } from '@/features/eeg/components/CoactivationPanel';
-
-// Fallback sample used only when storage has no playable URL (local dev without MinIO).
-const SAMPLE_VIDEO_URL = 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
 // ─── Event table columns ──────────────────────────────────────
 
@@ -92,9 +90,9 @@ export function VideoDetailPage() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
 
-  const { data: videoAsset, isLoading: loadingVideo } = useVideoDetails(videoId!);
-  const { data: timelineData, isLoading: loadingTimeline } = useVideoTimeline(videoId!);
-  const { data: qualityData, isLoading: loadingQuality } = useVideoQualityReport(videoId!);
+  const { data: videoAsset, isLoading: loadingVideo, isError: isVideoError } = useVideoDetails(videoId!);
+  const { data: timelineData, isLoading: loadingTimeline, isError: isTimelineError } = useVideoTimeline(videoId!);
+  const { data: qualityData, isLoading: loadingQuality, isError: isQualityError } = useVideoQualityReport(videoId!);
   const { data: playback } = useVideoPlaybackUrl(videoId!);
   const { mutate: processVideo } = useProcessVideo();
   const startInference = useStartInference();
@@ -117,10 +115,40 @@ export function VideoDetailPage() {
     );
   }
 
+  if (isVideoError || isTimelineError || isQualityError || !videoAsset) {
+    return (
+      <div className="min-h-full bg-slate-50/50 px-6 py-12">
+        <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center">
+          <h1 className="text-xl font-semibold text-slate-900">Vídeo não encontrado</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            Não foi possível carregar os dados deste vídeo. Ele pode não existir, ainda
+            não ter sido processado, ou o processamento pode ter falhado.
+          </p>
+          <div className="mt-5 flex justify-center gap-2">
+            {videoId && (
+              <Link
+                to={`/app/videos/${videoId}/processing`}
+                className="inline-flex rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Ver logs de processamento
+              </Link>
+            )}
+            <Link
+              to="/app/videos"
+              className="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+            >
+              Voltar para vídeos
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Transform backend events into TimelineEvent
-  const events: TimelineEvent[] = (timelineData?.events || []).map((ev: any) => ({
+  const events: TimelineEvent[] = (timelineData?.events || []).map((ev: TimelineEventDTO) => ({
     id: ev.event_id,
-    microAction: ev.action,
+    microAction: ev.action as MicroAction,
     startMs: ev.start_time * 1000,
     endMs: ev.end_time * 1000,
     confidence: ev.confidence_mean,
@@ -137,14 +165,18 @@ export function VideoDetailPage() {
   ];
 
   // Aggregate summary
-  const summary = events.reduce((acc: any, ev) => {
-    if (!acc[ev.microAction]) {
-      acc[ev.microAction] = { count: 0, perMinute: 0 };
-    }
-    acc[ev.microAction].count += 1;
-    acc[ev.microAction].perMinute = Number(((acc[ev.microAction].count / (qualityData?.durationSeconds || 120)) * 60).toFixed(1));
+  const summary = events.reduce<SummaryData>((acc, ev) => {
+    if (!(ev.microAction in acc)) return acc;
+    const action = ev.microAction as MicroActionType;
+    acc[action].count += 1;
+    acc[action].perMinute = Number(((acc[action].count / (qualityData?.durationSeconds || 120)) * 60).toFixed(1));
     return acc;
-  }, {});
+  }, {
+    OLHO_FECHADO: { count: 0, perMinute: 0 },
+    OLHANDO_CANTO: { count: 0, perMinute: 0 },
+    MEXEU_LABIOS: { count: 0, perMinute: 0 },
+    VIROU_ROSTO: { count: 0, perMinute: 0 },
+  });
 
   return (
     <div className="min-h-full">
@@ -198,7 +230,7 @@ export function VideoDetailPage() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
           <div className="xl:col-span-2 space-y-4">
             <MultimodalPlayer
-              videoUrl={playback?.url || SAMPLE_VIDEO_URL}
+              videoUrl={playback?.url ?? ''}
               events={timelineData?.events || []}
               eegId={videoAsset?.eeg_asset_id ?? undefined}
               fps={videoAsset?.fps ? Number(videoAsset.fps) : undefined}

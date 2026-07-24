@@ -6,6 +6,8 @@ import {
   type ExperimentalDesign, type Modality,
 } from '@/types/research';
 import { Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useProjects } from '@/features/projects/useProjects';
 import { useCreateStudy } from './useStudies';
 
 // Configurable study creation (docs §7). The flow never forces an educational
@@ -52,7 +54,12 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
   const [design, setDesign] = useState<ExperimentalDesign>('experimental');
   const [modalities, setModalities] = useState<Modality[]>(['video', 'eeg', 'events']);
   const [form, setForm] = useState<WizardState>(EMPTY);
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId ?? '');
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const projectsQuery = useProjects();
   const createStudy = useCreateStudy();
+  const projects = projectsQuery.data ?? [];
+  const selectedProject = projects.find((project) => project.id === selectedProjectId);
 
   const set = (key: keyof WizardState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -60,10 +67,31 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
   const toggle = (m: Modality) =>
     setModalities((cur) => (cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m]));
 
-  const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
+  const next = () => {
+    if (step === 0 && !selectedProject) {
+      setValidationError(
+        selectedProjectId
+          ? 'O projeto informado não está disponível para sua organização.'
+          : 'Selecione o projeto ao qual este estudo pertence.',
+      );
+      return;
+    }
+    setValidationError(null);
+    setStep((s) => Math.min(STEPS.length - 1, s + 1));
+  };
   const back = () => setStep((s) => Math.max(0, s - 1));
 
   const submit = () => {
+    if (!selectedProject) {
+      setValidationError(
+        selectedProjectId
+          ? 'O projeto informado não está disponível para sua organização.'
+          : 'Selecione um projeto antes de ativar o estudo.',
+      );
+      setStep(0);
+      return;
+    }
+    setValidationError(null);
     const config = {
       researchQuestion: form.researchQuestion,
       generalObjective: form.generalObjective,
@@ -83,9 +111,9 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
       {
         name: form.name || 'Novo estudo',
         description: form.description,
-        project_id: projectId,
+        project_id: selectedProjectId,
         config,
-      } as never,
+      },
       { onSuccess: () => onDone?.() },
     );
   };
@@ -97,6 +125,51 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
       <div className="rounded-xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
         {step === 0 && (
           <Section title="Informações gerais">
+            <div className="space-y-1.5">
+              <label htmlFor="study-project" className="text-sm font-medium text-slate-700">
+                Projeto <span className="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <select
+                id="study-project"
+                required
+                value={selectedProjectId}
+                disabled={Boolean(projectId) || projectsQuery.isLoading}
+                onChange={(event) => {
+                  setSelectedProjectId(event.target.value);
+                  setValidationError(null);
+                  createStudy.reset();
+                }}
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-600"
+              >
+                <option value="">
+                  {projectsQuery.isLoading ? 'Carregando projetos…' : 'Selecione um projeto'}
+                </option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>{project.name}</option>
+                ))}
+              </select>
+              {projectId && selectedProject && (
+                <p className="text-xs text-slate-500">Projeto definido pela página de origem.</p>
+              )}
+              {projectsQuery.isError && (
+                <p className="text-xs text-red-600" role="alert">
+                  Não foi possível carregar os projetos. Tente novamente.
+                </p>
+              )}
+              {!projectsQuery.isLoading && !projectsQuery.isError && projects.length === 0 && (
+                <p className="text-xs text-amber-700">
+                  Nenhum projeto disponível.{' '}
+                  <Link to="/app/projects" className="font-medium text-blue-600 hover:text-blue-700">
+                    Crie um projeto primeiro
+                  </Link>.
+                </p>
+              )}
+              {!projectsQuery.isLoading && selectedProjectId && !selectedProject && (
+                <p className="text-xs text-red-600" role="alert">
+                  O projeto informado não está disponível para sua organização.
+                </p>
+              )}
+            </div>
             <Text label="Nome do estudo" placeholder="Ex: Fadiga em operadores — neuroergonomia" value={form.name} onChange={set('name')} />
             <Textarea label="Descrição" placeholder="Contexto, população e escopo (sem assumir um objetivo educacional)…" value={form.description} onChange={set('description')} />
             <div className="grid gap-4 sm:grid-cols-2">
@@ -190,6 +263,7 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
           <Section title="Revisão & ativação">
             <div className="rounded-lg border border-slate-200 p-4 space-y-2 text-[13px]">
               <Line k="Nome" v={form.name || '—'} />
+              <Line k="Projeto" v={selectedProject?.name || 'Projeto indisponível'} />
               <Line k="Questão" v={form.researchQuestion || '—'} />
               <Line k="Desenho" v={EXPERIMENTAL_DESIGNS.find((d) => d.value === design)?.label} />
               <Line k="Modalidades" v={modalities.map((m) => MODALITIES.find((x) => x.value === m)?.label).join(', ')} />
@@ -201,6 +275,12 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
           </Section>
         )}
 
+        {(validationError || createStudy.isError) && (
+          <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            {validationError ?? `Não foi possível criar o estudo: ${(createStudy.error as Error).message}`}
+          </div>
+        )}
+
         <div className="mt-8 flex justify-between border-t border-slate-100 pt-5">
           <button
             onClick={back}
@@ -210,11 +290,17 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
             Voltar
           </button>
           {step < STEPS.length - 1 ? (
-            <button onClick={next} className="px-5 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Próximo</button>
+            <button
+              onClick={next}
+              disabled={step === 0 && (projectsQuery.isLoading || projects.length === 0)}
+              className="px-5 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Próximo
+            </button>
           ) : (
             <button
               onClick={submit}
-              disabled={createStudy.isPending}
+              disabled={createStudy.isPending || !selectedProject}
               className="px-5 py-2 rounded-md bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               {createStudy.isPending ? 'Ativando…' : 'Ativar estudo'}

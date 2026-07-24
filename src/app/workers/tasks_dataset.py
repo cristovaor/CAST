@@ -43,7 +43,11 @@ def build_dataset(dataset_id: str) -> dict:
         db.commit()
 
         criteria = dict(ds.build_criteria or {})
-        included, excluded = select_sessions(db, criteria)
+        included, excluded = select_sessions(
+            db,
+            criteria,
+            organization_id=ds.organization_id,
+        )
 
         manifest = build_manifest(
             db, criteria, included, excluded,
@@ -87,6 +91,7 @@ def build_dataset(dataset_id: str) -> dict:
         ds.built_at = datetime.utcnow()
 
         db.add(AuditLog(
+            organization_id=ds.organization_id,
             action=AuditAction.dataset_freeze,  # closest audit kind for build/materialize
             entity_type="dataset",
             entity_id=str(dataset_id),

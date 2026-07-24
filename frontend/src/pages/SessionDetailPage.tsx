@@ -10,9 +10,6 @@ import {
   SESSION_STATE_META, QUALITY_VERDICT_META, SYNC_STATE_META,
   type SessionState, type SyncState, type QualityVerdict,
 } from '@/types/research';
-import {
-  MOCK_SESSION_STATE, MOCK_VIDEO_REPORT, MOCK_EEG_REPORT, MOCK_SYNC,
-} from '@/lib/mocks/multimodalMocks';
 import { useSessionDetail, useEEGAsset, useSync } from '@/features/multimodal/useMultimodal';
 import { useVideoQualityReport } from '@/features/videos/useVideos';
 
@@ -50,57 +47,50 @@ export function SessionDetailPage() {
   const navigate = useNavigate();
   const { data: session } = useSessionDetail(sessionId);
 
-  const hasVideo = session ? !!session.video_asset_id : true;
-  const hasEeg = session ? !!session.eeg_asset_id : true;
+  const hasVideo = !!session?.video_asset_id;
+  const hasEeg = !!session?.eeg_asset_id;
 
   // Live modality data — only fetched once the session tells us the asset exists.
   const { data: videoQuality } = useVideoQualityReport(session?.video_asset_id ?? '');
   const { data: eegAsset } = useEEGAsset(session?.eeg_asset_id ?? undefined);
   const { data: liveSync } = useSync(sessionId);
 
-  const isMock = !session; // no session at all → nothing real to resolve
-  const sessionState = (session?.state as SessionState) ?? MOCK_SESSION_STATE;
-  const syncState = (session?.sync_state as SyncState) ?? MOCK_SYNC.state;
+  const sessionState = (session?.state as SessionState) ?? 'draft';
+  const syncState = (session?.sync_state as SyncState) ?? 'not_synced';
 
   const st = SESSION_STATE_META[sessionState];
 
   // Video card content: real quality-report once assessed, else a neutral
   // "pending" state — never a fabricated number for a real session.
-  const videoVerdict = (videoQuality?.verdict as QualityVerdict | undefined) ?? (isMock ? MOCK_VIDEO_REPORT.verdict : undefined);
+  const videoVerdict = videoQuality?.verdict as QualityVerdict | undefined;
   const vv = videoVerdict ? QUALITY_VERDICT_META[videoVerdict] : null;
-  const videoSummary = isMock
-    ? `${MOCK_VIDEO_REPORT.resolution} · ${MOCK_VIDEO_REPORT.frameRate} fps · ${Math.round((MOCK_VIDEO_REPORT.validFrameRatio ?? 0) * 100)}% frames válidos`
-    : videoQuality?.assessed
+  const videoSummary = videoQuality?.assessed
       ? `${videoQuality.width ?? '—'}×${videoQuality.height ?? '—'} · ${videoQuality.fps?.toFixed(1) ?? '—'} fps · ${videoQuality.faceDetectionRate != null ? Math.round(videoQuality.faceDetectionRate * 100) : '—'}% detecção facial`
       : 'Qualidade ainda não avaliada — disponível após o processamento.';
 
-  const eegVerdict = (eegAsset?.quality_verdict as QualityVerdict | undefined) ?? (isMock ? MOCK_EEG_REPORT.verdict : undefined);
+  const eegVerdict = eegAsset?.quality_verdict as QualityVerdict | undefined;
   const ev = eegVerdict ? QUALITY_VERDICT_META[eegVerdict] : null;
-  const eegSummary = isMock
-    ? `${MOCK_EEG_REPORT.channelCount} canais · ${MOCK_EEG_REPORT.samplingRateHz} Hz · ${Math.round(MOCK_EEG_REPORT.validRatio * 100)}% válido`
-    : eegAsset
+  const eegSummary = eegAsset
       ? `${eegAsset.channel_count ?? eegAsset.channel_names.length ?? '—'} canais · ${eegAsset.sample_rate_hz ?? '—'} Hz · ${eegAsset.valid_ratio != null ? Math.round(eegAsset.valid_ratio * 100) : '—'}% válido`
       : 'Aguardando processamento do arquivo.';
 
   const sy = SYNC_STATE_META[syncState];
-  const syncSummary = isMock
-    ? `Offset ${MOCK_SYNC.offsetMs} ms · drift ${MOCK_SYNC.driftMsPerMin} ms/min · confiança ${Math.round((MOCK_SYNC.confidence ?? 0) * 100)}%`
-    : liveSync
+  const syncSummary = liveSync
       ? `Offset ${liveSync.offset_ms} ms${liveSync.drift_ms_per_min != null ? ` · drift ${liveSync.drift_ms_per_min} ms/min` : ''}${liveSync.confidence != null ? ` · confiança ${Math.round(liveSync.confidence * 100)}%` : ''}`
       : 'Sincronização ainda não iniciada.';
 
   return (
     <div className="min-h-full bg-slate-50/50 pb-12">
       <PageHeader
-        title={`Sessão ${sessionId ? sessionId.slice(0, 8) : 'S-0048'}`}
+        title={`Sessão ${sessionId ? sessionId.slice(0, 8) : '—'}`}
         description="Reúne todos os dados do mesmo período experimental. As modalidades são complementares; testes e questionários são opcionais."
         context={
           <>
             <ToneBadge tone={st.tone}>{st.label}</ToneBadge>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><User size={12} /> {session ? session.participant_id.slice(0, 8) : 'P-0192'} (pseudonimizado)</span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><FlaskConical size={12} /> {session?.protocol ?? 'Estudo de fadiga'}</span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><Clock size={12} /> {session?.recorded_at ? new Date(session.recorded_at).toLocaleString('pt-BR') : '14/07/2026 09:32'}</span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">Condição: {session?.condition ?? 'carga alta'}</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><User size={12} /> {session?.participant_id.slice(0, 8) ?? '—'} (pseudonimizado)</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><FlaskConical size={12} /> {session?.protocol ?? 'Sem protocolo'}</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><Clock size={12} /> {session?.recorded_at ? new Date(session.recorded_at).toLocaleString('pt-BR') : 'Sem data de coleta'}</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">Condição: {session?.condition ?? 'Não informada'}</span>
           </>
         }
         actions={
@@ -138,8 +128,8 @@ export function SessionDetailPage() {
               {syncSummary}
             </ModalityCard>
 
-            <ModalityCard icon={Flag} title="Eventos experimentais" present={isMock || !!eegAsset?.event_count}>
-              {isMock ? `${MOCK_EEG_REPORT.eventCount} marcadores (triggers digitais + estímulos)` : `${eegAsset?.event_count ?? 0} marcadores registrados`}
+            <ModalityCard icon={Flag} title="Eventos experimentais" present={!!eegAsset?.event_count}>
+              {`${eegAsset?.event_count ?? 0} marcadores registrados`}
             </ModalityCard>
 
             <ModalityCard icon={ClipboardList} title="Testes / questionários" present={false}>
@@ -147,7 +137,7 @@ export function SessionDetailPage() {
             </ModalityCard>
 
             <ModalityCard icon={PenLine} title="Anotações humanas" present to={`/app/sessions/${sessionId}/annotate`}>
-              {isMock ? '4 anotações · 1 anotador · esquema "artefatos & eventos"' : 'Abrir ferramenta de anotação.'}
+              Abrir ferramenta de anotação.
             </ModalityCard>
           </div>
         </section>

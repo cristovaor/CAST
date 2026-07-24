@@ -1,4 +1,4 @@
-import { ShieldCheck, Lock, FileCheck2, Trash2, UserCheck, History, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Lock, FileCheck2, UserCheck, History, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ToneBadge } from '@/components/ui/ToneBadge';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
@@ -16,19 +16,6 @@ const CONTROLS = [
   { icon: History, title: 'Retenção & descarte', desc: 'Política por estudo; anonimização e descarte programados.', status: 'Configurada', tone: 'info' as const },
 ];
 
-const ALERTS = [
-  { level: 'danger' as const, text: 'Tentativa de análise em sessão com consentimento revogado (S-0031) foi bloqueada.' },
-  { level: 'warning' as const, text: 'Exportação de dataset ds2 inclui EEG identificável — revisar risco de reidentificação antes de compartilhar.' },
-  { level: 'warning' as const, text: 'Participante P-0192 aparece em dois estudos — verificar segregação e base legal.' },
-];
-
-const AUDIT = [
-  { at: '2026-07-20 08:12', who: 'pesq.principal', action: 'Exportou dataset v1.2.0 (manifesto anexado)' },
-  { at: '2026-07-19 16:40', who: 'cientista.dados', action: 'Acessou vídeo bruto S-0048 — justificativa: revisão de qualidade' },
-  { at: '2026-07-19 09:05', who: 'admin', action: 'Concedeu acesso "annotator" ao Estudo de fadiga' },
-  { at: '2026-07-18 14:22', who: 'participante P-0207', action: 'Revogou consentimento — dados marcados para descarte' },
-];
-
 const ALERT_TONE = { danger: 'text-red-600 bg-red-50 border-red-200', warning: 'text-amber-700 bg-amber-50 border-amber-200' };
 
 const AUDIT_ACTION_LABEL: Record<string, string> = {
@@ -38,17 +25,18 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
 };
 
 export function GovernancePage() {
-  // Prefer live audit/summary; fall back to illustrative rows when offline.
   const { data: liveAudit } = useAuditLog();
   const { data: summary } = useGovernanceSummary();
 
-  const auditRows = (liveAudit && liveAudit.length)
-    ? liveAudit.map((a) => ({
+  const auditRows = (liveAudit ?? []).map((a) => ({
         at: a.created_at.slice(0, 16).replace('T', ' '),
         who: a.actor_label ?? '—',
         action: `${AUDIT_ACTION_LABEL[a.action] ?? a.action}${a.entity_type ? ` · ${a.entity_type}` : ''}${a.justification ? ` — ${a.justification}` : ''}`,
-      }))
-    : AUDIT;
+      }));
+  const alerts = [
+    ...(summary?.pending_consents ? [{ level: 'warning' as const, text: `${summary.pending_consents} participante(s) aguardam consentimento.` }] : []),
+    ...(summary?.revoked_consents ? [{ level: 'danger' as const, text: `${summary.revoked_consents} participante(s) têm consentimento revogado; análises permanecem bloqueadas.` }] : []),
+  ];
 
   const consentStatus: { tone: 'success' | 'warning'; label: string } =
     summary && summary.pending_consents > 0
@@ -92,9 +80,10 @@ export function GovernancePage() {
               <h3 className="text-sm font-semibold text-slate-800">Alertas de proteção</h3>
             </div>
             <ul className="space-y-2">
-              {ALERTS.map((a, i) => (
+              {alerts.map((a, i) => (
                 <li key={i} className={`rounded-lg border px-3 py-2 text-[12px] leading-relaxed ${ALERT_TONE[a.level]}`}>{a.text}</li>
               ))}
+              {!alerts.length && <li className="text-[12px] text-slate-500">Nenhum alerta de consentimento no momento.</li>}
             </ul>
             <p className="mt-3 text-[11px] text-slate-400">O sistema alerta ou impede: análise sem consentimento válido, reutilização fora da finalidade, mistura de participantes entre estudos, compartilhamento de vídeo bruto ou EEG identificável, e uso clínico não autorizado.</p>
           </section>
@@ -113,9 +102,7 @@ export function GovernancePage() {
                 </li>
               ))}
             </ol>
-            <button className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-blue-600 hover:text-blue-700">
-              <Trash2 size={13} /> Ver solicitações de descarte
-            </button>
+            {!auditRows.length && <p className="text-[12px] text-slate-500">Nenhum evento registrado.</p>}
           </section>
         </div>
       </div>

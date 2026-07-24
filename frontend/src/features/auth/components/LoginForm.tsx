@@ -90,9 +90,7 @@ export function LoginForm() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="password" className={errors.password ? "text-red-500" : ""}>Senha</Label>
-            <a href="#" className="text-xs font-medium text-blue-600 hover:text-blue-500 hover:underline">
-              Esqueci minha senha
-            </a>
+            <span className="text-xs text-slate-500">Recuperação disponível pelo administrador</span>
           </div>
           <div className="relative">
             <Input
@@ -157,11 +155,7 @@ export function LoginForm() {
           <p className="text-center">
             Acesso restrito a pesquisadores, administradores e equipes autorizadas.
           </p>
-          <div className="flex gap-2 mt-1">
-            <a href="#" className="hover:text-slate-800 underline underline-offset-2">Política de Privacidade</a>
-            <span>·</span>
-            <a href="#" className="hover:text-slate-800 underline underline-offset-2">Termos de Uso</a>
-          </div>
+          <p className="mt-1">Política de Privacidade · Termos de Uso</p>
         </div>
       </div>
     </div>

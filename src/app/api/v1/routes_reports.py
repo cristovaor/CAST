@@ -10,6 +10,7 @@ from app.db.models import User
 router = APIRouter(prefix="/studies", tags=["reports"])
 
 from app.api.deps import get_db, get_current_user
+from app.api.ownership import get_study
 
 # Note: GET /{study_id}/dashboard lives in routes_studies.py (registered
 # first in main.py). This router used to define a second, shadowed copy
@@ -18,7 +19,13 @@ from app.api.deps import get_db, get_current_user
 # first.
 
 @router.get("/{study_id}/exports", response_model=ExportResponse)
-def get_export(study_id: UUID, format: str = "csv", db: Session = Depends(get_db)):
+def get_export(
+    study_id: UUID,
+    format: str = "csv",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_study(db, current_user, study_id)
     if format not in ["csv", "parquet"]:
         raise HTTPException(status_code=400, detail="Format must be csv or parquet")
         
@@ -39,6 +46,7 @@ def generate_study_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    get_study(db, current_user, study_id)
     if format == "json":
         report = generate_json_report(study_id, current_user.id, db)
     elif format == "pdf":
@@ -47,12 +55,17 @@ def generate_study_report(
         raise HTTPException(status_code=400, detail="Unsupported format. Use 'json' or 'pdf'.")
 
     from app.api.v1.routes_governance import record_access
-    record_access(db, "study", study_id, actor=current_user.email, detail={"op": "report_generate", "format": format})
+    record_access(db, "study", study_id, actor=current_user, detail={"op": "report_generate", "format": format})
 
     return {"message": "Report generated", "report_id": report.id}
 
 @router.get("/{study_id}/reports")
-def list_reports(study_id: UUID, db: Session = Depends(get_db)):
+def list_reports(
+    study_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_study(db, current_user, study_id)
     reports = db.query(AnalysisReport).filter(AnalysisReport.study_id == study_id).order_by(AnalysisReport.generated_at.desc()).all()
     return [
         {
@@ -82,9 +95,7 @@ def get_dynamic_pdf_report(
     Never fabricates a "patient" or pre/post scores — video and EEG are the
     core modalities and tests/questionnaires are optional, not assumed.
     """
-    study = db.query(Study).filter(Study.id == study_id).first()
-    if not study:
-        raise HTTPException(status_code=404, detail="Study not found")
+    study = get_study(db, current_user, study_id)
 
     participant_count = db.query(Participant).filter(Participant.study_id == study_id).count()
     session_count = (
@@ -138,7 +149,7 @@ def get_dynamic_pdf_report(
     )
 
     from app.api.v1.routes_governance import record_access
-    record_access(db, "study", study_id, actor=current_user.email, detail={"op": "report_pdf"})
+    record_access(db, "study", study_id, actor=current_user, detail={"op": "report_pdf"})
 
     headers = {
         'Content-Disposition': f'attachment; filename="study_report_{study_id}.pdf"'

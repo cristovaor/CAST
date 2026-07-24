@@ -18,16 +18,16 @@ export function RegisterModelDialog({ children }: { children: React.ReactNode })
     e.preventDefault();
     setError('');
     
-    let manifest;
+    let manifest: Record<string, unknown>;
     try {
       manifest = JSON.parse(manifestStr);
-    } catch (err) {
+    } catch {
       setError('Manifesto deve ser um JSON válido');
       return;
     }
 
     registerModel.mutate(
-      { model_id: modelId, version, action, manifest, artifact_uri: artifactUri } as any,
+      { model_id: modelId, version, action, manifest, artifact_uri: artifactUri },
       {
         onSuccess: () => {
           setOpen(false);
@@ -36,8 +36,8 @@ export function RegisterModelDialog({ children }: { children: React.ReactNode })
           setAction('OF');
           setArtifactUri('');
         },
-        onError: (err: any) => {
-          setError(err?.response?.data?.detail || 'Erro ao registrar modelo');
+        onError: (mutationError: Error) => {
+          setError(mutationError.message || 'Erro ao registrar modelo');
         }
       }
     );

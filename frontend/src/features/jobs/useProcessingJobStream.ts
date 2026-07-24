@@ -3,7 +3,7 @@ import type { JobStatus } from "@/types/domain";
 
 export interface LogEntry {
   timestamp: string;
-  level: 'info' | 'warn' | 'error';
+  level: "info" | "warn" | "error";
   message: string;
 }
 
@@ -16,11 +16,14 @@ export interface JobStreamData {
   qualityAlerts?: string[];
 }
 
-export function useProcessingJobStream(jobId: string) {
+export function useProcessingJobStream(
+  jobId: string,
+  streamPath: (id: string) => string = (id) => `/jobs/${id}/stream`,
+) {
   const [data, setData] = useState<JobStreamData>({
-    status: 'queued',
+    status: "queued",
     progress: 0,
-    currentStep: 'Aguardando na fila...',
+    currentStep: "Aguardando na fila...",
     logs: [],
   });
   const [error, setError] = useState<string | null>(null);
@@ -28,32 +31,58 @@ export function useProcessingJobStream(jobId: string) {
   useEffect(() => {
     if (!jobId) return;
 
-    // Conexão SSE Real conforme solicitado
-    const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8080/api/v1';
-    const eventSource = new EventSource(`${BASE_URL}/jobs/${jobId}/stream`);
+    const baseUrl =
+      (import.meta.env.VITE_API_URL as string | undefined) ??
+      "http://localhost:8080/api/v1";
+    const controller = new AbortController();
+    const token = localStorage.getItem("cast_token");
 
-    eventSource.onmessage = (event) => {
+    async function connect() {
       try {
-        const payload: Partial<JobStreamData> = JSON.parse(event.data);
-        setData(prev => ({
-          ...prev,
-          ...payload,
-          logs: payload.logs ? [...prev.logs, ...payload.logs] : prev.logs
-        }));
-      } catch (err) {
-        console.error("Failed to parse SSE payload", err);
+        const response = await fetch(`${baseUrl}${streamPath(jobId)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split("\n\n");
+          buffer = events.pop() ?? "";
+
+          for (const event of events) {
+            const dataLine = event
+              .split("\n")
+              .find((line) => line.startsWith("data: "));
+            if (!dataLine) continue;
+            const payload: Partial<JobStreamData> & { error?: string } =
+              JSON.parse(dataLine.slice(6));
+            if (payload.error) throw new Error(payload.error);
+            setData((previous) => ({
+              ...previous,
+              ...payload,
+              logs: payload.logs
+                ? [...previous.logs, ...payload.logs]
+                : previous.logs,
+            }));
+          }
+        }
+      } catch (streamError) {
+        if (controller.signal.aborted) return;
+        console.error("SSE Error:", streamError);
+        setError("Falha ao acompanhar o processamento. Tente novamente.");
       }
-    };
+    }
 
-    eventSource.onerror = (err) => {
-      console.error("SSE Error:", err);
-      setError("Falha ao conectar na stream do Job. O backend não está respondendo.");
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
+    void connect();
+    return () => controller.abort();
   }, [jobId]);
 
   return { data, error };

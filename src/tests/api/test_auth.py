@@ -21,7 +21,8 @@ def test_login_wrong_password(client: TestClient, db) -> None:
         "password": "wrongpassword",
     }
     r = client.post(f"{settings.API_V1_STR}/auth/login", data=login_data)
-    assert r.status_code == 400
+    assert r.status_code == 401
+    assert r.headers["www-authenticate"] == "Bearer"
     assert "detail" in r.json()
 
 def test_login_non_existent_user(client: TestClient) -> None:
@@ -30,4 +31,5 @@ def test_login_non_existent_user(client: TestClient) -> None:
         "password": "password",
     }
     r = client.post(f"{settings.API_V1_STR}/auth/login", data=login_data)
-    assert r.status_code == 400
+    assert r.status_code == 401
+    assert r.headers["www-authenticate"] == "Bearer"

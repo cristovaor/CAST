@@ -27,9 +27,9 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
 
     const variants = {
       primary: 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 hover:shadow-md',
-      secondary: 'bg-white text-slate-700 border border-slate-200 shadow-sm hover:bg-slate-50 hover:border-slate-300',
-      tertiary: 'bg-slate-100 text-slate-700 border border-transparent hover:bg-slate-200',
-      ghost: 'bg-transparent text-slate-600 hover:bg-slate-100',
+      secondary: 'bg-surface text-text-secondary border border-border shadow-sm hover:bg-surface-hover hover:border-border-strong',
+      tertiary: 'bg-surface-muted text-text-secondary border border-transparent hover:bg-surface-hover',
+      ghost: 'bg-transparent text-text-secondary hover:bg-surface-muted',
     };
 
     const sizes = {
@@ -51,7 +51,7 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
         )}
         {...props}
       >
-        {Icon && <Icon size={size === 'sm' ? 14 : 16} className={cn(variant === 'primary' ? 'text-white/80' : 'text-slate-500')} />}
+        {Icon && <Icon size={size === 'sm' ? 14 : 16} className={cn(variant === 'primary' ? 'text-white/80' : 'text-text-secondary')} />}
         {children}
       </button>
     );

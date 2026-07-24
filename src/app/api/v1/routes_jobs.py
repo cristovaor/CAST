@@ -7,7 +7,18 @@ from uuid import UUID
 from datetime import datetime
 
 from app.db.session import SessionLocal
-from app.db.models import ProcessingJob, JobStatus
+from app.db.models import (
+    ProcessingJob,
+    JobStatus,
+    User,
+    VideoAsset,
+    Session as SessionModel,
+    Participant,
+    Study,
+    Project,
+)
+from app.api.deps import get_current_user
+from app.api.ownership import get_job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -16,6 +27,7 @@ from app.api.deps import get_db
 async def job_status_generator(job_id: UUID, db: Session):
     # This loop polls the DB periodically and yields SSE events.
     # In a fully event-driven architecture, this might use Redis pub/sub.
+    last_log_count = 0
     try:
         while True:
             # Refresh from DB each iteration
@@ -25,19 +37,21 @@ async def job_status_generator(job_id: UUID, db: Session):
                 break
             
             # Construct payload mapped to frontend expectations
+            all_logs = list(job.logs or [])
             payload = {
                 "status": job.status.value,
                 "progress": float(job.progress) if job.progress else 0,
                 "currentStep": _map_status_to_step(job.status, job.progress),
-                "logs": job.logs if job.logs else []
+                "logs": all_logs[last_log_count:]
             }
+            last_log_count = len(all_logs)
             if job.error_message:
                 payload["errorMessage"] = job.error_message
-                payload["logs"].append({
+                payload["logs"] = [*payload["logs"], {
                     "timestamp": job.finished_at.isoformat() if job.finished_at else "",
                     "level": "error",
                     "message": job.error_message
-                })
+                }]
 
             yield f"data: {json.dumps(payload)}\n\n"
 
@@ -62,8 +76,67 @@ def _map_status_to_step(status: JobStatus, progress):
     if status == JobStatus.succeeded: return "Gerando relatório"
     return "Falha"
 
+
+@router.get("/")
+def list_jobs(
+    job_status: JobStatus | None = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    query = (
+        db.query(ProcessingJob, VideoAsset.filename, Study.name)
+        .join(VideoAsset, ProcessingJob.video_asset_id == VideoAsset.id)
+        .join(SessionModel, VideoAsset.session_id == SessionModel.id)
+        .join(Participant, SessionModel.participant_id == Participant.id)
+        .join(Study, Participant.study_id == Study.id)
+        .join(Project, Study.project_id == Project.id)
+        .filter(Project.organization_id == current_user.organization_id)
+    )
+    if job_status is not None:
+        query = query.filter(ProcessingJob.status == job_status)
+    rows = (
+        query.order_by(
+            ProcessingJob.started_at.desc().nullslast(),
+            ProcessingJob.id.desc(),
+        )
+        .offset(skip)
+        .limit(min(limit, 500))
+        .all()
+    )
+    now = datetime.utcnow()
+    return [
+        {
+            "id": job.id,
+            "video_asset_id": job.video_asset_id,
+            "job_type": job.job_type.value,
+            "status": job.status.value,
+            "progress": float(job.progress or 0),
+            "error_message": job.error_message,
+            "started_at": job.started_at,
+            "finished_at": job.finished_at,
+            "worker_id": job.worker_id,
+            "current_step": _map_status_to_step(job.status, job.progress),
+            "video_filename": filename,
+            "study_name": study_name,
+            "elapsed_seconds": int(
+                ((job.finished_at or now) - job.started_at).total_seconds()
+            )
+            if job.started_at
+            else 0,
+        }
+        for job, filename, study_name in rows
+    ]
+
+
 @router.get("/{job_id}/stream")
-def stream_job_status(job_id: UUID, db: Session = Depends(get_db)):
+def stream_job_status(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_job(db, current_user, job_id)
     return StreamingResponse(
         job_status_generator(job_id, db),
         media_type="text/event-stream",
@@ -74,10 +147,12 @@ def stream_job_status(job_id: UUID, db: Session = Depends(get_db)):
     )
 
 @router.get("/{job_id}")
-def get_job_status(job_id: UUID, db: Session = Depends(get_db)):
-    job = db.query(ProcessingJob).filter(ProcessingJob.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+def get_job_status(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    job = get_job(db, current_user, job_id)
         
     return {
         "id": job.id,
@@ -88,10 +163,12 @@ def get_job_status(job_id: UUID, db: Session = Depends(get_db)):
     }
 
 @router.post("/{job_id}/cancel", status_code=202)
-def cancel_job(job_id: UUID, db: Session = Depends(get_db)):
-    job = db.query(ProcessingJob).filter(ProcessingJob.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+def cancel_job(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    job = get_job(db, current_user, job_id)
         
     # Revoke celery task
     from app.workers.celery_app import celery_app
@@ -103,10 +180,12 @@ def cancel_job(job_id: UUID, db: Session = Depends(get_db)):
     return {"message": "Job cancelled"}
 
 @router.post("/{job_id}/retry", status_code=202)
-def retry_job(job_id: UUID, db: Session = Depends(get_db)):
-    job = db.query(ProcessingJob).filter(ProcessingJob.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+def retry_job(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    job = get_job(db, current_user, job_id)
         
     if job.status not in [JobStatus.failed, JobStatus.canceled]:
         raise HTTPException(status_code=400, detail="Only failed or canceled jobs can be retried")
@@ -131,10 +210,12 @@ def retry_job(job_id: UUID, db: Session = Depends(get_db)):
     return {"message": "Job retried"}
 
 @router.get("/{job_id}/events")
-def get_job_events(job_id: UUID, db: Session = Depends(get_db)):
-    job = db.query(ProcessingJob).filter(ProcessingJob.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+def get_job_events(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    job = get_job(db, current_user, job_id)
         
     return {
         "job_id": job.id,

@@ -54,9 +54,13 @@ def client(db) -> Generator:
     app.dependency_overrides.clear()
 
 @pytest.fixture(scope="function")
-def normal_user_token_headers(client, db):
+def normal_user(db):
     from tests.utils import create_random_user
-    user = create_random_user(db)
+    return create_random_user(db)
+
+@pytest.fixture(scope="function")
+def normal_user_token_headers(client, normal_user):
+    user = normal_user
     access_token = create_access_token(user.id)
     headers = {"Authorization": f"Bearer {access_token}"}
     return headers

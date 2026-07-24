@@ -15,11 +15,11 @@ export function RecentProcessingList({ jobs }: RecentProcessingListProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="card overflow-hidden flex flex-col h-full bg-white shadow-sm ring-1 ring-slate-200/50">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+    <div className="card overflow-hidden flex flex-col h-full bg-surface shadow-sm ring-1 ring-border/50">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-muted/50">
         <div>
-          <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight">Processamentos recentes</h2>
-          <p className="text-[13px] text-slate-500 mt-0.5">Jobs de extração de landmarks e inferência</p>
+          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">Processamentos recentes</h2>
+          <p className="text-[13px] text-text-secondary mt-0.5">Jobs de extração de landmarks e inferência</p>
         </div>
         <ActionButton 
           variant="ghost" 
@@ -32,7 +32,7 @@ export function RecentProcessingList({ jobs }: RecentProcessingListProps) {
       </div>
       <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
         {jobs.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-sm">
+          <div className="p-8 text-center text-text-secondary text-sm">
             Nenhum processamento recente.
           </div>
         ) : (
@@ -70,7 +70,7 @@ function RecentJobRow({ job }: { job: ProcessingJob }) {
   const qualityScore = job.status === 'succeeded' ? 0.94 : job.status === 'failed' ? (isRejected ? 0.12 : undefined) : undefined;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-4 hover:bg-slate-50/80 transition-colors group">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-4 hover:bg-surface-hover transition-colors group">
       {/* Icon */}
       <div className={cn(
         'w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border',
@@ -87,14 +87,14 @@ function RecentJobRow({ job }: { job: ProcessingJob }) {
       {/* Main Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[14px] font-semibold text-slate-800 truncate group-hover:text-blue-700 transition-colors cursor-pointer">
+                    <span className="text-[14px] font-semibold text-text-primary truncate group-hover:text-blue-700 transition-colors cursor-pointer">
             {job.video_filename}
           </span>
           {qualityScore !== undefined && (
             <QualityBadge level={scoreToQuality(qualityScore)} score={qualityScore} size="sm" />
           )}
         </div>
-        <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[12px] text-slate-500 font-medium">
+                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[12px] text-text-secondary font-medium">
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-[11px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{shortId(job.id)}</span>
           </div>

@@ -1,7 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { ToneBadge } from '@/components/ui/ToneBadge';
-import { MOCK_VARIABLES } from '@/lib/mocks/multimodalMocks';
 import type { VariableRole, VariableOrigin, ResearchVariable } from '@/types/research';
 import { useVariables } from '@/features/multimodal/useMultimodal';
 import { CreateVariableDialog } from '@/features/variables/CreateVariableDialog';
@@ -32,8 +31,7 @@ export function VariablesPage() {
   const { data: live } = useVariables(studyId);
 
   // Live variables mapped to the view model; mock fallback keeps the page useful.
-  const variables: ResearchVariable[] = (live && live.length)
-    ? live.map((v) => ({
+  const variables: ResearchVariable[] = (live ?? []).map((v) => ({
         id: v.id, name: v.name, code: v.code,
         type: (v.var_type as ResearchVariable['type']) ?? 'numeric',
         unit: v.unit, origin: (v.origin as VariableOrigin) ?? 'derived',
@@ -41,8 +39,7 @@ export function VariablesPage() {
         granularity: v.granularity, computationMethod: v.computation_method,
         role: (v.role as VariableRole) ?? 'exploratory',
         validationStatus: (v.validation_status as ResearchVariable['validationStatus']) ?? 'draft',
-      }))
-    : MOCK_VARIABLES;
+      }));
 
   return (
     <div className="space-y-4">

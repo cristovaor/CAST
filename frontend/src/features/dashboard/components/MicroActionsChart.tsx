@@ -14,11 +14,16 @@ interface MicroActionsChartProps {
 
 const ACTIONS = ['OLHO_FECHADO', 'OLHANDO_CANTO', 'MEXEU_LABIOS', 'VIROU_ROSTO'] as const;
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+interface MicroActionTooltipEntry {
+  name: typeof ACTIONS[number];
+  value: number | string;
+}
+
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: MicroActionTooltipEntry[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-slate-200 text-slate-800 text-xs px-3 py-2.5 rounded-lg shadow-xl ring-1 ring-slate-900/5 min-w-[200px]">
-      <div className="text-slate-500 mb-2 font-medium border-b border-slate-100 pb-1.5">{label}</div>
+    <div className="bg-surface border border-border text-text-primary text-xs px-3 py-2.5 rounded-lg shadow-xl ring-1 ring-black/5 min-w-[200px]">
+      <div className="text-text-secondary mb-2 font-medium border-b border-border pb-1.5">{label}</div>
       <div className="space-y-1.5">
         {payload.map((entry) => {
           const cfg = getMicroActionConfig(entry.name as typeof ACTIONS[number]);
@@ -26,11 +31,11 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
             <div key={entry.name} className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: cfg.color }} />
-                <span className="text-slate-600 font-medium">
-                  {cfg.shortLabel} <span className="text-slate-400 font-normal ml-0.5">({cfg.label})</span>
+            <span className="text-text-secondary font-medium">
+              {cfg.shortLabel} <span className="text-text-muted font-normal ml-0.5">({cfg.label})</span>
                 </span>
               </div>
-              <span className="font-semibold text-slate-900">{entry.value}</span>
+            <span className="font-semibold text-text-primary">{entry.value}</span>
             </div>
           );
         })}
@@ -65,15 +70,15 @@ export function MicroActionsChart({ data, isLoading }: MicroActionsChartProps) {
   }
 
   return (
-    <div className="card p-6 xl:col-span-2 flex flex-col h-full bg-white shadow-sm ring-1 ring-slate-200/50">
+    <div className="card p-6 xl:col-span-2 flex flex-col h-full bg-surface shadow-sm ring-1 ring-border/50">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 gap-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight">Distribuição de microações</h2>
-          <p className="text-[13px] text-slate-500 mt-1">Eventos detectados por estudo e tipo de ação facial</p>
+          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">Distribuição de microações</h2>
+          <p className="text-[13px] text-text-secondary mt-1">Eventos detectados por estudo e tipo de ação facial</p>
         </div>
         <div className="shrink-0">
-          <button className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-md hover:bg-slate-100 transition-colors">
+          <button className="flex items-center gap-1.5 text-xs font-medium text-text-secondary bg-surface-muted border border-border px-2.5 py-1.5 rounded-md hover:bg-surface-hover transition-colors">
             <Filter size={12} />
             {filter}
           </button>
@@ -111,16 +116,16 @@ export function MicroActionsChart({ data, isLoading }: MicroActionsChartProps) {
       </div>
 
       {/* Footer Totals / Compact Legend */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5 pt-4 border-t border-slate-100">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5 pt-4 border-t border-border">
         {ACTIONS.map((action) => {
           const cfg = getMicroActionConfig(action);
           return (
-            <div key={action} className="flex flex-col items-center p-2 rounded-lg bg-slate-50/50 border border-slate-100/50">
+          <div key={action} className="flex flex-col items-center p-2 rounded-lg bg-surface-muted/50 border border-border/50">
               <div className="flex items-center gap-1.5 mb-1">
                 <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: cfg.color }} />
-                <span className="text-[10px] font-semibold text-slate-600 tracking-wider font-mono">{cfg.shortLabel}</span>
+            <span className="text-[10px] font-semibold text-text-secondary tracking-wider font-mono">{cfg.shortLabel}</span>
               </div>
-              <div className="text-lg font-bold text-slate-800 leading-none">{totals[action]}</div>
+            <div className="text-lg font-bold text-text-primary leading-none">{totals[action]}</div>
             </div>
           );
         })}

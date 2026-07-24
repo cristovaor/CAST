@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.api.ownership import get_job, get_video
 from app.db.models import (
     User, VideoAsset, ProcessingJob, JobStatus, JobType, Prediction
 )
@@ -31,14 +32,12 @@ def start_inference(
     Returns a job_id to poll for status. The inference pipeline runs
     asynchronously via Celery.
     """
-    video = db.query(VideoAsset).filter(VideoAsset.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    video = get_video(db, current_user, video_id)
 
     # Governance: block analysis without valid consent (docs §21).
     from app.api.v1.routes_governance import assert_consent_valid_for_video, record_access
     assert_consent_valid_for_video(video_id, db)
-    record_access(db, "video", video_id, actor=current_user.email, detail={"op": "infer"})
+    record_access(db, "video", video_id, actor=current_user, detail={"op": "infer"})
 
     # Create a processing job
     job = ProcessingJob(
@@ -70,9 +69,7 @@ def get_inference_job_status(
     current_user: User = Depends(get_current_user),
 ):
     """Get the status of an inference job."""
-    job = db.query(ProcessingJob).filter(ProcessingJob.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Inference job not found")
+    job = get_job(db, current_user, job_id)
 
     return InferenceJobStatus(
         job_id=str(job.id),
@@ -97,9 +94,7 @@ def get_video_predictions(
 
     Returns the most recent prediction, with optional per-frame detail.
     """
-    video = db.query(VideoAsset).filter(VideoAsset.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    get_video(db, current_user, video_id)
 
     query = db.query(Prediction).filter(Prediction.video_asset_id == video_id)
     prediction = query.order_by(Prediction.created_at.desc()).first()
@@ -129,9 +124,7 @@ def get_video_descriptors(
     current_user: User = Depends(get_current_user),
 ):
     """Get high-level event descriptors per action for a video."""
-    video = db.query(VideoAsset).filter(VideoAsset.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    get_video(db, current_user, video_id)
 
     prediction = (
         db.query(Prediction)

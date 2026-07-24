@@ -32,6 +32,23 @@ export function useSessionDetail(sessionId?: string) {
   });
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function useSessionByReference(reference?: string) {
+  return useQuery<SessionDetailDTO>({
+    queryKey: ['session-reference', reference],
+    queryFn: () => {
+      if (!reference) throw new Error('Referência de sessão ausente');
+      const path = UUID_PATTERN.test(reference)
+        ? `/sessions/${reference}`
+        : `/sessions/resolve?ref=${encodeURIComponent(reference)}`;
+      return apiClient.get<SessionDetailDTO>(path);
+    },
+    enabled: !!reference,
+    retry: false,
+  });
+}
+
 export interface SessionCreateDTO {
   participant_id: string;
   condition?: string;
@@ -231,6 +248,19 @@ export function useDatasets() {
   });
 }
 
+export function useCreateDataset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      name: string;
+      dataset_version: string;
+      level?: string;
+      manifest?: Record<string, unknown>;
+    }) => apiClient.post<DatasetDTO>('/datasets/', payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['datasets'] }),
+  });
+}
+
 export function useFreezeDataset() {
   const qc = useQueryClient();
   return useMutation({
@@ -264,11 +294,11 @@ export function usePreviewDataset() {
   });
 }
 
-export function useBuildDataset(datasetId?: string) {
+export function useBuildDataset() {
   const qc = useQueryClient();
   return useMutation({
     // sync=true so the materialization runs inline without a Celery worker.
-    mutationFn: (criteria: DatasetBuildCriteria) =>
+    mutationFn: ({ datasetId, criteria }: { datasetId: string; criteria: DatasetBuildCriteria }) =>
       apiClient.post<DatasetDTO>(`/datasets/${datasetId}/build?sync=true`, criteria),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['datasets'] }),
   });

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { lazy, Suspense, type ComponentType } from "react";
 import { AppShell } from "../components/layout/AppShell";
@@ -33,6 +34,7 @@ const ReportsPage = page(() => import("../pages/ReportsPage"), "ReportsPage");
 const SettingsPage = page(() => import("../pages/SettingsPage"), "SettingsPage");
 const ModelsPage = page(() => import("../pages/ModelsPage"), "ModelsPage");
 const ModelDetailPage = lazy(() => import("../pages/ModelDetailPage"));
+const ModelTrainingPage = page(() => import("../pages/ModelTrainingPage"), "ModelTrainingPage");
 const GlobalAnnotationsPage = page(() => import("../pages/GlobalAnnotationsPage"), "GlobalAnnotationsPage");
 const GlobalVideosPage = page(() => import("../pages/GlobalVideosPage"), "GlobalVideosPage");
 const AuditPage = page(() => import("../pages/AuditPage"), "AuditPage");
@@ -41,6 +43,10 @@ const StudiesPage = page(() => import("../pages/StudiesPage"), "StudiesPage");
 // Multimodal additions
 const NewStudyPage = page(() => import("../pages/NewStudyPage"), "NewStudyPage");
 const SessionDetailPage = page(() => import("../pages/SessionDetailPage"), "SessionDetailPage");
+const SessionAnnotationRedirectPage = page(
+  () => import("../pages/SessionAnnotationRedirectPage"),
+  "SessionAnnotationRedirectPage",
+);
 const EEGQualityPage = page(() => import("../pages/EEGQualityPage"), "EEGQualityPage");
 const SyncPage = page(() => import("../pages/SyncPage"), "SyncPage");
 const AnalysisWorkspacePage = page(() => import("../pages/AnalysisWorkspacePage"), "AnalysisWorkspacePage");
@@ -122,7 +128,7 @@ export const router = createBrowserRouter([
       { path: "sessions/:sessionId/eeg", element: lazyRoute(<EEGQualityPage />) },
       { path: "sessions/:sessionId/sync", element: lazyRoute(<SyncPage />) },
       { path: "sessions/:sessionId/analysis", element: lazyRoute(<AnalysisWorkspacePage />) },
-      { path: "sessions/:sessionId/annotate", element: lazyRoute(<GlobalAnnotationsPage />) },
+      { path: "sessions/:sessionId/annotate", element: lazyRoute(<SessionAnnotationRedirectPage />) },
       // Acquisition
       { path: "acquisition", element: lazyRoute(<AcquisitionPage />) },
       { path: "videos", element: lazyRoute(<GlobalVideosPage />) },
@@ -137,6 +143,7 @@ export const router = createBrowserRouter([
       // Datasets, models, reports
       { path: "datasets", element: lazyRoute(<DatasetsPage />) },
       { path: "models", element: lazyRoute(<ModelsPage />) },
+      { path: "models/training/:jobId", element: lazyRoute(<ModelTrainingPage />) },
       { path: "models/:modelId/:version/:action", element: lazyRoute(<ModelDetailPage />) },
       { path: "reports", element: lazyRoute(<ReportsPage />) },
       // Governance & administration

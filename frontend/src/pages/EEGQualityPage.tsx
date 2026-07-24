@@ -5,7 +5,6 @@ import { ToneBadge } from '@/components/ui/ToneBadge';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
 import { QualityFindings } from '@/components/status/QualityFindings';
 import { QUALITY_VERDICT_META, EEG_FORMATS, type EEGChannelQuality, type EEGImportReport, type QualityVerdict, type QualityFinding } from '@/types/research';
-import { MOCK_EEG_REPORT } from '@/lib/mocks/multimodalMocks';
 import { useState } from 'react';
 import { useSessionDetail } from '@/features/multimodal/useMultimodal';
 import { useEEGAsset, useEEGQualityCheck, useSetEEGQuality, useParseEEG } from '@/features/multimodal/useMultimodal';
@@ -27,7 +26,6 @@ export function EEGQualityPage() {
   const qualityCheck = useEEGQualityCheck(eegId);
   const parseEEG = useParseEEG(eegId);
 
-  // Map the live EEG asset to the report view model, or fall back to the mock.
   const r: EEGImportReport = eeg
     ? {
         format: (eeg.eeg_format as EEGImportReport['format']) ?? 'CSV',
@@ -50,7 +48,17 @@ export function EEGQualityPage() {
         verdict: (eeg.quality_verdict as QualityVerdict) ?? 'review_required',
         findings: eeg.quality_findings as unknown as QualityFinding[],
       }
-    : MOCK_EEG_REPORT;
+    : {
+        format: 'CSV',
+        channelCount: 0,
+        channelNames: [],
+        samplingRateHz: 0,
+        validRatio: 0,
+        channelQuality: [],
+        criteria: [],
+        verdict: 'review_required',
+        findings: [],
+      };
 
   const verdict = QUALITY_VERDICT_META[r.verdict];
 

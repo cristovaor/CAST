@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -37,9 +35,13 @@ services:
       - minio_data:/data
     restart: always
 
+  # Triton requires an NVIDIA GPU (+ nvidia-container-toolkit). It is opt-in:
+  # it only starts with `docker compose --profile gpu up`. Without the profile
+  # the stack runs fully on CPU; the worker falls back accordingly.
   triton:
     image: nvcr.io/nvidia/tritonserver:23.08-py3
     container_name: cast_triton
+    profiles: ["gpu"]
     ports:
       - "8000:8000"
       - "8001:8001"
@@ -47,6 +49,13 @@ services:
     command: tritonserver --model-repository=/models
     volumes:
       - ./models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     restart: always
 
   backend:
@@ -84,11 +93,12 @@ services:
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./models:/app/models
+    # Triton is optional (gpu profile); the worker connects lazily via
+    # TRITON_SERVER_URL when present, so it is not a hard dependency here.
     depends_on:
       - redis
       - postgres
       - minio
-      - triton
     restart: always
 
   frontend:

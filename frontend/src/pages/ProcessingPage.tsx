@@ -5,6 +5,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { shortId } from '@/lib/formatters';
 import { useVideoDetails } from '@/features/videos/useVideos';
 import { useProcessingJobStream } from '@/features/jobs/useProcessingJobStream';
+import { useCancelJob } from '@/features/jobs/useJobActions';
 import { useEffect } from 'react';
 
 export function ProcessingPage() {
@@ -12,9 +13,10 @@ export function ProcessingPage() {
   const navigate = useNavigate();
 
   const { data: videoData } = useVideoDetails(videoId!);
-  const jobId = (videoData as any)?.latest_job_id || (videoData as any)?.processing_job?.id;
+  const jobId = videoData?.latest_job_id ?? undefined;
 
-  const { data: jobStream, error } = useProcessingJobStream(jobId);
+  const { data: jobStream, error } = useProcessingJobStream(jobId ?? '');
+  const cancelJob = useCancelJob();
 
   // Redirecionamento automático quando terminar
   useEffect(() => {
@@ -34,9 +36,14 @@ export function ProcessingPage() {
         actions={
           <>
             <StatusBadge status={jobStream.status} />
-            {jobStream.status !== 'succeeded' && jobStream.status !== 'failed' && (
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
-                Cancelar
+            {(jobStream.status === 'queued' || jobStream.status === 'running') && (
+              <button
+                type="button"
+                onClick={() => jobId && cancelJob.mutate(jobId)}
+                disabled={!jobId || cancelJob.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {cancelJob.isPending ? 'Cancelando…' : 'Cancelar'}
               </button>
             )}
             {(jobStream.status === 'succeeded' || jobStream.status === 'failed') && (
@@ -58,6 +65,11 @@ export function ProcessingPage() {
               <h4 className="text-sm font-semibold text-red-800">Erro de Conexão</h4>
               <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
+          </div>
+        )}
+        {cancelJob.isError && (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            Não foi possível cancelar o job: {(cancelJob.error as Error).message}
           </div>
         )}
 

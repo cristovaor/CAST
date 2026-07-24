@@ -2,10 +2,9 @@ from fastapi.testclient import TestClient
 from app.core.config import settings
 from tests.utils import create_random_video, create_random_study, create_random_project, create_random_user
 
-def test_get_video_timeline(client: TestClient, normal_user_token_headers: dict, db) -> None:
+def test_get_video_timeline(client: TestClient, normal_user_token_headers: dict, normal_user, db) -> None:
     # Setup some hierarchical data
-    user = create_random_user(db)
-    project = create_random_project(db, org_id=user.organization_id)
+    project = create_random_project(db, org_id=normal_user.organization_id)
     study = create_random_study(db, project_id=project.id)
     video = create_random_video(db, study_id=study.id)
 
@@ -15,10 +14,9 @@ def test_get_video_timeline(client: TestClient, normal_user_token_headers: dict,
     assert "events" in timeline
     assert isinstance(timeline["events"], list)
 
-def test_init_upload(client: TestClient, normal_user_token_headers: dict, db) -> None:
+def test_init_upload(client: TestClient, normal_user_token_headers: dict, normal_user, db) -> None:
     # First, we need a session
-    user = create_random_user(db)
-    project = create_random_project(db, org_id=user.organization_id)
+    project = create_random_project(db, org_id=normal_user.organization_id)
     study = create_random_study(db, project_id=project.id)
     
     from app.db.models import Participant

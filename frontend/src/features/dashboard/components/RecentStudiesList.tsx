@@ -15,11 +15,11 @@ export function RecentStudiesList({ studies }: RecentStudiesListProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="card overflow-hidden flex flex-col h-full bg-white shadow-sm ring-1 ring-slate-200/50">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+    <div className="card overflow-hidden flex flex-col h-full bg-surface shadow-sm ring-1 ring-border/50">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-muted/50">
         <div>
-          <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight">Estudos recentes</h2>
-          <p className="text-[13px] text-slate-500 mt-0.5">Projetos de pesquisa com atividade recente</p>
+          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">Estudos recentes</h2>
+          <p className="text-[13px] text-text-secondary mt-0.5">Projetos de pesquisa com atividade recente</p>
         </div>
         <ActionButton 
           variant="ghost" 
@@ -32,7 +32,7 @@ export function RecentStudiesList({ studies }: RecentStudiesListProps) {
       </div>
       <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
         {studies.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-sm">
+          <div className="p-8 text-center text-text-secondary text-sm">
             Nenhum estudo recente.
           </div>
         ) : (
@@ -47,13 +47,13 @@ function RecentStudyRow({ study }: { study: Study }) {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-4 hover:bg-slate-50/80 transition-colors group">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-4 hover:bg-surface-hover transition-colors group">
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-1.5">
           <StatusBadge status={study.status} size="sm" />
           <span 
-            className="text-[14px] font-semibold text-slate-800 truncate cursor-pointer hover:text-blue-700 transition-colors"
+                    className="text-[14px] font-semibold text-text-primary truncate cursor-pointer hover:text-blue-700 transition-colors"
             onClick={() => navigate(`/app/studies/${study.id}/overview`)}
           >
             {study.name}

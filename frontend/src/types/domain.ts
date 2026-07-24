@@ -81,7 +81,7 @@ export interface Project {
   session_count?: number;
   video_count?: number;
   average_quality?: number;
-  status?: StudyStatus; // derived from studies
+  status?: StudyStatus; // explicit when set; otherwise derived from studies
   responsible?: User[];
   last_activity?: string;
 }
@@ -222,7 +222,7 @@ export interface InferenceJob {
 
 export interface VideoDescriptors {
   video_id: string;
-  actions: Record<string, any>;
+  actions: Record<string, unknown>;
 }
 
 export interface Prediction {
@@ -359,6 +359,7 @@ export interface StudyCreate {
   description?: string;
   project_id: string;
   protocol_version?: string;
+  config?: StudyConfigDTO;
 }
 
 export interface ParticipantCreate {

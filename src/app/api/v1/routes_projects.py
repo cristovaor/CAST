@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+import csv
+import io
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
@@ -10,6 +14,8 @@ from app.db.models import (
     VideoAsset, QualityVerdict, StudyStatus,
 )
 from app.api.deps import get_db, get_current_user
+from app.services.audit_service import build_changes, record_audit
+from app.db.models import AuditAction
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -77,17 +83,19 @@ def _build_project_details(db: Session, projects: List[ProjectModel]) -> List[Pr
     for pid, status, count in study_status_rows:
         statuses_by_project.setdefault(pid, {})[status] = count
 
-    def _derive_status(pid) -> str:
+    def _derive_status(pid, explicit_status) -> StudyStatus:
+        if explicit_status is not None:
+            return explicit_status
         statuses = statuses_by_project.get(pid, {})
         if not statuses:
-            return "draft"
+            return StudyStatus.draft
         if StudyStatus.active in statuses:
-            return "active"
+            return StudyStatus.active
         if statuses and all(s == StudyStatus.completed for s in statuses):
-            return "completed"
+            return StudyStatus.completed
         if statuses and all(s == StudyStatus.archived for s in statuses):
-            return "archived"
-        return "draft"
+            return StudyStatus.archived
+        return StudyStatus.draft
 
     results = []
     for p in projects:
@@ -102,7 +110,7 @@ def _build_project_details(db: Session, projects: List[ProjectModel]) -> List[Pr
             session_count=session_counts.get(p.id, 0),
             video_count=video_counts.get(p.id, 0),
             average_quality=round(good / total, 3) if total else 0.0,
-            status=_derive_status(p.id),
+            status=_derive_status(p.id, p.status),
             last_activity=last_activity.get(p.id) or p.created_at,
             responsible=[],  # no project↔user ownership model yet
         ))
@@ -121,6 +129,15 @@ def create_project(project_in: ProjectCreate, db: Session = Depends(get_db), cur
     project_data["organization_id"] = current_user.organization_id
     db_obj = ProjectModel(**project_data)
     db.add(db_obj)
+    db.flush()
+    record_audit(
+        db,
+        current_user,
+        AuditAction.create,
+        "project",
+        db_obj.id,
+        snapshot={"name": db_obj.name, "description": db_obj.description, "status": db_obj.status},
+    )
     db.commit()
     db.refresh(db_obj)
     return db_obj
@@ -131,3 +148,117 @@ def get_project(project_id: UUID, db: Session = Depends(get_db), current_user: U
     if not db_obj:
         raise HTTPException(status_code=404, detail="Project not found")
     return _build_project_details(db, [db_obj])[0]
+
+
+@router.patch("/{project_id}", response_model=ProjectDetail)
+def update_project(
+    project_id: UUID,
+    project_in: ProjectUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db_obj = (
+        db.query(ProjectModel)
+        .filter(
+            ProjectModel.id == project_id,
+            ProjectModel.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if not db_obj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    update_data = project_in.model_dump(exclude_unset=True)
+    changes = build_changes(db_obj, update_data)
+    for field, value in update_data.items():
+        setattr(db_obj, field, value)
+
+    if changes:
+        record_audit(db, current_user, AuditAction.update, "project", db_obj.id, changes=changes)
+    db.commit()
+    db.refresh(db_obj)
+    return _build_project_details(db, [db_obj])[0]
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db_obj = (
+        db.query(ProjectModel)
+        .filter(
+            ProjectModel.id == project_id,
+            ProjectModel.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if not db_obj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if db.query(Study.id).filter(Study.project_id == project_id).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Project has studies and cannot be deleted; archive it instead",
+        )
+
+    db.delete(db_obj)
+    db.commit()
+    return None
+
+
+@router.get("/{project_id}/export")
+def export_project_data(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    project = (
+        db.query(ProjectModel)
+        .filter(
+            ProjectModel.id == project_id,
+            ProjectModel.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    rows = (
+        db.query(Study, Participant)
+        .outerjoin(Participant, Participant.study_id == Study.id)
+        .filter(Study.project_id == project_id)
+        .order_by(Study.created_at, Participant.created_at)
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Project_ID",
+        "Project_Name",
+        "Study_ID",
+        "Study_Name",
+        "Study_Status",
+        "Participant_ID",
+        "Participant_Code",
+        "Consent_Status",
+    ])
+    for study, participant in rows:
+        writer.writerow([
+            str(project.id),
+            project.name,
+            str(study.id),
+            study.name,
+            study.status.value if study.status else "",
+            str(participant.id) if participant else "",
+            participant.external_code if participant else "",
+            participant.consent_status.value if participant and participant.consent_status else "",
+        ])
+
+    response = Response(content=output.getvalue())
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="export_project_{project_id}.csv"'
+    )
+    response.headers["Content-Type"] = "text/csv; charset=utf-8"
+    return response

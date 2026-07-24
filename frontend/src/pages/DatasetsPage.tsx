@@ -2,12 +2,12 @@ import { useState, useMemo } from 'react';
 import { Database, Download, GitBranch, Lock, FileJson, Hammer } from 'lucide-react';
 import { BuildDatasetDialog } from '@/features/datasets/BuildDatasetDialog';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { ToneBadge } from '@/components/ui/ToneBadge';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
 import { DATASET_STATE_META, type DatasetVersion, type DatasetState, type DatasetLevel, type DatasetManifest } from '@/types/research';
-import { MOCK_DATASETS } from '@/lib/mocks/multimodalMocks';
 import { useDatasets, useFreezeDataset, type DatasetDTO } from '@/features/multimodal/useMultimodal';
-import { API_BASE_URL } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 // Reproducible, versioned multimodal datasets (docs §17). Each version carries
 // a full manifest: sources, criteria, transformations, pipeline & model
@@ -56,17 +56,54 @@ function toViewModel(d: DatasetDTO): DatasetVersion {
 }
 
 export function DatasetsPage() {
-  const { data: live } = useDatasets();
+  const { data: live, isLoading, isError } = useDatasets();
   const freeze = useFreezeDataset();
 
-  // Prefer live datasets; fall back to mock so the screen is never empty.
   const datasets = useMemo<DatasetVersion[]>(
-    () => (live && live.length ? live.map(toViewModel) : MOCK_DATASETS),
+    () => (live ?? []).map(toViewModel),
     [live],
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = datasets.find((d) => d.id === selectedId) ?? datasets[0];
+  const exportDataset = async (dataset: DatasetVersion) => {
+    const manifest = await apiClient.get<Record<string, unknown>>(`/datasets/${dataset.id}/export`);
+    const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${dataset.name}_${dataset.manifest.datasetVersion}_manifest.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (isLoading) {
+    return <div className="p-10 text-center text-sm text-slate-500">Carregando datasets…</div>;
+  }
+  if (isError || !selected) {
+    return (
+      <div className="min-h-full">
+        <PageHeader
+          title="Datasets científicos"
+          description="Conjuntos multimodais sincronizados, versionados e reprodutíveis."
+          actions={
+            <BuildDatasetDialog>
+              <button className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                <GitBranch size={15} /> Criar dataset
+              </button>
+            </BuildDatasetDialog>
+          }
+        />
+        <div className="p-6">
+          <EmptyState
+            variant={isError ? 'error' : 'empty'}
+            title={isError ? 'Não foi possível carregar os datasets' : 'Nenhum dataset criado'}
+            description={isError ? 'Tente novamente em alguns instantes.' : 'Crie um dataset e valide os critérios antes da materialização.'}
+          />
+        </div>
+      </div>
+    );
+  }
   const m = selected.manifest;
   const state = DATASET_STATE_META[selected.state];
   const isLive = !!(live && live.length);
@@ -77,9 +114,11 @@ export function DatasetsPage() {
         title="Datasets científicos"
         description="Conjuntos multimodais sincronizados, versionados e reprodutíveis. Cada versão registra origem, critérios, transformações e versões de pipeline e modelo."
         actions={
-          <button className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
-            <GitBranch size={15} /> Nova versão
-          </button>
+          <BuildDatasetDialog>
+            <button className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              <GitBranch size={15} /> Novo dataset
+            </button>
+          </BuildDatasetDialog>
         }
       />
 
@@ -139,13 +178,13 @@ export function DatasetsPage() {
                     <Lock size={14} /> {freeze.isPending ? 'Congelando…' : 'Congelar'}
                   </button>
                 )}
-                <a
-                  href={isLive ? `${API_BASE_URL}/datasets/${selected.id}/export` : undefined}
-                  onClick={(e) => { if (!isLive) e.preventDefault(); }}
+                <button
+                  type="button"
+                  onClick={() => { void exportDataset(selected); }}
                   className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
                 >
                   <Download size={14} /> Exportar
-                </a>
+                </button>
               </div>
             </div>
 

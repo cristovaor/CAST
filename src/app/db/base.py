@@ -5,14 +5,15 @@ from app.db.base_class import Base
 from app.db.models import (
     Organization, User, Project, Study, Participant, Session, VideoAsset,
     EEGAsset, ProcessingJob, ModelVersion, MicroActionModel, Prediction,
-    LearningAssessment, AnnotationTask, AnnotationEvent, AnalysisReport,
+    LandmarkArtifact, LearningAssessment, AnnotationTask, AnnotationEvent,
+    PredictionReview, AnalysisReport,
     ConsentTerm, Synchronization, ResearchVariable, Dataset, AuditLog,
 )
 
 __all__ = [
     "Base", "Organization", "User", "Project", "Study", "Participant",
     "Session", "VideoAsset", "EEGAsset", "ProcessingJob", "ModelVersion",
-    "MicroActionModel", "Prediction", "LearningAssessment", "AnnotationTask",
-    "AnnotationEvent", "AnalysisReport", "ConsentTerm", "Synchronization",
+    "MicroActionModel", "Prediction", "LandmarkArtifact", "LearningAssessment",
+    "AnnotationTask", "AnnotationEvent", "PredictionReview", "AnalysisReport",
     "ResearchVariable", "Dataset", "AuditLog",
 ]

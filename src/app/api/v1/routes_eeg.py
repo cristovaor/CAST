@@ -5,13 +5,18 @@ from pydantic import BaseModel
 import io
 import csv
 
-from app.db.models import EEGAsset as EEGAssetModel, Session as SessionModel, Participant as ParticipantModel, VideoAsset as VideoAssetModel
+from app.db.models import EEGAsset as EEGAssetModel, Session as SessionModel, Participant as ParticipantModel, VideoAsset as VideoAssetModel, User
 from app.db.session import SessionLocal
 from app.services.storage_service import storage_service
 
 router = APIRouter(prefix="/eeg", tags=["eeg"])
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user
+from app.api.ownership import (
+    get_eeg as get_owned_eeg,
+    get_participant,
+    get_session,
+)
 
 # EEG band columns analysed for co-activation with facial micro-actions.
 EEG_BANDS = ["alpha", "beta", "theta", "delta", "gamma"]
@@ -41,12 +46,11 @@ async def upload_eeg_proxy(
     participant_id: UUID = Form(...),
     session_id: UUID = Form(None),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     # Ensure participant exists
-    participant = db.query(ParticipantModel).filter(ParticipantModel.id == participant_id).first()
-    if not participant:
-        raise HTTPException(status_code=404, detail="Participant not found")
+    participant = get_participant(db, current_user, participant_id)
         
     # Bind to session or create new
     if not session_id:
@@ -55,6 +59,22 @@ async def upload_eeg_proxy(
         db.commit()
         db.refresh(new_session)
         session_id = new_session.id
+    else:
+        session = get_session(db, current_user, session_id)
+        if session.participant_id != participant.id:
+            raise HTTPException(
+                status_code=409,
+                detail="Session does not belong to the selected participant",
+            )
+        if (
+            db.query(EEGAssetModel)
+            .filter(EEGAssetModel.session_id == session_id)
+            .first()
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Session already has an EEG asset",
+            )
     
     object_name = f"{session_id}/eeg_{file.filename}"
     
@@ -100,19 +120,24 @@ from app.db.models import QualityVerdict
 
 
 @router.get("/{eeg_id}", response_model=EEGAssetDetail)
-def get_eeg_asset(eeg_id: UUID, db: Session = Depends(get_db)):
+def get_eeg_asset(
+    eeg_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Full EEG metadata + quality assessment (docs §10)."""
-    eeg = db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
-    if not eeg:
-        raise HTTPException(status_code=404, detail="EEG asset not found")
+    eeg = get_owned_eeg(db, current_user, eeg_id)
     return eeg
 
 
 @router.patch("/{eeg_id}/metadata", response_model=EEGAssetDetail)
-def update_eeg_metadata(eeg_id: UUID, payload: EEGMetadataUpdate, db: Session = Depends(get_db)):
-    eeg = db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
-    if not eeg:
-        raise HTTPException(status_code=404, detail="EEG asset not found")
+def update_eeg_metadata(
+    eeg_id: UUID,
+    payload: EEGMetadataUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    eeg = get_owned_eeg(db, current_user, eeg_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(eeg, field, value)
     db.commit()
@@ -121,23 +146,26 @@ def update_eeg_metadata(eeg_id: UUID, payload: EEGMetadataUpdate, db: Session = 
 
 
 @router.post("/{eeg_id}/parse", response_model=EEGAssetDetail)
-def parse_eeg_endpoint(eeg_id: UUID, sync: bool = False, db: Session = Depends(get_db)):
+def parse_eeg_endpoint(
+    eeg_id: UUID,
+    sync: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Parses the EEG file to extract real metadata + per-channel quality.
 
     Supports EDF/EDF+/BDF/BrainVision/FIF/EEGLAB (via MNE) and CSV. Dispatches
     the Celery worker; if the broker is unreachable (or `sync=true`), runs the
     parse inline so the feature works without a running worker.
     """
-    eeg = db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
-    if not eeg:
-        raise HTTPException(status_code=404, detail="EEG asset not found")
+    eeg = get_owned_eeg(db, current_user, eeg_id)
 
     from app.workers.tasks_eeg import parse_eeg_task, parse_eeg_asset
 
     if not sync:
         try:
             parse_eeg_task.delay(str(eeg_id))
-            return db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
+            return get_owned_eeg(db, current_user, eeg_id)
         except Exception:
             # Broker unavailable — fall through to synchronous parsing.
             pass
@@ -148,20 +176,22 @@ def parse_eeg_endpoint(eeg_id: UUID, sync: bool = False, db: Session = Depends(g
         raise HTTPException(status_code=500, detail=f"Failed to parse EEG: {e}")
 
     db.expire_all()
-    return db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
+    return get_owned_eeg(db, current_user, eeg_id)
 
 
 @router.post("/{eeg_id}/quality-check", response_model=EEGAssetDetail)
-def eeg_quality_check(eeg_id: UUID, db: Session = Depends(get_db)):
+def eeg_quality_check(
+    eeg_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Derives a per-channel EEG quality report from the CSV (docs §10).
 
     Quality is never a single opaque score: it reports per-channel valid ratio,
     flat/noisy detection, the overall valid percentage, the criteria used and
     structured findings (problem/evidence/impact/action).
     """
-    eeg = db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
-    if not eeg:
-        raise HTTPException(status_code=404, detail="EEG asset not found")
+    eeg = get_owned_eeg(db, current_user, eeg_id)
 
     try:
         rows = _read_eeg_rows(eeg)
@@ -245,11 +275,14 @@ def eeg_quality_check(eeg_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.put("/{eeg_id}/quality", response_model=EEGAssetDetail)
-def set_eeg_quality(eeg_id: UUID, payload: EEGQualityReport, db: Session = Depends(get_db)):
+def set_eeg_quality(
+    eeg_id: UUID,
+    payload: EEGQualityReport,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Persists a reviewed/edited EEG quality decision from the UI."""
-    eeg = db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
-    if not eeg:
-        raise HTTPException(status_code=404, detail="EEG asset not found")
+    eeg = get_owned_eeg(db, current_user, eeg_id)
     eeg.quality_verdict = payload.quality_verdict
     eeg.valid_ratio = payload.valid_ratio
     eeg.channel_quality = [c.model_dump() for c in payload.channel_quality]
@@ -264,11 +297,13 @@ def set_eeg_quality(eeg_id: UUID, payload: EEGQualityReport, db: Session = Depen
 
 
 @router.get("/{eeg_id}/timeseries")
-def get_eeg_timeseries(eeg_id: UUID, db: Session = Depends(get_db)):
+def get_eeg_timeseries(
+    eeg_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Downloads the CSV from MinIO, parses it and returns timeseries data for the UI chart."""
-    eeg_asset = db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
-    if not eeg_asset:
-        raise HTTPException(status_code=404, detail="EEG asset not found")
+    eeg_asset = get_owned_eeg(db, current_user, eeg_id)
         
     try:
         timeseries = _read_eeg_rows(eeg_asset)
@@ -277,7 +312,13 @@ def get_eeg_timeseries(eeg_id: UUID, db: Session = Depends(get_db)):
 
     # Audit access to raw EEG (sensitive data, docs §21).
     from app.api.v1.routes_governance import record_access
-    record_access(db, "eeg", eeg_id, detail={"op": "timeseries"})
+    record_access(
+        db,
+        "eeg",
+        eeg_id,
+        actor=current_user,
+        detail={"op": "timeseries"},
+    )
 
     return {
         "eeg_asset_id": eeg_id,
@@ -292,11 +333,14 @@ class EEGOffsetUpdate(BaseModel):
 
 
 @router.patch("/{eeg_id}")
-def update_eeg_offset(eeg_id: UUID, payload: EEGOffsetUpdate, db: Session = Depends(get_db)):
+def update_eeg_offset(
+    eeg_id: UUID,
+    payload: EEGOffsetUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Adjusts the EEG↔video time offset (ms). Positive = EEG started after the video."""
-    eeg_asset = db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
-    if not eeg_asset:
-        raise HTTPException(status_code=404, detail="EEG asset not found")
+    eeg_asset = get_owned_eeg(db, current_user, eeg_id)
 
     eeg_asset.sync_offset_ms = payload.sync_offset_ms
     db.commit()
@@ -340,7 +384,11 @@ def _permutation_test(during, baseline, n_perm=2000, seed=42):
 
 
 @router.get("/{eeg_id}/coactivation")
-def get_eeg_coactivation(eeg_id: UUID, db: Session = Depends(get_db)):
+def get_eeg_coactivation(
+    eeg_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Per-band EEG power during each facial micro-action vs. baseline, with stats.
 
     Baseline = samples outside every micro-action window. Windows are shifted by
@@ -351,9 +399,7 @@ def get_eeg_coactivation(eeg_id: UUID, db: Session = Depends(get_db)):
     """
     from app.api.v1.routes_videos import load_timeline_events
 
-    eeg_asset = db.query(EEGAssetModel).filter(EEGAssetModel.id == eeg_id).first()
-    if not eeg_asset:
-        raise HTTPException(status_code=404, detail="EEG asset not found")
+    eeg_asset = get_owned_eeg(db, current_user, eeg_id)
 
     video_asset = db.query(VideoAssetModel).filter(VideoAssetModel.session_id == eeg_asset.session_id).first()
     if not video_asset:

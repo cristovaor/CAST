@@ -3,53 +3,99 @@ from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
 
-from app.schemas.study import StudyCreate, Study, StudyUpdate
-from app.db.models import Study as StudyModel
+from app.schemas.study import (
+    ModalityQualitySummary,
+    Study,
+    StudyCreate,
+    StudyQualitySummary,
+    StudyUpdate,
+)
+from app.db.models import AuditAction, Study as StudyModel, User
+from app.services.audit_service import build_changes, record_audit
 from app.db.session import SessionLocal
 
 router = APIRouter(prefix="/studies", tags=["studies"])
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user
+from app.api.ownership import get_project, get_study as get_owned_study, studies_for_user
 
 @router.get("/", response_model=List[Study])
-def get_studies(db: Session = Depends(get_db)):
-    return db.query(StudyModel).all()
+def get_studies(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return studies_for_user(db, current_user).all()
 
 @router.post("/", response_model=Study)
-def create_study(study_in: StudyCreate, db: Session = Depends(get_db)):
-    db_obj = StudyModel(**study_in.model_dump())
+def create_study(
+    study_in: StudyCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_project(db, current_user, study_in.project_id)
+    data = study_in.model_dump()
+    data["created_by"] = current_user.id
+    db_obj = StudyModel(**data)
     db.add(db_obj)
+    db.flush()
+    record_audit(
+        db,
+        current_user,
+        AuditAction.create,
+        "study",
+        db_obj.id,
+        snapshot={
+            "project_id": db_obj.project_id,
+            "name": db_obj.name,
+            "description": db_obj.description,
+            "status": db_obj.status,
+            "protocol_version": db_obj.protocol_version,
+            "config": db_obj.config,
+        },
+    )
     db.commit()
     db.refresh(db_obj)
     return db_obj
 
 @router.get("/{study_id}", response_model=Study)
-def get_study(study_id: UUID, db: Session = Depends(get_db)):
-    db_obj = db.query(StudyModel).filter(StudyModel.id == study_id).first()
-    if not db_obj:
-        raise HTTPException(status_code=404, detail="Study not found")
-    return db_obj
+def get_study(
+    study_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return get_owned_study(db, current_user, study_id)
 
 @router.patch("/{study_id}", response_model=Study)
-def update_study(study_id: UUID, study_in: StudyUpdate, db: Session = Depends(get_db)):
-    db_obj = db.query(StudyModel).filter(StudyModel.id == study_id).first()
-    if not db_obj:
-        raise HTTPException(status_code=404, detail="Study not found")
+def update_study(
+    study_id: UUID,
+    study_in: StudyUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db_obj = get_owned_study(db, current_user, study_id)
         
     update_data = study_in.model_dump(exclude_unset=True)
+    changes = build_changes(db_obj, update_data)
     for field, value in update_data.items():
         setattr(db_obj, field, value)
-        
+
+    if changes:
+        record_audit(db, current_user, AuditAction.update, "study", db_obj.id, changes=changes)
     db.commit()
     db.refresh(db_obj)
     return db_obj
 
-from app.db.models import Participant, Session as DBSession, VideoAsset, ProcessingJob, JobType
+from app.db.models import EEGAsset, Participant, Session as DBSession, VideoAsset, ProcessingJob, JobType
 from app.workers.tasks_video import process_video_task
 
 @router.post("/{study_id}/batch-infer")
-def batch_infer(study_id: UUID, db: Session = Depends(get_db)):
+def batch_infer(
+    study_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Triggers inference for all unprocessed videos in a study."""
+    get_owned_study(db, current_user, study_id)
     videos = (
         db.query(VideoAsset)
         .join(DBSession)
@@ -73,15 +119,110 @@ def batch_infer(study_id: UUID, db: Session = Depends(get_db)):
 from app.db.models import Prediction
 from app.schemas.dashboard import DashboardMetrics
 
+
+def _verdict_tally(assets) -> dict[str, int]:
+    tally = {
+        "approved": 0,
+        "approved_with_caveats": 0,
+        "review_required": 0,
+        "rejected": 0,
+    }
+    for asset in assets:
+        if asset.quality_verdict is not None:
+            tally[asset.quality_verdict.value] += 1
+    return tally
+
+
+def _average(values: list[float]) -> float | None:
+    return round(sum(values) / len(values), 4) if values else None
+
+
+@router.get("/{study_id}/quality-summary", response_model=StudyQualitySummary)
+def get_study_quality_summary(
+    study_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Aggregate persisted video and EEG quality without inventing scores."""
+    get_owned_study(db, current_user, study_id)
+
+    sessions_count = (
+        db.query(DBSession)
+        .join(Participant)
+        .filter(Participant.study_id == study_id)
+        .count()
+    )
+    videos = (
+        db.query(VideoAsset)
+        .join(DBSession)
+        .join(Participant)
+        .filter(Participant.study_id == study_id)
+        .all()
+    )
+    eeg_assets = (
+        db.query(EEGAsset)
+        .join(DBSession)
+        .join(Participant)
+        .filter(Participant.study_id == study_id)
+        .all()
+    )
+
+    video_valid_ratios: list[float] = []
+    face_detection_rates: list[float] = []
+    video_findings = 0
+    for video in videos:
+        report = video.quality_report or {}
+        if report.get("validFrameRatio") is not None:
+            video_valid_ratios.append(float(report["validFrameRatio"]))
+        if report.get("faceDetectionRate") is not None:
+            face_detection_rates.append(float(report["faceDetectionRate"]))
+        findings = report.get("findings")
+        if isinstance(findings, list):
+            video_findings += len(findings)
+
+    eeg_valid_ratios = [
+        float(asset.valid_ratio)
+        for asset in eeg_assets
+        if asset.valid_ratio is not None
+    ]
+    eeg_findings = sum(
+        len(asset.quality_findings)
+        for asset in eeg_assets
+        if isinstance(asset.quality_findings, list)
+    )
+
+    return StudyQualitySummary(
+        study_id=study_id,
+        sessions_count=sessions_count,
+        video=ModalityQualitySummary(
+            total_assets=len(videos),
+            assessed_assets=sum(video.quality_verdict is not None for video in videos),
+            average_valid_ratio=_average(video_valid_ratios),
+            average_face_detection_rate=_average(face_detection_rates),
+            findings_count=video_findings,
+            verdicts=_verdict_tally(videos),
+        ),
+        eeg=ModalityQualitySummary(
+            total_assets=len(eeg_assets),
+            assessed_assets=sum(asset.quality_verdict is not None for asset in eeg_assets),
+            average_valid_ratio=_average(eeg_valid_ratios),
+            findings_count=eeg_findings,
+            verdicts=_verdict_tally(eeg_assets),
+        ),
+    )
+
+
 @router.get("/{study_id}/dashboard", response_model=DashboardMetrics)
-def get_study_dashboard(study_id: UUID, db: Session = Depends(get_db)):
+def get_study_dashboard(
+    study_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Study-level dashboard metrics. `average_learning_gain` is only
     meaningful when the study actually uses pre/post assessments — those are
     one optional data source among several (docs §3), never assumed. It is
     0.0 for studies that don't use them, not a fabricated placeholder."""
-    study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
-    if not study:
-        raise HTTPException(status_code=404, detail="Study not found")
+    study = get_owned_study(db, current_user, study_id)
 
     participants_count = db.query(Participant).filter(Participant.study_id == study_id).count()
 
@@ -132,8 +273,13 @@ import csv
 import io
 
 @router.get("/{study_id}/export")
-def export_study_data(study_id: UUID, db: Session = Depends(get_db)):
+def export_study_data(
+    study_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Exports participant data and video results as CSV."""
+    get_owned_study(db, current_user, study_id)
     participants = db.query(Participant).filter(Participant.study_id == study_id).all()
     
     output = io.StringIO()

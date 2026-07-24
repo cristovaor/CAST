@@ -14,16 +14,17 @@ import {
   FolderKanban, FlaskConical, Users, Video,
   ShieldCheck, AlertTriangle, BarChart3, Cpu,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-const ICON_MAP: Record<string, React.ComponentType<any>> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   FolderKanban, FlaskConical, Users, Video,
   ShieldCheck, AlertTriangle, BarChart3, Cpu,
 };
 
 const COLOR_CONFIGS = {
   default: {
-    iconBg: 'bg-slate-100',
-    iconText: 'text-slate-600',
+    iconBg: 'bg-surface-muted',
+    iconText: 'text-text-secondary',
   },
   info: {
     iconBg: 'bg-blue-50',
@@ -54,7 +55,7 @@ export function MetricCard({ data, isLoading, className, variant = 'default' }: 
     <div
       className={cn(
         'card card-hover flex flex-col gap-3 animate-fade-in transition-all',
-        isHero ? 'p-6 bg-gradient-to-br from-white to-slate-50 border-blue-100 shadow-md ring-1 ring-blue-500/10' : 'p-5',
+        isHero ? 'p-6 bg-gradient-to-br from-surface to-surface-muted border-blue-100 shadow-md ring-1 ring-blue-500/10' : 'p-5',
         className,
       )}
     >
@@ -80,20 +81,20 @@ export function MetricCard({ data, isLoading, className, variant = 'default' }: 
       {/* Value */}
       <div className={isHero ? 'mt-2' : ''}>
         <div className={cn(
-          'font-bold text-slate-900 leading-none tracking-tight',
+          'font-bold text-text-primary leading-none tracking-tight',
           isHero ? 'text-3xl lg:text-4xl' : 'text-2xl'
         )}>
           {data.value}
         </div>
         <div className={cn(
-          'mt-1 font-medium text-slate-600',
+          'mt-1 font-medium text-text-secondary',
           isHero ? 'text-sm' : 'text-[13px]'
         )}>{data.label}</div>
       </div>
 
       {/* Description */}
       <p className={cn(
-        'text-slate-400 leading-relaxed border-t border-slate-100 pt-3',
+        'text-text-muted leading-relaxed border-t border-border pt-3',
         isHero ? 'text-xs' : 'text-[11px]'
       )}>
         {data.description}
@@ -134,7 +135,7 @@ export function MetricCardSkeleton({ className }: { className?: string }) {
         <div className="skeleton w-16 h-7 rounded mb-1.5" />
         <div className="skeleton w-32 h-4 rounded" />
       </div>
-      <div className="border-t border-slate-100 pt-3">
+      <div className="border-t border-border pt-3">
         <div className="skeleton w-full h-3 rounded mb-1" />
         <div className="skeleton w-3/4 h-3 rounded" />
       </div>

@@ -129,11 +129,23 @@ def generate_json_report(study_id: UUID, user_id: UUID, db: Session) -> Analysis
 
 def generate_pdf_report(study_id: UUID, user_id: UUID, db: Session) -> AnalysisReport:
     metrics = get_dashboard_metrics(study_id, db)
-    metrics["study_id"] = str(study_id)
-    metrics["generated_at"] = datetime.utcnow().isoformat()
-    
-    # Stub PDF content
-    report_bytes = f"PDF Report Stub for Study {study_id}\n\n{json.dumps(metrics, indent=2)}".encode("utf-8")
+    study = db.query(Study).filter(Study.id == study_id).first()
+    if not study:
+        raise ValueError("Study not found")
+
+    from app.services.pdf_generator import generate_study_report_pdf
+
+    generated_at = datetime.utcnow()
+    pdf_buffer = generate_study_report_pdf(
+        study_name=study.name,
+        generated_at=generated_at.strftime("%Y-%m-%d %H:%M UTC"),
+        metrics={
+            "Participantes": metrics["total_participants"],
+            "Vídeos processados": metrics["total_videos_processed"],
+            "Ganho médio": round(metrics["average_learning_gain"], 3),
+        },
+    )
+    report_bytes = pdf_buffer.getvalue()
     object_key = f"reports/{study_id}/{datetime.utcnow().timestamp()}.pdf"
     
     storage_service.upload_bytes(object_key, report_bytes, "application/pdf")

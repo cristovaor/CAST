@@ -16,6 +16,7 @@ interface PlaybackState {
   durationMs: number;
   isPlaying: boolean;
   fps: number;
+  playbackRate: number;
 
   seekRequest: SeekRequest | null;
 
@@ -23,6 +24,7 @@ interface PlaybackState {
   setDurationMs: (ms: number) => void;
   setIsPlaying: (playing: boolean) => void;
   setFps: (fps: number) => void;
+  setPlaybackRate: (rate: number) => void;
   requestSeek: (timeMs: number) => void;
   clearSeekRequest: () => void;
   reset: () => void;
@@ -33,6 +35,7 @@ const initialState = {
   durationMs: 0,
   isPlaying: false,
   fps: 30,
+  playbackRate: 1,
   seekRequest: null,
 };
 
@@ -43,6 +46,7 @@ export const usePlaybackStore = create<PlaybackState>((set) => ({
   setDurationMs: (ms) => set({ durationMs: ms }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setFps: (fps) => set({ fps }),
+  setPlaybackRate: (playbackRate) => set({ playbackRate }),
 
   requestSeek: (timeMs) =>
     set((state) => ({

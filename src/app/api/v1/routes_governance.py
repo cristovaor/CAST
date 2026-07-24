@@ -10,13 +10,14 @@ from uuid import UUID
 from typing import List, Optional
 from datetime import datetime
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user
+from app.api.ownership import get_participant
 from app.db.models import (
     AuditLog, AuditAction, ConsentTerm, Participant, Session as SessionModel,
-    ConsentStatus,
+    ConsentStatus, Study, Project, User,
 )
 from app.schemas.multimodal import AuditLogEntry
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/governance", tags=["governance"])
 
@@ -26,8 +27,11 @@ def list_audit(
     action: Optional[AuditAction] = None,
     skip: int = 0, limit: int = 100,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    q = db.query(AuditLog)
+    q = db.query(AuditLog).filter(
+        AuditLog.organization_id == current_user.organization_id,
+    )
     if action:
         q = q.filter(AuditLog.action == action)
     return q.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit).all()
@@ -37,15 +41,23 @@ class AuditCreate(BaseModel):
     action: AuditAction
     entity_type: Optional[str] = None
     entity_id: Optional[str] = None
-    actor_label: Optional[str] = None
     justification: Optional[str] = None
-    detail: dict = {}
+    detail: dict = Field(default_factory=dict)
 
 
 @router.post("/audit", response_model=AuditLogEntry, status_code=201)
-def record_audit(payload: AuditCreate, db: Session = Depends(get_db)):
+def record_audit(
+    payload: AuditCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Records an access/action against sensitive data (justification advised)."""
-    log = AuditLog(**payload.model_dump())
+    log = AuditLog(
+        **payload.model_dump(),
+        organization_id=current_user.organization_id,
+        actor_id=current_user.id,
+        actor_label=current_user.email,
+    )
     db.add(log)
     db.commit()
     db.refresh(log)
@@ -62,13 +74,31 @@ class GovernanceSummary(BaseModel):
 
 
 @router.get("/summary", response_model=GovernanceSummary)
-def governance_summary(db: Session = Depends(get_db)):
-    total = db.query(Participant).count()
-    pending = db.query(Participant).filter(Participant.consent_status == ConsentStatus.pending).count()
-    revoked = db.query(Participant).filter(Participant.consent_status == ConsentStatus.revoked).count()
-    active = db.query(Participant).filter(Participant.consent_status == ConsentStatus.accepted).count()
-    exports = db.query(AuditLog).filter(AuditLog.action == AuditAction.export).count()
-    accesses = db.query(AuditLog).filter(AuditLog.action == AuditAction.access).count()
+def governance_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    participant_query = (
+        db.query(Participant)
+        .join(Study, Participant.study_id == Study.id)
+        .join(Project, Study.project_id == Project.id)
+        .filter(Project.organization_id == current_user.organization_id)
+    )
+    audit_query = db.query(AuditLog).filter(
+        AuditLog.organization_id == current_user.organization_id,
+    )
+    total = participant_query.count()
+    pending = participant_query.filter(
+        Participant.consent_status == ConsentStatus.pending,
+    ).count()
+    revoked = participant_query.filter(
+        Participant.consent_status == ConsentStatus.revoked,
+    ).count()
+    active = participant_query.filter(
+        Participant.consent_status == ConsentStatus.accepted,
+    ).count()
+    exports = audit_query.filter(AuditLog.action == AuditAction.export).count()
+    accesses = audit_query.filter(AuditLog.action == AuditAction.access).count()
     return GovernanceSummary(
         total_participants=total,
         pending_consents=pending,
@@ -84,11 +114,14 @@ class RevokeConsent(BaseModel):
 
 
 @router.post("/participants/{participant_id}/revoke-consent")
-def revoke_consent(participant_id: UUID, payload: RevokeConsent, db: Session = Depends(get_db)):
+def revoke_consent(
+    participant_id: UUID,
+    payload: RevokeConsent,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Revokes consent and flags the participant's data for restricted use."""
-    participant = db.query(Participant).filter(Participant.id == participant_id).first()
-    if not participant:
-        raise HTTPException(status_code=404, detail="Participant not found")
+    participant = get_participant(db, current_user, participant_id)
 
     participant.consent_status = ConsentStatus.revoked
     consent = (
@@ -100,7 +133,10 @@ def revoke_consent(participant_id: UUID, payload: RevokeConsent, db: Session = D
         consent.revoked_at = datetime.utcnow()
 
     db.add(AuditLog(
+        organization_id=current_user.organization_id,
         action=AuditAction.consent_change,
+        actor_id=current_user.id,
+        actor_label=current_user.email,
         entity_type="participant",
         entity_id=str(participant_id),
         justification=payload.justification,
@@ -137,18 +173,31 @@ def assert_consent_valid_for_video(video_id: UUID, db: Session):
         )
 
 
-def record_access(db: Session, entity_type: str, entity_id, actor: str | None = None, detail: dict | None = None):
+def record_access(
+    db: Session,
+    entity_type: str,
+    entity_id,
+    actor: User | str | None = None,
+    detail: dict | None = None,
+):
     """Best-effort audit of access to sensitive raw data (docs §21).
 
     Never breaks the request path: audit failures are swallowed so a logging
     issue cannot block a legitimate access.
     """
     try:
+        actor_id = actor.id if isinstance(actor, User) else None
+        actor_label = actor.email if isinstance(actor, User) else actor
+        organization_id = (
+            actor.organization_id if isinstance(actor, User) else None
+        )
         db.add(AuditLog(
+            organization_id=organization_id,
             action=AuditAction.access,
+            actor_id=actor_id,
             entity_type=entity_type,
             entity_id=str(entity_id),
-            actor_label=actor,
+            actor_label=actor_label,
             detail=detail or {},
         ))
         db.commit()

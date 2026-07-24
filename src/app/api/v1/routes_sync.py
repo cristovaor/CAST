@@ -10,20 +10,23 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from datetime import datetime
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user
+from app.api.ownership import get_session
 from app.db.models import (
     Synchronization, Session as SessionModel, EEGAsset, SyncState,
-    AuditLog, AuditAction,
+    AuditLog, AuditAction, User,
 )
 from app.schemas.multimodal import SyncDetail, SyncUpdate, SyncDecision
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 
 
-def _get_or_create(session_id: UUID, db: Session) -> Synchronization:
-    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+def _get_or_create(
+    session_id: UUID,
+    db: Session,
+    current_user: User,
+) -> Synchronization:
+    get_session(db, current_user, session_id)
     sync = db.query(Synchronization).filter(Synchronization.session_id == session_id).first()
     if not sync:
         sync = Synchronization(session_id=session_id, state=SyncState.not_synced)
@@ -34,19 +37,28 @@ def _get_or_create(session_id: UUID, db: Session) -> Synchronization:
 
 
 @router.get("/{session_id}", response_model=SyncDetail)
-def get_sync(session_id: UUID, db: Session = Depends(get_db)):
-    return _get_or_create(session_id, db)
+def get_sync(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return _get_or_create(session_id, db, current_user)
 
 
 @router.post("/{session_id}/detect", response_model=SyncDetail)
-def detect_sync_endpoint(session_id: UUID, sync: bool = False, db: Session = Depends(get_db)):
+def detect_sync_endpoint(
+    session_id: UUID,
+    sync: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Proposes an offset via cross-correlation of facial events and EEG
     activity (docs §11, method `event_correlation`). Lands in
     `auto_available` — the researcher must still review and approve via
     POST /sync/{session_id}/decision. Dispatches the worker with a synchronous
     fallback (`?sync=true` or when the broker is unreachable).
     """
-    _get_or_create(session_id, db)  # 404s if the session doesn't exist
+    _get_or_create(session_id, db, current_user)
 
     from app.workers.tasks_sync import detect_sync_task, detect_sync
 
@@ -66,8 +78,13 @@ def detect_sync_endpoint(session_id: UUID, sync: bool = False, db: Session = Dep
 
 
 @router.patch("/{session_id}", response_model=SyncDetail)
-def update_sync(session_id: UUID, payload: SyncUpdate, db: Session = Depends(get_db)):
-    sync = _get_or_create(session_id, db)
+def update_sync(
+    session_id: UUID,
+    payload: SyncUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    sync = _get_or_create(session_id, db, current_user)
     data = payload.model_dump(exclude_unset=True)
 
     if "anchors" in data and data["anchors"] is not None:
@@ -102,11 +119,16 @@ def update_sync(session_id: UUID, payload: SyncUpdate, db: Session = Depends(get
 
 
 @router.post("/{session_id}/decision", response_model=SyncDetail)
-def decide_sync(session_id: UUID, payload: SyncDecision, db: Session = Depends(get_db)):
+def decide_sync(
+    session_id: UUID,
+    payload: SyncDecision,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Approve or invalidate the synchronization (justification required)."""
     if not payload.justification.strip():
         raise HTTPException(status_code=422, detail="Justification is required")
-    sync = _get_or_create(session_id, db)
+    sync = _get_or_create(session_id, db, current_user)
 
     if payload.approve:
         # With-caveats when drift is meaningful or confidence is low.
@@ -116,6 +138,7 @@ def decide_sync(session_id: UUID, payload: SyncDecision, db: Session = Depends(g
         sync.state = SyncState.sync_failed
 
     sync.justification = payload.justification
+    sync.approved_by = current_user.id
     sync.approved_at = datetime.utcnow()
     history = list(sync.history or [])
     history.append({
@@ -126,7 +149,10 @@ def decide_sync(session_id: UUID, payload: SyncDecision, db: Session = Depends(g
     sync.history = history
 
     db.add(AuditLog(
+        organization_id=current_user.organization_id,
         action=AuditAction.sync_decision,
+        actor_id=current_user.id,
+        actor_label=current_user.email,
         entity_type="session",
         entity_id=str(session_id),
         justification=payload.justification,

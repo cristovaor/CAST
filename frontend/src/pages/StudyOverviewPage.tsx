@@ -1,8 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
-import { FlaskConical, Video, Activity, Target, ListChecks, Users, CalendarClock, ShieldCheck } from 'lucide-react';
+import { FlaskConical, Video, Activity, Target, ListChecks, Users, ShieldCheck } from 'lucide-react';
 import { useStudy } from '@/features/studies/useStudies';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EXPERIMENTAL_DESIGNS, MODALITIES } from '@/types/research';
 
 // Study overview — renders the configurable design persisted by the wizard
@@ -28,21 +27,6 @@ export function StudyOverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header block */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-slate-900">{study?.name ?? 'Estudo'}</h2>
-            {study?.status && <StatusBadge status={study.status} />}
-          </div>
-          {cfg.program && <p className="text-sm text-slate-500 mt-0.5">{cfg.program}</p>}
-        </div>
-        <div className="flex items-center gap-4 text-[12px] text-slate-500 shrink-0">
-          <span className="inline-flex items-center gap-1"><Users size={13} /> {study?.participant_count ?? 0} participantes</span>
-          <span className="inline-flex items-center gap-1"><CalendarClock size={13} /> {study?.session_count ?? 0} sessões</span>
-        </div>
-      </div>
-
       {!hasConfig && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
           <FlaskConical className="mx-auto mb-2 text-slate-300" size={32} />

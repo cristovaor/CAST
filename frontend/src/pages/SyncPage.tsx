@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Minus, Plus, RotateCcw, Check, X, Video, Activity, Wand2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ToneBadge } from '@/components/ui/ToneBadge';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
 import { SYNC_METHODS, SYNC_STATE_META, type SyncMethod, type SyncState, type SyncModel } from '@/types/research';
-import { MOCK_SYNC } from '@/lib/mocks/multimodalMocks';
 import { useSync, useUpdateSync, useSyncDecision, useDetectSync } from '@/features/multimodal/useMultimodal';
 
 // Synchronization is a central experience (docs §11): align video, EEG,
@@ -16,42 +15,40 @@ const DURATION_MS = 744_000;
 
 export function SyncPage() {
   const { sessionId } = useParams();
-  const { data: liveSync } = useSync(sessionId);
+  const { data: liveSync, isLoading, isError } = useSync(sessionId);
   const updateSync = useUpdateSync(sessionId);
   const decision = useSyncDecision(sessionId);
   const detectSync = useDetectSync(sessionId);
 
-  // Map the live sync (or mock) into the view model.
-  const sync: SyncModel = liveSync
-    ? {
-        state: liveSync.state as SyncState,
-        method: liveSync.method as SyncMethod | undefined,
-        offsetMs: liveSync.offset_ms,
-        driftMsPerMin: liveSync.drift_ms_per_min,
-        confidence: liveSync.confidence,
-        anchors: liveSync.anchors.map((a, i) => ({ id: `a${i}`, label: a.label, videoTimeMs: a.video_time_ms, eegTimeMs: a.eeg_time_ms })),
-        history: liveSync.history.map((h) => ({ at: h.at, by: '—', action: h.action, note: h.note })),
-      }
-    : MOCK_SYNC;
+  const sync: SyncModel = {
+    state: (liveSync?.state ?? 'not_synced') as SyncState,
+    method: liveSync?.method as SyncMethod | undefined,
+    offsetMs: liveSync?.offset_ms ?? 0,
+    driftMsPerMin: liveSync?.drift_ms_per_min,
+    confidence: liveSync?.confidence,
+    anchors: (liveSync?.anchors ?? []).map((a, i) => ({ id: `a${i}`, label: a.label, videoTimeMs: a.video_time_ms, eegTimeMs: a.eeg_time_ms })),
+    history: (liveSync?.history ?? []).map((h) => ({ at: h.at, by: '—', action: h.action, note: h.note })),
+  };
 
-  const [offset, setOffset] = useState(sync.offsetMs);
-  const [method, setMethod] = useState<SyncMethod>(sync.method ?? 'digital_marker');
+  const [offsetOverride, setOffset] = useState<number | null>(null);
+  const [methodOverride, setMethod] = useState<SyncMethod | null>(null);
   const [justification, setJustification] = useState('');
+  const offset = offsetOverride ?? sync.offsetMs;
+  const method = methodOverride ?? sync.method ?? 'digital_marker';
   const state = SYNC_STATE_META[sync.state];
 
-  // When live data arrives, seed the controls from it (once).
-  useEffect(() => {
-    if (liveSync) {
-      setOffset(liveSync.offset_ms);
-      if (liveSync.method) setMethod(liveSync.method as SyncMethod);
-    }
-  }, [liveSync]);
-
-  const nudge = (d: number) => setOffset((o) => o + d);
+  const nudge = (d: number) => setOffset((current) => (current ?? sync.offsetMs) + d);
   const persistOffset = () => { if (sessionId && liveSync) updateSync.mutate({ offset_ms: offset, method }); };
   const decide = (approve: boolean) => {
     if (sessionId && liveSync) decision.mutate({ approve, justification });
   };
+
+  if (isLoading) {
+    return <div className="p-10 text-center text-sm text-slate-500">Carregando sincronização…</div>;
+  }
+  if (isError || !liveSync) {
+    return <div role="alert" className="m-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">Não foi possível carregar a sincronização desta sessão.</div>;
+  }
 
   return (
     <div className="min-h-full bg-slate-50/50 pb-12">
@@ -114,7 +111,7 @@ export function SyncPage() {
                 {[10, 100, 1000].map((s) => (
                   <NudgeBtn key={s} onClick={() => nudge(s)}><Plus size={11} />{s}</NudgeBtn>
                 ))}
-                <button onClick={() => setOffset(sync.offsetMs)} className="ml-2 p-2 rounded-md hover:bg-slate-100 text-slate-400" title="Restaurar">
+                <button onClick={() => setOffset(null)} className="ml-2 p-2 rounded-md hover:bg-slate-100 text-slate-400" title="Restaurar">
                   <RotateCcw size={14} />
                 </button>
                 {liveSync && (

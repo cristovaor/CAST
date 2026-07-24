@@ -8,6 +8,7 @@ from app.core import security
 from app.core.config import settings
 from app.db.models import User, Organization
 from app.schemas.auth import Token, UserRegister, ForgotPassword, ResetPassword
+from app.schemas.user import User as UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -15,7 +16,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def login_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not security.verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
         
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {
@@ -23,16 +28,11 @@ def login_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordR
         "token_type": "bearer",
     }
 
-@router.get("/me")
+@router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: User = Depends(get_current_user)):
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "name": current_user.name,
-        "role": current_user.role,
-    }
+    return current_user
 
-@router.post("/register")
+@router.post("/register", response_model=UserResponse, status_code=201)
 def register(user_in: UserRegister, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_in.email).first()
     if user:
@@ -53,7 +53,7 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
-    return {"status": "success", "user_id": str(new_user.id)}
+    return new_user
 
 @router.post("/forgot-password")
 def forgot_password(req: ForgotPassword, db: Session = Depends(get_db)):
@@ -77,4 +77,3 @@ def logout(current_user: User = Depends(get_current_user)):
     # For JWT, logout is handled client side by removing the token.
     # Optionally, we could add token blacklisting here.
     return {"status": "success", "message": "Successfully logged out."}
-

@@ -2,6 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import type { InferenceJob, VideoDescriptors } from '@/types/domain';
 
+interface VideoPrediction {
+  video_id: string;
+  prediction_id: string;
+  prediction_uri?: string;
+  threshold: number;
+  created_at?: string;
+  summary: Record<string, unknown>;
+}
+
 export function useStartInference() {
   const queryClient = useQueryClient();
 
@@ -40,7 +49,7 @@ export function useVideoPredictions(videoId: string, modelVersion?: string) {
     queryFn: () => {
       const params = new URLSearchParams();
       if (modelVersion) params.append('model_version', modelVersion);
-      return apiClient.get<any>(`/videos/${videoId}/predictions?${params.toString()}`);
+      return apiClient.get<VideoPrediction>(`/videos/${videoId}/predictions?${params.toString()}`);
     },
     enabled: !!videoId,
   });

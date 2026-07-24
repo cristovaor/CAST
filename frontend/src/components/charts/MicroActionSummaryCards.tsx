@@ -2,7 +2,7 @@ import { Activity, Eye, MessageSquare, UserCheck } from "lucide-react";
 
 export type MicroActionType = 'OLHO_FECHADO' | 'OLHANDO_CANTO' | 'MEXEU_LABIOS' | 'VIROU_ROSTO';
 
-type SummaryData = Record<MicroActionType, { count: number; perMinute: number }>;
+export type SummaryData = Record<MicroActionType, { count: number; perMinute: number }>;
 
 const ICONS: Record<MicroActionType, React.ReactNode> = {
   OLHO_FECHADO: <Eye className="h-5 w-5 text-indigo-500" />,

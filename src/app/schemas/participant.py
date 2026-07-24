@@ -13,6 +13,7 @@ class ParticipantCreate(ParticipantBase):
     pass
 
 class ParticipantUpdate(BaseModel):
+    external_code: Optional[str] = None
     demographic_group: Optional[Dict[str, Any]] = None
     consent_status: Optional[ConsentStatus] = None
 

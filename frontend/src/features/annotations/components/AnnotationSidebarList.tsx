@@ -4,10 +4,13 @@ import { useAnnotationStore } from '../store/useAnnotationStore';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { Button } from '@/components/ui/Button';
 import { CorrectionModal } from './CorrectionModal';
+import type { AnnotationEvent } from '@/types/annotation';
+import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 
 export function AnnotationSidebarList() {
-  const { events, setCurrentTime, deleteEvent } = useAnnotationStore();
-  const [correctionEvent, setCorrectionEvent] = useState<any>(null);
+  const { events, deleteEvent } = useAnnotationStore();
+  const requestSeek = usePlaybackStore((state) => state.requestSeek);
+  const [correctionEvent, setCorrectionEvent] = useState<AnnotationEvent | null>(null);
 
   const formatTime = (time: number) => {
     const mins = Math.floor(time / 60);
@@ -34,18 +37,19 @@ export function AnnotationSidebarList() {
             sortedEvents.map((event) => (
               <div 
                 key={event.id}
+                data-testid="annotation-event"
                 className="group p-3 rounded-lg border border-slate-800 bg-slate-900 hover:border-slate-700 hover:bg-slate-800/50 transition-colors"
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-medium text-sm text-slate-200">
-                    {event.microActionType}
+                    {event.actionLabel}
                   </span>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button 
                       variant="ghost" 
                       size="icon" 
                       className="h-6 w-6 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10"
-                      onClick={() => setCurrentTime(event.startTime)}
+                      onClick={() => requestSeek(event.startTime * 1000)}
                       title="Ir para o tempo"
                     >
                       <Play className="h-3 w-3" />

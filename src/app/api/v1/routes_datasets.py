@@ -13,8 +13,8 @@ from uuid import UUID
 from datetime import datetime
 from typing import List
 
-from app.api.deps import get_db
-from app.db.models import Dataset, DatasetState, AuditLog, AuditAction
+from app.api.deps import get_db, get_current_user
+from app.db.models import Dataset, DatasetState, AuditLog, AuditAction, User
 from app.schemas.multimodal import (
     DatasetCreate, DatasetDetail, DatasetBuildCriteria, DatasetBuildPreview,
 )
@@ -22,18 +22,62 @@ from app.schemas.multimodal import (
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
 
+def _get_dataset(
+    db: Session,
+    current_user: User,
+    dataset_id: UUID,
+) -> Dataset:
+    dataset = (
+        db.query(Dataset)
+        .filter(
+            Dataset.id == dataset_id,
+            Dataset.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    return dataset
+
+
 @router.get("/", response_model=List[DatasetDetail])
-def list_datasets(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def list_datasets(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     return (
         db.query(Dataset)
+        .filter(Dataset.organization_id == current_user.organization_id)
         .order_by(Dataset.created_at.desc())
         .offset(skip).limit(limit).all()
     )
 
 
 @router.post("/", response_model=DatasetDetail, status_code=201)
-def create_dataset(payload: DatasetCreate, db: Session = Depends(get_db)):
+def create_dataset(
+    payload: DatasetCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    duplicate = (
+        db.query(Dataset.id)
+        .filter(
+            Dataset.organization_id == current_user.organization_id,
+            Dataset.name == payload.name,
+            Dataset.dataset_version == payload.dataset_version,
+        )
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail="A dataset with this name and version already exists",
+        )
+
     ds = Dataset(
+        organization_id=current_user.organization_id,
         name=payload.name,
         dataset_version=payload.dataset_version,
         level=payload.level,
@@ -41,7 +85,8 @@ def create_dataset(payload: DatasetCreate, db: Session = Depends(get_db)):
         manifest=payload.manifest,
         participant_count=payload.participant_count,
         session_count=payload.session_count,
-        owner=payload.owner,
+        owner=current_user.name,
+        created_by=current_user.id,
     )
     db.add(ds)
     db.commit()
@@ -50,22 +95,31 @@ def create_dataset(payload: DatasetCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{dataset_id}", response_model=DatasetDetail)
-def get_dataset(dataset_id: UUID, db: Session = Depends(get_db)):
-    ds = db.query(Dataset).filter(Dataset.id == dataset_id).first()
-    if not ds:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-    return ds
+def get_dataset(
+    dataset_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return _get_dataset(db, current_user, dataset_id)
 
 
 @router.post("/preview", response_model=DatasetBuildPreview)
-def preview_dataset(criteria: DatasetBuildCriteria, db: Session = Depends(get_db)):
+def preview_dataset(
+    criteria: DatasetBuildCriteria,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Dry-run the criteria: how many sessions would be included/excluded and why.
 
     Lets the researcher validate inclusion/exclusion before materializing (§17,
     fluxo 6). No dataset is created or modified.
     """
     from app.services.dataset_service import select_sessions
-    included, excluded = select_sessions(db, criteria.model_dump())
+    included, excluded = select_sessions(
+        db,
+        criteria.model_dump(),
+        organization_id=current_user.organization_id,
+    )
     participants = {r["participant_code"] for r in included}
     conditions = sorted({r["condition"] for r in included if r["condition"]})
     return DatasetBuildPreview(
@@ -83,15 +137,14 @@ def build_dataset_endpoint(
     criteria: DatasetBuildCriteria,
     sync: bool = False,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Materializes the dataset from sessions matching the criteria (docs §17).
 
     Persists the criteria, then dispatches the Celery worker. Falls back to
     inline building when the broker is unreachable (or `sync=true`).
     """
-    ds = db.query(Dataset).filter(Dataset.id == dataset_id).first()
-    if not ds:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+    ds = _get_dataset(db, current_user, dataset_id)
     if ds.state in (DatasetState.frozen, DatasetState.published_internal):
         raise HTTPException(status_code=409, detail="Dataset is frozen; create a new version to rebuild")
 
@@ -103,7 +156,7 @@ def build_dataset_endpoint(
     if not sync:
         try:
             build_dataset_task.delay(str(dataset_id))
-            return db.query(Dataset).filter(Dataset.id == dataset_id).first()
+            return _get_dataset(db, current_user, dataset_id)
         except Exception:
             pass  # broker down — build inline
 
@@ -113,15 +166,17 @@ def build_dataset_endpoint(
         raise HTTPException(status_code=500, detail=f"Failed to build dataset: {e}")
 
     db.expire_all()
-    return db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    return _get_dataset(db, current_user, dataset_id)
 
 
 @router.post("/{dataset_id}/freeze", response_model=DatasetDetail)
-def freeze_dataset(dataset_id: UUID, db: Session = Depends(get_db)):
+def freeze_dataset(
+    dataset_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Freezes a dataset: computes a manifest checksum and locks the version."""
-    ds = db.query(Dataset).filter(Dataset.id == dataset_id).first()
-    if not ds:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+    ds = _get_dataset(db, current_user, dataset_id)
     if ds.state in (DatasetState.frozen, DatasetState.published_internal):
         raise HTTPException(status_code=409, detail="Dataset already frozen")
 
@@ -142,7 +197,10 @@ def freeze_dataset(dataset_id: UUID, db: Session = Depends(get_db)):
     ds.frozen_at = datetime.utcnow()
 
     db.add(AuditLog(
+        organization_id=current_user.organization_id,
         action=AuditAction.dataset_freeze,
+        actor_id=current_user.id,
+        actor_label=current_user.email,
         entity_type="dataset",
         entity_id=str(dataset_id),
         detail={"version": ds.dataset_version, "checksum": checksum},
@@ -153,15 +211,17 @@ def freeze_dataset(dataset_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.get("/{dataset_id}/export")
-def export_dataset(dataset_id: UUID, db: Session = Depends(get_db)):
+def export_dataset(
+    dataset_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Returns the export manifest and records the access in the audit trail.
 
     Every export ships version, pipeline & model versions, criteria, filters,
     exclusions, schema, checksum, date and responsible party (docs §17).
     """
-    ds = db.query(Dataset).filter(Dataset.id == dataset_id).first()
-    if not ds:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+    ds = _get_dataset(db, current_user, dataset_id)
 
     export_manifest = {
         "dataset_id": str(ds.id),
@@ -178,7 +238,10 @@ def export_dataset(dataset_id: UUID, db: Session = Depends(get_db)):
     }
 
     db.add(AuditLog(
+        organization_id=current_user.organization_id,
         action=AuditAction.export,
+        actor_id=current_user.id,
+        actor_label=current_user.email,
         entity_type="dataset",
         entity_id=str(dataset_id),
         detail={"version": ds.dataset_version},

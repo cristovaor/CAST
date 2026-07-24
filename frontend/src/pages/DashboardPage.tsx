@@ -13,41 +13,39 @@ import { QualityAlertsPanel } from '@/features/dashboard/components/QualityAlert
 import { GovernanceSummary } from '@/features/dashboard/components/GovernanceSummary';
 
 import { useGlobalDashboard } from '@/features/dashboard/useDashboard';
+import { useGovernanceSummary } from '@/features/multimodal/useMultimodal';
 
 // Mocks para partes ainda não implementadas na API
-import {
-  QUALITY_ALERTS,
-  GOVERNANCE_SUMMARY,
-} from '@/lib/mocks/dashboardMocks';
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const { data: dashboardData, isLoading } = useGlobalDashboard();
+  const { data: governance } = useGovernanceSummary();
 
   // Header Context Badges
   const headerContext = (
     <>
-      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-slate-200 bg-white text-[11px] font-semibold text-slate-600 shadow-sm">
-        <Server size={12} className="text-slate-400" />
-        Ambiente: Local
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-surface text-[11px] font-semibold text-text-secondary shadow-sm">
+        <Server size={12} className="text-text-muted" />
+        Ambiente: {(import.meta.env.VITE_ENV as string | undefined) ?? 'local'}
       </span>
       <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-blue-200 bg-blue-50 text-[11px] font-semibold text-blue-700 shadow-sm">
         <Activity size={12} className="text-blue-500" />
-        cast-lstm-v1
+        Registro de modelos
       </span>
       <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-700 shadow-sm">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        Pipeline Saudável
+        {dashboardData?.kpis.failed_jobs ? `${dashboardData.kpis.failed_jobs} falha(s)` : 'Pipeline saudável'}
       </span>
-      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-500 shadow-sm">
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-surface-muted text-[11px] font-medium text-text-secondary shadow-sm">
         <Clock size={12} />
-        Atualizado há 3 min
+        Atualizado agora
       </span>
     </>
   );
 
   return (
-    <div className="min-h-full bg-slate-50/50 pb-12">
+    <div className="min-h-full bg-app-bg pb-12">
       {/* 1. Header Executivo */}
       <PageHeader
         title="Visão Executiva"
@@ -84,7 +82,7 @@ export function DashboardPage() {
         
         {isLoading ? (
           <div className="flex justify-center p-12">
-            <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin" />
+            <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
           </div>
         ) : dashboardData ? (
           <>
@@ -162,13 +160,36 @@ export function DashboardPage() {
 
               {/* Painéis de Atenção/Governança (Direita, 4 colunas) */}
               <div className="xl:col-span-4 flex flex-col gap-5">
-                <QualityAlertsPanel alerts={QUALITY_ALERTS} />
-                <GovernanceSummary data={GOVERNANCE_SUMMARY} />
+                <QualityAlertsPanel alerts={[
+                  ...(dashboardData.kpis.failed_jobs > 0 ? [{
+                    id: 'failed-jobs',
+                    title: 'Falhas no pipeline',
+                    description: `${dashboardData.kpis.failed_jobs} job(s) requerem revisão.`,
+                    type: 'error' as const,
+                  }] : []),
+                  ...(dashboardData.kpis.average_quality < 0.8 ? [{
+                    id: 'quality',
+                    title: 'Qualidade abaixo do alvo',
+                    description: `Taxa agregada em ${(dashboardData.kpis.average_quality * 100).toFixed(1)}%.`,
+                    type: 'warning' as const,
+                  }] : []),
+                ]} />
+                <GovernanceSummary
+                  data={{
+                    activeModel: 'Registro de modelos',
+                    lastEvaluation: 'Consulte modelos',
+                    validConsents: governance?.total_participants
+                      ? `${Math.round((governance.active_consents / governance.total_participants) * 100)}%`
+                      : '—',
+                    auditLogsCount: (governance?.recent_accesses ?? 0) + (governance?.recent_exports ?? 0),
+                  }}
+                  onOpen={() => navigate('/app/governance')}
+                />
               </div>
             </section>
           </>
         ) : (
-          <div className="text-center text-slate-500 py-12">Falha ao carregar o dashboard.</div>
+          <div className="text-center text-text-secondary py-12">Falha ao carregar o dashboard.</div>
         )}
 
       </div>

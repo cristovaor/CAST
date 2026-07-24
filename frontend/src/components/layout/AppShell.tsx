@@ -8,7 +8,7 @@ export function AppShell() {
   const { isMobileOpen, setMobileOpen } = useSidebarStore();
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+    <div className="flex h-screen bg-app-bg overflow-hidden">
       {/* ── Mobile backdrop ──────────────────────────────── */}
       {isMobileOpen && (
         <div

@@ -35,7 +35,10 @@ export function TimelinePage() {
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(ACTIONS));
   const [minConfidence, setMinConfidence] = useState(0);
 
-  const rawEvents: TimelineEventDTO[] = timelineData?.events || [];
+  const rawEvents = useMemo<TimelineEventDTO[]>(
+    () => timelineData?.events ?? [],
+    [timelineData?.events],
+  );
 
   // Apply the filters once; both the timeline overlay and the list use the result.
   const filteredEvents = useMemo(

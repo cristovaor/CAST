@@ -24,7 +24,7 @@ export function useCorrectionExport() {
 
   return useMutation<CorrectionResponse, Error, { annotationId: string; payload: CorrectionPayload }>({
     mutationFn: ({ annotationId, payload }) =>
-      apiClient.post<CorrectionResponse>(`/annotation-tasks/../annotations/${annotationId}/correct_and_export`, payload),
+      apiClient.post<CorrectionResponse>(`/annotations/${annotationId}/correct_and_export`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['annotations'] });
     },

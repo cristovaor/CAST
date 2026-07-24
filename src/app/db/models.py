@@ -1,6 +1,21 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Text, Integer, Float, Boolean, ForeignKey, DateTime, Enum as SQLEnum, BigInteger, Numeric
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    Enum as SQLEnum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import enum
@@ -39,6 +54,7 @@ class JobType(str, enum.Enum):
     infer = "infer"
     report = "report"
     dataset_build = "dataset_build"
+    train_model = "train_model"
 
 
 class SessionState(str, enum.Enum):
@@ -92,6 +108,10 @@ class Organization(Base):
     __tablename__ = "organizations"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
+    plan = Column(String, nullable=False, default="standard")
+    max_storage_gb = Column(Float, nullable=False, default=100.0)
+    used_storage_gb = Column(Float, nullable=False, default=0.0)
+    pipeline_settings = Column(JSONB, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     users = relationship("User", back_populates="organization")
@@ -115,6 +135,10 @@ class Project(Base):
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"))
     name = Column(String, nullable=False)
     description = Column(Text)
+    # Nullable for backwards compatibility: projects created before this field
+    # was introduced keep the status derived from their studies until someone
+    # explicitly changes (or archives) the project.
+    status = Column(SQLEnum(StudyStatus), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="projects")
@@ -230,12 +254,13 @@ class EEGAsset(Base):
 class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    video_asset_id = Column(UUID(as_uuid=True), ForeignKey("video_assets.id"))
+    video_asset_id = Column(UUID(as_uuid=True), ForeignKey("video_assets.id"), nullable=True)
     job_type = Column(SQLEnum(JobType))
     status = Column(SQLEnum(JobStatus), default=JobStatus.queued)
     progress = Column(Numeric, default=0.0)
     error_message = Column(Text)
     logs = Column(JSONB, default=list)
+    result = Column(JSONB, nullable=True)
     started_at = Column(DateTime)
     finished_at = Column(DateTime)
     worker_id = Column(String)
@@ -277,6 +302,64 @@ class Prediction(Base):
     summary = Column(JSONB)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+class LandmarkArtifact(Base):
+    """Immutable, versioned output of one MediaPipe extraction configuration."""
+
+    __tablename__ = "landmark_artifacts"
+    __table_args__ = (
+        UniqueConstraint(
+            "video_asset_id",
+            "video_checksum",
+            "config_hash",
+            name="uq_landmark_artifact_input_config",
+        ),
+        Index(
+            "ix_landmark_artifacts_video_status_created",
+            "video_asset_id",
+            "status",
+            "created_at",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    video_asset_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("video_assets.id"),
+        nullable=False,
+    )
+    processing_job_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("processing_jobs.id"),
+        nullable=True,
+    )
+    status = Column(String, nullable=False, default="processing")
+    extractor = Column(String, nullable=False, default="mediapipe_facemesh")
+    extractor_version = Column(String, nullable=False)
+    configuration = Column(JSONB, nullable=False, default=dict)
+    video_checksum = Column(String, nullable=False)
+    config_hash = Column(String, nullable=False)
+    fps = Column(Float, nullable=False)
+    frame_count = Column(Integer, nullable=False, default=0)
+    point_count = Column(BigInteger, nullable=False, default=0)
+    face_detection_rate = Column(Float, nullable=False, default=0.0)
+    raw_uri = Column(String)
+    normalized_uri = Column(String)
+    overlay_prefix = Column(String)
+    raw_checksum = Column(String)
+    normalized_checksum = Column(String)
+    overlay_checksum = Column(String)
+    chunk_size_frames = Column(Integer, nullable=False, default=1)
+    error_message = Column(Text)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+
 class AssessmentType(str, enum.Enum):
     pre_test = "pre_test"
     post_test = "post_test"
@@ -310,15 +393,83 @@ class AnnotationTask(Base):
 
 class AnnotationEvent(Base):
     __tablename__ = "annotation_events"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('interval', 'point')",
+            name="ck_annotation_events_kind",
+        ),
+        CheckConstraint(
+            "source IN ('manual', 'model_review')",
+            name="ck_annotation_events_source",
+        ),
+        CheckConstraint(
+            "(kind = 'point' AND start_frame = end_frame) OR "
+            "(kind = 'interval' AND end_frame >= start_frame)",
+            name="ck_annotation_events_frame_range",
+        ),
+    )
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     task_id = Column(UUID(as_uuid=True), ForeignKey("annotation_tasks.id"))
     action = Column(String)
+    action_label = Column(String)
+    kind = Column(String, nullable=False, default="interval")
+    source = Column(String, nullable=False, default="manual")
     start_frame = Column(Integer)
     end_frame = Column(Integer)
     start_time = Column(Float)
     end_time = Column(Float)
+    confidence = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+    annotator_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
     task = relationship("AnnotationTask", back_populates="events")
+
+
+class PredictionReview(Base):
+    """Human decision over an immutable model event."""
+
+    __tablename__ = "prediction_reviews"
+    __table_args__ = (
+        UniqueConstraint(
+            "task_id",
+            "prediction_id",
+            "model_event_key",
+            name="uq_prediction_review_task_event",
+        ),
+        CheckConstraint(
+            "decision IN ('accepted', 'corrected', 'rejected')",
+            name="ck_prediction_reviews_decision",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("annotation_tasks.id"),
+        nullable=False,
+    )
+    prediction_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("predictions.id"),
+        nullable=False,
+    )
+    model_event_key = Column(String, nullable=False)
+    decision = Column(String, nullable=False)
+    original_event = Column(JSONB, nullable=False)
+    annotation_event_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("annotation_events.id"),
+        nullable=True,
+    )
+    reviewer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    reviewed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 class ReportType(str, enum.Enum):
     json = "json"
@@ -408,6 +559,12 @@ class Dataset(Base):
     """
     __tablename__ = "datasets"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=True,
+        index=True,
+    )
     name = Column(String, nullable=False)
     dataset_version = Column(String, nullable=False)
     level = Column(String)             # raw, synced, features, analytic, training…
@@ -434,6 +591,8 @@ class Dataset(Base):
 
 
 class AuditAction(str, enum.Enum):
+    create = "create"
+    update = "update"
     access = "access"
     export = "export"
     consent_change = "consent_change"
@@ -448,6 +607,12 @@ class AuditLog(Base):
     exports, consent changes and decisions, with justification."""
     __tablename__ = "audit_logs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=True,
+        index=True,
+    )
     action = Column(SQLEnum(AuditAction), index=True)
     actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     actor_label = Column(String)

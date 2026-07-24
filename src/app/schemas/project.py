@@ -2,6 +2,7 @@ from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from datetime import datetime
+from app.db.models import StudyStatus
 
 class ProjectBase(BaseModel):
     name: str
@@ -14,6 +15,7 @@ class ProjectCreate(ProjectBase):
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[StudyStatus] = None
 
 class ProjectInDBBase(ProjectBase):
     id: UUID
@@ -33,6 +35,6 @@ class ProjectDetail(Project):
     session_count: int = 0
     video_count: int = 0
     average_quality: float = 0.0
-    status: str = "active"
+    status: StudyStatus = StudyStatus.draft
     last_activity: Optional[datetime] = None
     responsible: List[ProjectResponsible] = []

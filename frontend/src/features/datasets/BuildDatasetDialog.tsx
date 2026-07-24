@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/Dialog';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
-import { usePreviewDataset, useBuildDataset, type DatasetBuildCriteria } from '@/features/multimodal/useMultimodal';
+import { usePreviewDataset, useBuildDataset, useCreateDataset, type DatasetBuildCriteria } from '@/features/multimodal/useMultimodal';
 import { Check } from 'lucide-react';
 
 // Configure inclusion/exclusion criteria, preview the selection, then
@@ -12,8 +12,10 @@ import { Check } from 'lucide-react';
 
 const MODALITIES = [['video', 'Vídeo'], ['eeg', 'EEG']] as const;
 
-export function BuildDatasetDialog({ datasetId, children }: { datasetId: string; children: React.ReactNode }) {
+export function BuildDatasetDialog({ datasetId, children }: { datasetId?: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [version, setVersion] = useState('1.0.0');
   const [criteria, setCriteria] = useState<DatasetBuildCriteria>({
     modalities: ['video', 'eeg'],
     require_consent: true,
@@ -22,7 +24,8 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId: string;
   });
 
   const preview = usePreviewDataset();
-  const build = useBuildDataset(datasetId);
+  const create = useCreateDataset();
+  const build = useBuildDataset();
 
   const toggleModality = (m: string) =>
     setCriteria((c) => {
@@ -30,8 +33,21 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId: string;
       return { ...c, modalities: cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m] };
     });
 
-  const runBuild = () => {
-    build.mutate(criteria, { onSuccess: () => setOpen(false) });
+  const runBuild = async () => {
+    try {
+      const id = datasetId ?? (
+        await create.mutateAsync({
+          name: name.trim(),
+          dataset_version: version.trim(),
+          level: 'analytic',
+          manifest: {},
+        })
+      ).id;
+      await build.mutateAsync({ datasetId: id, criteria });
+      setOpen(false);
+    } catch {
+      // Mutation errors are rendered below.
+    }
   };
 
   return (
@@ -43,6 +59,27 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId: string;
         </DialogHeader>
 
         <div className="space-y-4">
+          {!datasetId && (
+            <div className="grid grid-cols-[1fr_120px] gap-3">
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Nome
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Dataset multimodal"
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Versão
+                <input
+                  value={version}
+                  onChange={(event) => setVersion(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </label>
+            </div>
+          )}
           {/* Modalities */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modalidades obrigatórias</label>
@@ -120,13 +157,21 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId: string;
           </div>
 
           <ScientificCaveat variant="privacy" compact />
-          {build.isError && <p className="text-[12px] text-red-600">Falha ao construir: {(build.error as Error).message}</p>}
+          {(build.isError || create.isError) && (
+            <p className="text-[12px] text-red-600">
+              Falha ao construir: {((build.error || create.error) as Error).message}
+            </p>
+          )}
         </div>
 
         <DialogFooter>
           <ActionButton variant="ghost" onClick={() => setOpen(false)} type="button">Cancelar</ActionButton>
-          <ActionButton variant="primary" onClick={runBuild} disabled={build.isPending}>
-            {build.isPending ? 'Construindo…' : 'Construir dataset'}
+          <ActionButton
+            variant="primary"
+            onClick={runBuild}
+            disabled={build.isPending || create.isPending || (!datasetId && (!name.trim() || !version.trim()))}
+          >
+            {build.isPending || create.isPending ? 'Construindo…' : 'Construir dataset'}
           </ActionButton>
         </DialogFooter>
       </DialogContent>

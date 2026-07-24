@@ -1,15 +1,17 @@
 """API routes for Model Registry (v2)."""
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
-from app.api.deps import get_current_user, get_db
-from app.db.models import User, ModelVersion
+from app.api.deps import get_current_user, get_db, require_admin
+from app.api.v1.routes_jobs import _map_status_to_step, job_status_generator
+from app.db.models import JobStatus, JobType, ProcessingJob, User, ModelVersion
 from app.services.model_service import promote_model_version, ModelNotFoundError
 
 router = APIRouter()
@@ -28,8 +30,7 @@ class ModelVersionResponse(BaseModel):
     created_at: str
     activated_at: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PromoteRequest(BaseModel):
     target_status: str
@@ -114,7 +115,7 @@ class RegisterModelRequest(BaseModel):
 def register_model(
     req: RegisterModelRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     from cast.models.manifest import ModelManifest
     try:
@@ -131,8 +132,8 @@ def register_model(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Model registration failed")
 
     return ModelVersionResponse(
         id=str(mv.id),
@@ -149,12 +150,122 @@ def register_model(
         activated_at=mv.activated_at.isoformat() if mv.activated_at else None,
     )
 
+class TrainModelRequest(BaseModel):
+    model_id: str
+    version: str
+    action: str
+    video_asset_ids: Optional[List[str]] = None
+    training_config: Optional[dict[str, Any]] = None
+
+@router.post("/models/train", status_code=status.HTTP_202_ACCEPTED)
+def train_model(
+    req: TrainModelRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Start an async training job for a micro-action model.
+
+    Trains on real annotated videos (landmarks + annotation events) and, on
+    success, registers the resulting artifact as a new draft ModelVersion.
+    Poll /api/v1/models/train-jobs/{job_id} (or /stream) for progress.
+    """
+    existing = db.query(ModelVersion).filter(
+        ModelVersion.model_id == req.model_id,
+        ModelVersion.version == req.version,
+        ModelVersion.action == req.action,
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Version {req.version} already exists for model {req.model_id} action {req.action}",
+        )
+
+    job = ProcessingJob(
+        video_asset_id=None,
+        job_type=JobType.train_model,
+        status=JobStatus.queued,
+        progress=0.0,
+        logs=[{"level": "info", "message": "Job de treino criado, aguardando worker"}],
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    from app.workers.tasks_train import train_model_task
+    train_model_task.delay(
+        str(job.id), req.model_id, req.version, req.action,
+        req.video_asset_ids, req.training_config,
+    )
+
+    return {
+        "job_id": str(job.id),
+        "status": "queued",
+        "message": "Training job enqueued. Poll /api/v1/models/train-jobs/{job_id} for status.",
+    }
+
+
+def _get_train_job(db: Session, job_id: UUID) -> ProcessingJob:
+    job = (
+        db.query(ProcessingJob)
+        .filter(ProcessingJob.id == job_id, ProcessingJob.job_type == JobType.train_model)
+        .first()
+    )
+    if job is None:
+        raise HTTPException(status_code=404, detail="Training job not found")
+    return job
+
+
+@router.get("/models/train-jobs/{job_id}")
+def get_train_job_status(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    job = _get_train_job(db, job_id)
+    return {
+        "id": job.id,
+        "status": job.status.value,
+        "step": _map_status_to_step(job.status, job.progress),
+        "progress": float(job.progress) if job.progress else 0,
+        "error": job.error_message,
+        "result": job.result,
+    }
+
+
+@router.get("/models/train-jobs/{job_id}/stream")
+def stream_train_job_status(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    _get_train_job(db, job_id)
+    return StreamingResponse(
+        job_status_generator(job_id, db),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+@router.post("/models/train-jobs/{job_id}/cancel", status_code=202)
+def cancel_train_job(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    job = _get_train_job(db, job_id)
+    from app.workers.celery_app import celery_app
+    celery_app.control.revoke(str(job.id), terminate=True, signal="SIGKILL")
+    job.status = JobStatus.canceled
+    db.commit()
+    return {"message": "Training job cancelled"}
+
+
 @router.post("/models/{version_id}/promote", response_model=ModelVersionResponse)
 def promote_model(
     version_id: UUID,
     req: PromoteRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     try:
         mv = promote_model_version(db, str(version_id), req.target_status, req.notes)
@@ -187,7 +298,7 @@ def update_model(
     version_id: UUID,
     req: UpdateModelRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     mv = db.query(ModelVersion).filter(ModelVersion.id == version_id).first()
     if not mv:
@@ -196,6 +307,8 @@ def update_model(
     if req.notes is not None:
         mv.notes = req.notes
     if req.status is not None:
+        if req.status not in {"draft", "candidate", "active", "archived", "rejected"}:
+            raise HTTPException(status_code=400, detail="Invalid model status")
         mv.status = req.status
         
     db.commit()
@@ -220,7 +333,7 @@ def update_model(
 def delete_model(
     version_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     mv = db.query(ModelVersion).filter(ModelVersion.id == version_id).first()
     if not mv:

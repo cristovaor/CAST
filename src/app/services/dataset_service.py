@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from app.db.models import (
     Session as SessionModel, Participant, VideoAsset, EEGAsset, Synchronization,
-    Study, ConsentStatus, SyncState,
+    Study, Project, ConsentStatus, SyncState,
 )
 
 RECORD_SCHEMA = {
@@ -82,13 +82,29 @@ def _passes(
     return None
 
 
-def select_sessions(db: OrmSession, criteria: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """Applies criteria to all sessions. Returns (included_records, excluded)."""
-    rows = (
+def select_sessions(
+    db: OrmSession,
+    criteria: Dict[str, Any],
+    organization_id=None,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Apply criteria only inside the requested tenant.
+
+    ``organization_id`` is mandatory for API and worker callers. It remains
+    optional for backwards-compatible service tests that build an isolated
+    in-memory database.
+    """
+    query = (
         db.query(SessionModel, Participant, Participant.study_id)
         .join(Participant, SessionModel.participant_id == Participant.id)
-        .all()
     )
+    if organization_id is not None:
+        query = (
+            query
+            .join(Study, Participant.study_id == Study.id)
+            .join(Project, Study.project_id == Project.id)
+            .filter(Project.organization_id == organization_id)
+        )
+    rows = query.all()
 
     included: List[Dict[str, Any]] = []
     excluded: List[Dict[str, Any]] = []

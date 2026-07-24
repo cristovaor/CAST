@@ -86,7 +86,7 @@ export function DataTable<T extends { id: string }>({
                   className={cn(
                     col.align === 'right' && 'text-right',
                     col.align === 'center' && 'text-center',
-                    col.sortable && 'cursor-pointer select-none hover:bg-slate-100',
+                    col.sortable && 'cursor-pointer select-none hover:bg-surface-hover',
                   )}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
                   aria-sort={
@@ -114,7 +114,7 @@ export function DataTable<T extends { id: string }>({
               <tr>
                 <td colSpan={columns.length + (rowActions ? 1 : 0)} className="py-12 text-center">
                   {emptyState ?? (
-                    <span className="text-sm text-slate-400">Nenhum resultado encontrado</span>
+                    <span className="text-sm text-text-muted">Nenhum resultado encontrado</span>
                   )}
                 </td>
               </tr>
@@ -161,8 +161,8 @@ export function DataTable<T extends { id: string }>({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
-          <span className="text-xs text-slate-400">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+          <span className="text-xs text-text-muted">
             {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, sorted.length)} de {sorted.length}
           </span>
           <div className="flex items-center gap-1">
@@ -170,20 +170,20 @@ export function DataTable<T extends { id: string }>({
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
               aria-label="Página anterior"
-              className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-40 transition-colors"
+              className="p-1.5 rounded hover:bg-surface-muted disabled:opacity-40 transition-colors"
             >
-              <ChevronLeft size={14} className="text-slate-500" />
+              <ChevronLeft size={14} className="text-text-secondary" />
             </button>
-            <span className="text-xs font-medium text-slate-600 px-2">
+            <span className="text-xs font-medium text-text-secondary px-2">
               {page} / {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
               aria-label="Próxima página"
-              className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-40 transition-colors"
+              className="p-1.5 rounded hover:bg-surface-muted disabled:opacity-40 transition-colors"
             >
-              <ChevronRight size={14} className="text-slate-500" />
+              <ChevronRight size={14} className="text-text-secondary" />
             </button>
           </div>
         </div>
@@ -213,7 +213,7 @@ function RowActionsMenu({
         onClick={onToggle}
         aria-label={`Ações para linha ${rowId}`}
         aria-expanded={open}
-        className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+        className="p-1.5 rounded hover:bg-surface-muted text-text-muted hover:text-text-primary transition-colors"
       >
         <MoreHorizontal size={15} />
       </button>
@@ -223,7 +223,7 @@ function RowActionsMenu({
           <div className="fixed inset-0 z-10" onClick={onClose} />
           <div className={cn(
             'absolute right-0 z-20 w-44 py-1',
-            'bg-white rounded-xl border border-slate-200 shadow-dropdown',
+            'bg-surface rounded-xl border border-border shadow-dropdown',
             'animate-scale-in',
           )}>
             {actions.map((action, i) => (
@@ -234,7 +234,7 @@ function RowActionsMenu({
                   'flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors text-left',
                   action.destructive
                     ? 'text-red-600 hover:bg-red-50'
-                    : 'text-slate-700 hover:bg-slate-50',
+                    : 'text-text-secondary hover:bg-surface-hover',
                 )}
               >
                 {action.icon && <span className="shrink-0">{action.icon}</span>}

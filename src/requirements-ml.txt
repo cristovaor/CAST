@@ -2,7 +2,7 @@ numpy
 pandas
 scikit-learn
 opencv-python
-mediapipe
+mediapipe==0.10.21
 tensorflow
 keras
 matplotlib

@@ -1,12 +1,13 @@
-import { Plus, Eye } from 'lucide-react';
+import { Eye, Sparkles, UploadCloud } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, type ColumnDef } from '@/components/data-display/DataTable';
 import { ModelVersionBadge } from '@/components/ui/ModelVersionBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { RegisterModelDialog } from '@/features/models/RegisterModelDialog';
+import { TrainModelDialog } from '@/features/models/TrainModelDialog';
 import { useModelVersions } from '@/features/models/useModels';
-import type { ModelVersion } from '@/types/domain';
+import type { ModelVersion, StatusVariant } from '@/types/domain';
 
 export function ModelsPage() {
   const { data: models = [], isLoading } = useModelVersions();
@@ -27,7 +28,7 @@ export function ModelsPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (v) => <StatusBadge status={String(v) as any} />,
+      render: (v) => <StatusBadge status={String(v) as StatusVariant} />,
     },
     {
       key: 'metrics',
@@ -62,12 +63,23 @@ export function ModelsPage() {
         title="Modelos de microação"
         description="Registro e versionamento de modelos de inferência utilizados no pipeline de análise."
         actions={
-          <RegisterModelDialog>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">
-              <Plus size={14} />
-              Registrar Modelo
-            </button>
-          </RegisterModelDialog>
+          <>
+            <RegisterModelDialog>
+              <button
+                title="Importar um artefato .keras já treinado fora do sistema"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                <UploadCloud size={14} />
+                Registrar artefato existente
+              </button>
+            </RegisterModelDialog>
+            <TrainModelDialog>
+              <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">
+                <Sparkles size={14} />
+                Treinar novo modelo
+              </button>
+            </TrainModelDialog>
+          </>
         }
       />
       <div className="p-6">

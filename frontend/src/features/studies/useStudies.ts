@@ -1,6 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import type { Study } from '@/types/api';
+import type { StudyCreate } from '@/types/domain';
+
+export interface ModalityQualitySummary {
+  total_assets: number;
+  assessed_assets: number;
+  average_valid_ratio: number | null;
+  average_face_detection_rate: number | null;
+  findings_count: number;
+  verdicts: Record<string, number>;
+}
+
+export interface StudyQualitySummary {
+  study_id: string;
+  sessions_count: number;
+  video: ModalityQualitySummary;
+  eeg: ModalityQualitySummary;
+}
 
 export function useStudies() {
   return useQuery<Study[]>({
@@ -17,11 +34,19 @@ export function useStudy(id: string) {
   });
 }
 
+export function useStudyQualitySummary(id: string) {
+  return useQuery<StudyQualitySummary>({
+    queryKey: ['studies', id, 'quality-summary'],
+    queryFn: () => apiClient.get<StudyQualitySummary>(`/studies/${id}/quality-summary`),
+    enabled: !!id,
+  });
+}
+
 export function useCreateStudy() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Partial<Study>) => apiClient.post<Study>('/studies', data),
+    mutationFn: (data: StudyCreate) => apiClient.post<Study>('/studies', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['studies'] });
     },
@@ -37,6 +62,8 @@ export function useUpdateStudy() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['studies'] });
       queryClient.invalidateQueries({ queryKey: ['studies', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'study', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
     },
   });
 }

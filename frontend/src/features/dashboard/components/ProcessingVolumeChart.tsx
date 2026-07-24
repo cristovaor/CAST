@@ -10,30 +10,35 @@ interface ProcessingVolumeChartProps {
   isLoading?: boolean;
 }
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+interface ProcessingTooltipEntry {
+  dataKey?: string | number;
+  value?: number;
+}
+
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: ProcessingTooltipEntry[]; label?: string }) {
   if (!active || !payload?.length) return null;
   
   const value = payload.find(p => p.dataKey === 'value')?.value;
   const avg = payload.find(p => p.dataKey === 'avg')?.value;
 
   return (
-    <div className="bg-white border border-slate-200 text-slate-800 text-xs px-3 py-2.5 rounded-lg shadow-xl ring-1 ring-slate-900/5 min-w-[140px]">
-      <div className="text-slate-500 mb-1.5 font-medium">{label}</div>
+    <div className="bg-surface border border-border text-text-primary text-xs px-3 py-2.5 rounded-lg shadow-xl ring-1 ring-black/5 min-w-[140px]">
+      <div className="text-text-secondary mb-1.5 font-medium">{label}</div>
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-blue-600" />
-            <span className="font-medium text-slate-700">Processados</span>
+          <span className="font-medium text-text-secondary">Processados</span>
           </div>
-          <span className="font-semibold text-slate-900">{value}</span>
+        <span className="font-semibold text-text-primary">{value}</span>
         </div>
         {avg !== undefined && (
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-0.5 bg-slate-400" />
-              <span className="text-slate-500">Média móvel</span>
+          <span className="text-text-secondary">Média móvel</span>
             </div>
-            <span className="text-slate-600">{avg.toFixed(1)}</span>
+        <span className="text-text-secondary">{avg?.toFixed(1)}</span>
           </div>
         )}
       </div>
@@ -73,24 +78,24 @@ export function ProcessingVolumeChart({ data, isLoading }: ProcessingVolumeChart
 
   if (!data || data.length === 0) {
     return (
-      <div className="card p-6 xl:col-span-3 flex flex-col items-center justify-center h-full min-h-[300px] text-slate-500">
+    <div className="card p-6 xl:col-span-3 flex flex-col items-center justify-center h-full min-h-[300px] text-text-secondary">
         <p className="text-sm font-medium">Nenhum dado de processamento disponível.</p>
-        <p className="text-xs text-slate-400 mt-1">O volume aparecerá aqui quando os vídeos forem processados.</p>
+      <p className="text-xs text-text-muted mt-1">O volume aparecerá aqui quando os vídeos forem processados.</p>
       </div>
     );
   }
 
   return (
-    <div className="card p-6 xl:col-span-3 flex flex-col h-full bg-white shadow-sm ring-1 ring-slate-200/50">
+    <div className="card p-6 xl:col-span-3 flex flex-col h-full bg-surface shadow-sm ring-1 ring-border/50">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 gap-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight">Volume de processamento</h2>
-          <p className="text-[13px] text-slate-500 mt-1">Vídeos analisados pelo pipeline nas últimas 12 semanas</p>
+          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">Volume de processamento</h2>
+          <p className="text-[13px] text-text-secondary mt-1">Vídeos analisados pelo pipeline nas últimas 12 semanas</p>
         </div>
         <div className="flex flex-col sm:items-end gap-1.5 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-slate-800 leading-none">{totalPeriod}</span>
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total</span>
+            <span className="text-2xl font-bold text-text-primary leading-none">{totalPeriod}</span>
+            <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">Total</span>
           </div>
           <span className="inline-flex items-center text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
             ↑ 12% vs. período anterior

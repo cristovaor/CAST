@@ -66,7 +66,19 @@ def get_dashboard_global(db: Session = Depends(get_db), current_user: User = Dep
         if assessed_videos else 0.0
     )
 
-    failed_jobs = db.query(ProcessingJob).filter(ProcessingJob.status == "failed").count()
+    failed_jobs = (
+        db.query(ProcessingJob)
+        .join(VideoAsset, ProcessingJob.video_asset_id == VideoAsset.id)
+        .join(DBSession, VideoAsset.session_id == DBSession.id)
+        .join(Participant, DBSession.participant_id == Participant.id)
+        .join(Study, Participant.study_id == Study.id)
+        .join(Project, Study.project_id == Project.id)
+        .filter(
+            Project.organization_id == org_id,
+            ProcessingJob.status == "failed",
+        )
+        .count()
+    )
 
     kpis = DashboardKPIs(
         active_projects=active_projects,
@@ -81,7 +93,16 @@ def get_dashboard_global(db: Session = Depends(get_db), current_user: User = Dep
     since = datetime.utcnow() - timedelta(days=7)
     daily_counts = (
         db.query(func.date(ProcessingJob.started_at), func.count(ProcessingJob.id))
-        .filter(ProcessingJob.started_at.isnot(None), ProcessingJob.started_at >= since)
+        .join(VideoAsset, ProcessingJob.video_asset_id == VideoAsset.id)
+        .join(DBSession, VideoAsset.session_id == DBSession.id)
+        .join(Participant, DBSession.participant_id == Participant.id)
+        .join(Study, Participant.study_id == Study.id)
+        .join(Project, Study.project_id == Project.id)
+        .filter(
+            Project.organization_id == org_id,
+            ProcessingJob.started_at.isnot(None),
+            ProcessingJob.started_at >= since,
+        )
         .group_by(func.date(ProcessingJob.started_at))
         .order_by(func.date(ProcessingJob.started_at))
         .all()

@@ -3,52 +3,74 @@ import { BarChart3, Download, FileText, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { useStudies } from '@/features/studies/useStudies';
-import { useStudyReports, useGenerateReport, downloadDynamicPdf } from '@/features/reports/useReports';
+import { useStudyReports, downloadDynamicPdf, downloadStudyCsv } from '@/features/reports/useReports';
 
 export function ReportsPage() {
   const { data: studies, isLoading: loadingStudies } = useStudies();
   const [selectedStudyId, setSelectedStudyId] = useState<string>('');
   const { data: reports, isLoading: loadingReports } = useStudyReports(selectedStudyId);
-  const generateReport = useGenerateReport();
+  const [activeDownload, setActiveDownload] = useState<'pdf' | 'csv' | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const handleGeneratePdf = () => {
+  const handleGeneratePdf = async () => {
     if (!selectedStudyId) return;
-    downloadDynamicPdf(selectedStudyId);
+    setActiveDownload('pdf');
+    setDownloadError(null);
+    try {
+      await downloadDynamicPdf(selectedStudyId);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'Não foi possível gerar o PDF.');
+    } finally {
+      setActiveDownload(null);
+    }
   };
 
-  const handleGenerateCsv = () => {
+  const handleGenerateCsv = async () => {
     if (!selectedStudyId) return;
-    generateReport.mutate({ studyId: selectedStudyId, format: 'csv' });
+    setActiveDownload('csv');
+    setDownloadError(null);
+    try {
+      await downloadStudyCsv(selectedStudyId);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'Não foi possível exportar o CSV.');
+    } finally {
+      setActiveDownload(null);
+    }
   };
 
   return (
     <div className="min-h-full">
       <PageHeader
-        title="Relatórios Clínicos"
-        description="Gere laudos clínicos em PDF, exporte dados em CSV e acompanhe o histórico de relatórios gerados."
+        title="Relatórios do Estudo"
+        description="Gere relatórios científicos em PDF, exporte dados em CSV e acompanhe o histórico de versões."
         actions={
           <>
             <button
               onClick={handleGenerateCsv}
-              disabled={!selectedStudyId || generateReport.isPending}
+              disabled={!selectedStudyId || activeDownload !== null}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download size={14} />
-              {generateReport.isPending ? 'Gerando...' : 'Exportar CSV'}
+              {activeDownload === 'csv' ? 'Exportando...' : 'Exportar CSV'}
             </button>
             <button
               onClick={handleGeneratePdf}
-              disabled={!selectedStudyId}
+              disabled={!selectedStudyId || activeDownload !== null}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 rounded-lg transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileText size={14} />
-              Gerar Laudo Clínico (PDF)
+              {activeDownload === 'pdf' ? 'Gerando PDF...' : 'Gerar Relatório PDF'}
             </button>
           </>
         }
       />
 
       <div className="p-6 space-y-6">
+        {downloadError && (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {downloadError}
+          </div>
+        )}
         {/* Study Selector */}
         <div className="card p-5">
           <label className="block text-sm font-semibold text-slate-700 mb-2">Selecione o Estudo</label>
@@ -63,7 +85,7 @@ export function ReportsPage() {
             ) : (
               studies?.map((study) => (
                 <option key={study.id} value={study.id}>
-                  {(study as any).name || (study as any).title || `Estudo ${study.id.slice(0, 8)}`}
+                  {study.name || `Estudo ${study.id.slice(0, 8)}`}
                 </option>
               ))
             )}
@@ -75,7 +97,7 @@ export function ReportsPage() {
           <EmptyState
             variant="empty"
             title="Nenhum estudo selecionado"
-            description="Selecione um estudo acima para visualizar os relatórios gerados ou gerar um novo laudo clínico."
+            description="Selecione um estudo para visualizar o histórico ou gerar um novo relatório."
             icon={<BarChart3 size={40} className="text-slate-300" />}
           />
         ) : loadingReports ? (
@@ -128,7 +150,7 @@ export function ReportsPage() {
           <EmptyState
             variant="empty"
             title="Nenhum relatório encontrado"
-            description="Este estudo ainda não possui relatórios gerados. Use os botões acima para gerar um laudo clínico em PDF ou exportar dados em CSV."
+            description="Este estudo ainda não possui relatórios persistidos. Gere um PDF científico ou exporte os dados em CSV."
             icon={<BarChart3 size={40} className="text-slate-300" />}
             action={{ label: 'Gerar Laudo PDF', onClick: handleGeneratePdf }}
           />
