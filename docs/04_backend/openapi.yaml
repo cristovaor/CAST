@@ -1,0 +1,202 @@
+openapi: 3.0.3
+info:
+  title: CAST Pro API
+  version: 1.0.0
+  description: API para estudos, vídeos, jobs, microações, anotação e exportação.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        type: {type: string}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        instance: {type: string}
+    StudyCreate:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        retention_days: {type: integer, default: 365}
+        consent_version: {type: string}
+    Study:
+      allOf:
+        - $ref: '#/components/schemas/StudyCreate'
+        - type: object
+          properties:
+            id: {type: string, format: uuid}
+            created_at: {type: string, format: date-time}
+    ParticipantCreate:
+      type: object
+      required: [study_id, pseudonym]
+      properties:
+        study_id: {type: string, format: uuid}
+        pseudonym: {type: string}
+        metadata: {type: object}
+    VideoRegister:
+      type: object
+      required: [study_id, participant_id, object_key, filename]
+      properties:
+        study_id: {type: string, format: uuid}
+        participant_id: {type: string, format: uuid}
+        session_id: {type: string, format: uuid}
+        object_key: {type: string}
+        filename: {type: string}
+        content_type: {type: string, default: video/mp4}
+    Job:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [PENDING, RUNNING, COMPLETED, FAILED, CANCELLED]}
+        step: {type: string}
+        progress: {type: number}
+        error: {type: string}
+    TimelineEvent:
+      type: object
+      properties:
+        event_id: {type: string, format: uuid}
+        action: {type: string, enum: [OF, OC, ML, VR, NEUTRO]}
+        start_frame: {type: integer}
+        end_frame: {type: integer}
+        start_time: {type: number}
+        end_time: {type: number}
+        confidence_mean: {type: number}
+    Timeline:
+      type: object
+      properties:
+        video_id: {type: string, format: uuid}
+        fps: {type: number}
+        duration_seconds: {type: number}
+        model_version: {type: string}
+        source: {type: string, enum: [model, human, reviewed]}
+        events:
+          type: array
+          items: {$ref: '#/components/schemas/TimelineEvent'}
+paths:
+  /auth/login:
+    post:
+      security: []
+      summary: Login
+      responses:
+        '200': {description: OK}
+  /me:
+    get:
+      summary: Current user
+      responses:
+        '200': {description: OK}
+  /studies:
+    get:
+      summary: List studies
+      responses:
+        '200': {description: OK}
+    post:
+      summary: Create study
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StudyCreate'}
+      responses:
+        '201': {description: Created}
+  /studies/{study_id}:
+    get:
+      summary: Get study
+      parameters:
+        - name: study_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: OK}
+  /participants:
+    post:
+      summary: Create participant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ParticipantCreate'}
+      responses:
+        '201': {description: Created}
+  /participants/{participant_id}/consents:
+    post:
+      summary: Register consent
+      parameters:
+        - name: participant_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '201': {description: Created}
+  /videos/upload-url:
+    post:
+      summary: Create presigned upload URL
+      responses:
+        '200': {description: OK}
+  /videos:
+    post:
+      summary: Register uploaded video
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/VideoRegister'}
+      responses:
+        '201': {description: Created}
+  /videos/{video_id}/process:
+    post:
+      summary: Start processing job
+      parameters:
+        - name: video_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '202': {description: Accepted}
+  /videos/{video_id}/timeline:
+    get:
+      summary: Get timeline events
+      parameters:
+        - name: video_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: source
+          in: query
+          schema: {type: string, enum: [model, human, reviewed]}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Timeline'}
+  /jobs/{job_id}:
+    get:
+      summary: Get job status
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Job'}
+  /exports:
+    post:
+      summary: Create export request
+      responses:
+        '202': {description: Accepted}

@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cast_postgres
+    environment:
+      POSTGRES_USER: cast_user
+      POSTGRES_PASSWORD: cast_password
+      POSTGRES_DB: cast_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: cast_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  minio:
+    image: minio/minio:latest
+    container_name: cast_minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    restart: always
+
+  triton:
+    image: nvcr.io/nvidia/tritonserver:23.08-py3
+    container_name: cast_triton
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
+    command: tritonserver --model-repository=/models
+    volumes:
+      - ./models:/models
+    restart: always
+
+  backend:
+    build:
+      context: ./src
+      dockerfile: Dockerfile.api
+    container_name: cast_backend
+    command: bash -c "chmod +x ./prestart.sh && ./prestart.sh && uvicorn app.main:app --host 0.0.0.0 --port 8080"
+    ports:
+      - "8080:8080"
+    environment:
+      - POSTGRES_SERVER=postgres
+      - MINIO_URL=http://minio:9000
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./models:/app/models  # Model registry volume
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    restart: always
+
+  worker:
+    build:
+      context: ./src
+      dockerfile: Dockerfile.worker
+    container_name: cast_worker
+    command: celery -A app.workers.celery_app worker -l info
+    environment:
+      - POSTGRES_SERVER=postgres
+      - MINIO_URL=http://minio:9000
+      - TRITON_SERVER_URL=http://triton:8000
+      - TF_CPP_MIN_LOG_LEVEL=2
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./models:/app/models
+    depends_on:
+      - redis
+      - postgres
+      - minio
+      - triton
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cast_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

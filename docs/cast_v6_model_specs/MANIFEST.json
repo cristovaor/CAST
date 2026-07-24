@@ -1,0 +1,24 @@
+{
+  "package": "cast_v6_model_specs",
+  "created_at": "2026-06-14T01:52:48.630073Z",
+  "source_notebooks": [
+    "CompactadorDados.ipynb",
+    "MODELO_LSTM_V6.ipynb",
+    "PLOT_PREVISOES.ipynb"
+  ],
+  "docs": [
+    "01_model_card_v6.md",
+    "02_data_contract_v6.md",
+    "03_training_spec_v6.md",
+    "04_inference_api_spec_v6.md",
+    "05_postprocessing_and_compaction_v6.md",
+    "06_evaluation_spec_v6.md",
+    "07_model_registry_and_artifacts_v6.md",
+    "08_known_issues_and_corrections_v6.md",
+    "09_implementation_plan_v6.md",
+    "10_acceptance_checklist_v6.md",
+    "README.md"
+  ],
+  "model_family": "cast-lstm-v6",
+  "recommended_mode": "v6_canonical_api"
+}

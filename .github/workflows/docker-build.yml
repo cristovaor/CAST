@@ -1,0 +1,28 @@
+name: Docker Build and Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to DockerHub (Mock)
+      run: echo "Logged in" # docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build Backend Image
+      run: |
+        docker build -t cast-backend:latest ./src
+        # docker push cast-backend:latest
+        
+    - name: Build Frontend Image
+      run: |
+        docker build -t cast-frontend:latest ./frontend
+        # docker push cast-frontend:latest

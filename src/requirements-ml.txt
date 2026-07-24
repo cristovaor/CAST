@@ -1,0 +1,17 @@
+numpy
+pandas
+scikit-learn
+opencv-python
+mediapipe
+tensorflow
+keras
+matplotlib
+pyarrow
+pydantic
+pyyaml
+fastapi
+pytest
+# EEG parsing (EDF/EDF+/BDF/BrainVision/FIF/EEGLAB). Optional at runtime:
+# the parser falls back to native CSV when these are absent.
+mne>=1.6.0
+pyedflib>=0.1.36
