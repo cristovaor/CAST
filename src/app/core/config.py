@@ -44,10 +44,19 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8 # 8 days
     
-    # Storage (MinIO)
+    # Storage (MinIO). MINIO_URL is used for server-to-server calls (boto3
+    # client) and must resolve inside the Docker network (e.g. "minio").
+    # MINIO_PUBLIC_URL is used only to sign URLs handed to the browser, and
+    # must resolve from the host machine (e.g. "localhost"). They default to
+    # the same value for non-containerized local runs.
     MINIO_URL: str = "http://localhost:9000"
+    MINIO_PUBLIC_URL: str = ""
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin123"
+
+    @property
+    def MINIO_PUBLIC_URL_RESOLVED(self) -> str:
+        return self.MINIO_PUBLIC_URL or self.MINIO_URL
 
     # Triton Inference Server
     TRITON_SERVER_URL: str = "http://localhost:8000"

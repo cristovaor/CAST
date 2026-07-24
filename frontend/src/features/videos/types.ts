@@ -9,4 +9,5 @@ export interface TimelineEventDTO {
   start_time: number; // seconds (video clock)
   end_time: number; // seconds (video clock)
   confidence_mean: number;
+  origin: 'model' | 'annotator';
 }

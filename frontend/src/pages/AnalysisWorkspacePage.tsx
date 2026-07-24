@@ -256,7 +256,7 @@ export function AnalysisWorkspacePage() {
       <div className="space-y-5 p-4 sm:p-6">
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label="Duração disponível" value={durationSeconds ? formatClock(durationSeconds) : '—'} />
-          <StatCard label="Eventos do modelo" value={eventStats.count.toLocaleString('pt-BR')} />
+          <StatCard label="Eventos detectados" value={eventStats.count.toLocaleString('pt-BR')} />
           <StatCard label="Amostras EEG" value={(eeg?.data.length ?? 0).toLocaleString('pt-BR')} />
           <StatCard
             label="Offset EEG"
@@ -496,7 +496,7 @@ export function AnalysisWorkspacePage() {
         )}
 
         {(analysis === 'Temporal' || analysis === 'Vídeo') && (
-          <Panel title="Eventos detectados" subtitle="Eventos retornados pela predição mais recente">
+          <Panel title="Eventos detectados" subtitle="Predições do modelo e anotações manuais">
             <EventTable events={timeline?.events ?? []} onSeek={seekTo} />
           </Panel>
         )}

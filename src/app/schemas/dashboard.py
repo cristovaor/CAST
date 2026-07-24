@@ -21,6 +21,7 @@ class MicroactionDistribution(BaseModel):
     OLHANDO_CANTO: int
     MEXEU_LABIOS: int
     VIROU_ROSTO: int
+    MEXEU_SOBRANCELHA: int
 
 class RecentJob(BaseModel):
     id: UUID

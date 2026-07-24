@@ -43,7 +43,7 @@ export function SuggestionReviewPanel({
 
   if (!predictionId) {
     return (
-      <div className="p-4 text-sm text-slate-500">
+      <div className="p-4 text-sm text-text-muted">
         Nenhum modelo disponível. A anotação manual continua ativa.
       </div>
     );
@@ -53,8 +53,8 @@ export function SuggestionReviewPanel({
     <div className="space-y-3 p-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-100">Sugestões do modelo</h3>
-          <p className="text-xs text-slate-500">{pendingSuggestions.length} pendentes</p>
+          <h3 className="text-sm font-semibold text-text-primary">Sugestões do modelo</h3>
+          <p className="text-xs text-text-muted">{pendingSuggestions.length} pendentes</p>
         </div>
         <Button
           variant="ghost"
@@ -75,14 +75,14 @@ export function SuggestionReviewPanel({
           <div
             key={suggestion.modelEventKey}
             data-testid={`suggestion-${suggestion.modelEventKey}`}
-            className="rounded-lg border border-slate-800 bg-slate-950/60 p-3"
+            className="rounded-lg border border-border bg-surface-muted p-3"
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-sm font-medium text-slate-200">
+                <p className="text-sm font-medium text-text-primary">
                   {category?.label ?? suggestion.actionCode}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-text-muted">
                   quadros {suggestion.startFrame}–{suggestion.endFrame} ·{' '}
                   {Math.round(suggestion.confidence * 100)}% ·{' '}
                   {suggestion.modelVersion ?? 'versão desconhecida'}
@@ -95,7 +95,7 @@ export function SuggestionReviewPanel({
                 <select
                   value={actionCode}
                   onChange={(event) => setActionCode(event.target.value)}
-                  className="col-span-3 rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
+                  className="col-span-3 rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-primary"
                 >
                   {categories.map((item) => (
                     <option key={item.code} value={item.code}>
@@ -109,7 +109,7 @@ export function SuggestionReviewPanel({
                   min={0}
                   value={startFrame}
                   onChange={(event) => setStartFrame(Number(event.target.value))}
-                  className="rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs"
+                  className="rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-primary"
                 />
                 <input
                   aria-label="Quadro final"
@@ -117,7 +117,7 @@ export function SuggestionReviewPanel({
                   min={startFrame}
                   value={endFrame}
                   onChange={(event) => setEndFrame(Number(event.target.value))}
-                  className="rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs"
+                  className="rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-primary"
                 />
                 <Button
                   size="sm"

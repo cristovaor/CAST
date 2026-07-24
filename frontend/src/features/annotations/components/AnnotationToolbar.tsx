@@ -71,7 +71,7 @@ export function AnnotationToolbar({
         </Button>
       </div>
 
-      <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
         {(['interval', 'point'] as const).map((mode) => (
           <button
             key={mode}
@@ -79,8 +79,8 @@ export function AnnotationToolbar({
             onClick={() => onAnnotationModeChange(mode)}
             className={`rounded px-3 py-1.5 text-xs ${
               annotationMode === mode
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-primary text-text-inverse'
+                : 'text-text-muted hover:text-text-primary'
             }`}
           >
             {mode === 'interval' ? 'Intervalo' : 'Ponto'}
@@ -88,7 +88,7 @@ export function AnnotationToolbar({
         ))}
       </div>
 
-      <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
         {(['off', 'roi', 'mesh'] as const).map((mode) => (
           <button
             key={mode}
@@ -97,8 +97,8 @@ export function AnnotationToolbar({
             onClick={() => onOverlayModeChange(mode)}
             className={`rounded px-2.5 py-1.5 text-xs disabled:opacity-30 ${
               overlayMode === mode
-                ? 'bg-cyan-600 text-white'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-info text-text-inverse'
+                : 'text-text-muted hover:text-text-primary'
             }`}
           >
             {mode === 'off' ? 'Pontos desligados' : mode === 'roi' ? 'ROI' : 'Malha'}

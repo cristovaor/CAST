@@ -71,6 +71,7 @@ export function RegisterModelDialog({ children }: { children: React.ReactNode })
                 <option value="OC">OC (Olhando Canto)</option>
                 <option value="ML">ML (Mexendo Lábios)</option>
                 <option value="VR">VR (Virando Rosto)</option>
+                <option value="MSO">MSO (Mexeu Sobrancelha)</option>
               </select>
             </div>
             <div className="space-y-2">

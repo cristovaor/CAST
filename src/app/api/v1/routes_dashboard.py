@@ -127,6 +127,7 @@ def get_dashboard_global(db: Session = Depends(get_db), current_user: User = Dep
     for pred, study_name in predictions:
         counts = by_study.setdefault(study_name, {
             "OLHO_FECHADO": 0, "OLHANDO_CANTO": 0, "MEXEU_LABIOS": 0, "VIROU_ROSTO": 0,
+            "MEXEU_SOBRANCELHA": 0,
         })
         actions = (pred.summary or {}).get("actions", {})
         for action_name, action_data in actions.items():

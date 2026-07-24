@@ -9,6 +9,7 @@ const ACTIONS = [
   ['OC', 'OC (Olhando Canto)'],
   ['ML', 'ML (Mexendo Lábios)'],
   ['VR', 'VR (Virando Rosto)'],
+  ['MSO', 'MSO (Mexeu Sobrancelha)'],
 ] as const;
 
 // Trains on real annotated videos (landmarks + annotation events already in the

@@ -74,7 +74,7 @@ export function VideoAnnotatorPlayer({
   }, [setCurrentTimeMs, videoUrl]);
 
   return (
-    <div className="relative flex aspect-video w-full max-w-5xl items-center justify-center overflow-hidden rounded-lg border border-slate-800 bg-black shadow-2xl">
+    <div className="relative flex aspect-video w-full max-w-5xl items-center justify-center overflow-hidden rounded-lg border border-border bg-black shadow-2xl">
       {videoUrl ? (
         <>
           <video
@@ -104,10 +104,10 @@ export function VideoAnnotatorPlayer({
           />
         </>
       ) : (
-        <div className="text-sm text-slate-500">Vídeo indisponível</div>
+        <div className="text-sm text-text-muted">Vídeo indisponível</div>
       )}
       {draft && (
-        <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full bg-red-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg">
+        <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full bg-danger px-3 py-1.5 text-sm font-semibold text-white shadow-lg">
           <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
           Intervalo: {draft.actionLabel}
         </div>

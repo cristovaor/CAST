@@ -12,7 +12,7 @@ interface MicroActionsChartProps {
   isLoading?: boolean;
 }
 
-const ACTIONS = ['OLHO_FECHADO', 'OLHANDO_CANTO', 'MEXEU_LABIOS', 'VIROU_ROSTO'] as const;
+const ACTIONS = ['OLHO_FECHADO', 'OLHANDO_CANTO', 'MEXEU_LABIOS', 'VIROU_ROSTO', 'MEXEU_SOBRANCELHA'] as const;
 
 interface MicroActionTooltipEntry {
   name: typeof ACTIONS[number];

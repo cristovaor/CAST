@@ -18,7 +18,8 @@ const ACTION_LABELS: Record<MicroActionType, string> = {
   OLHO_FECHADO: "Olho Fechado",
   OLHANDO_CANTO: "Olhando Canto",
   MEXEU_LABIOS: "Mexeu Lábios",
-  VIROU_ROSTO: "Virou Rosto"
+  VIROU_ROSTO: "Virou Rosto",
+  MEXEU_SOBRANCELHA: "Mexeu Sobrancelha"
 };
 
 export function AnnotationList({ annotations, onDelete, onSeek }: AnnotationListProps) {

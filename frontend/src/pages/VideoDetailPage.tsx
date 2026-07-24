@@ -152,7 +152,7 @@ export function VideoDetailPage() {
     startMs: ev.start_time * 1000,
     endMs: ev.end_time * 1000,
     confidence: ev.confidence_mean,
-    origin: 'model',
+    origin: ev.origin,
     review_status: 'pending'
   }));
 
@@ -176,6 +176,7 @@ export function VideoDetailPage() {
     OLHANDO_CANTO: { count: 0, perMinute: 0 },
     MEXEU_LABIOS: { count: 0, perMinute: 0 },
     VIROU_ROSTO: { count: 0, perMinute: 0 },
+    MEXEU_SOBRANCELHA: { count: 0, perMinute: 0 },
   });
 
   return (

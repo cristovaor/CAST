@@ -1,6 +1,6 @@
-import { Activity, Eye, MessageSquare, UserCheck } from "lucide-react";
+import { Activity, Eye, MessageSquare, UserCheck, Frown } from "lucide-react";
 
-export type MicroActionType = 'OLHO_FECHADO' | 'OLHANDO_CANTO' | 'MEXEU_LABIOS' | 'VIROU_ROSTO';
+export type MicroActionType = 'OLHO_FECHADO' | 'OLHANDO_CANTO' | 'MEXEU_LABIOS' | 'VIROU_ROSTO' | 'MEXEU_SOBRANCELHA';
 
 export type SummaryData = Record<MicroActionType, { count: number; perMinute: number }>;
 
@@ -8,14 +8,16 @@ const ICONS: Record<MicroActionType, React.ReactNode> = {
   OLHO_FECHADO: <Eye className="h-5 w-5 text-indigo-500" />,
   OLHANDO_CANTO: <Activity className="h-5 w-5 text-emerald-500" />,
   MEXEU_LABIOS: <MessageSquare className="h-5 w-5 text-amber-500" />,
-  VIROU_ROSTO: <UserCheck className="h-5 w-5 text-rose-500" />
+  VIROU_ROSTO: <UserCheck className="h-5 w-5 text-rose-500" />,
+  MEXEU_SOBRANCELHA: <Frown className="h-5 w-5 text-pink-500" />
 };
 
 const LABELS: Record<MicroActionType, string> = {
   OLHO_FECHADO: "Olhos Fechados",
   OLHANDO_CANTO: "Olhando de Canto",
   MEXEU_LABIOS: "Mexeu os Lábios",
-  VIROU_ROSTO: "Virou o Rosto"
+  VIROU_ROSTO: "Virou o Rosto",
+  MEXEU_SOBRANCELHA: "Mexeu a Sobrancelha"
 };
 
 export function MicroActionSummaryCards({ summary }: { summary: SummaryData }) {

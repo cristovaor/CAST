@@ -17,7 +17,7 @@ interface MicroActionTimelineProps {
 }
 
 // Tracks shown even when empty, so the layout is stable across videos.
-const ACTIONS: MicroAction[] = ['OLHO_FECHADO', 'OLHANDO_CANTO', 'MEXEU_LABIOS', 'VIROU_ROSTO'];
+const ACTIONS: MicroAction[] = ['OLHO_FECHADO', 'OLHANDO_CANTO', 'MEXEU_LABIOS', 'VIROU_ROSTO', 'MEXEU_SOBRANCELHA'];
 
 function formatClock(ms: number): string {
   const totalSec = Math.max(0, ms) / 1000;

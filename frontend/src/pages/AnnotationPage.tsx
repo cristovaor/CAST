@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Download, Loader2, RefreshCw, Upload } from 'lucide-react';
 import { AnnotationSidebarList } from '@/features/annotations/components/AnnotationSidebarList';
 import { AnnotationTimeline } from '@/features/annotations/components/AnnotationTimeline';
 import { AnnotationToolbar } from '@/features/annotations/components/AnnotationToolbar';
@@ -22,6 +22,7 @@ import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import { Button } from '@/components/ui/Button';
 import type { AnnotationSuggestion } from '@/types/annotation';
 import { timeToFrame } from '@/features/annotations/annotationFrame';
+import { downloadCsv, eventsToCsv, parseAnnotationCsv } from '@/features/annotations/annotationCsv';
 
 export function AnnotationPage() {
   const { videoId = '' } = useParams();
@@ -35,7 +36,7 @@ export function AnnotationPage() {
   const reviewSuggestion = useReviewSuggestion(videoId, taskId);
   const processVideo = useProcessVideo();
 
-  const { draft, startDraft, cancelDraft, setEvents } = useAnnotationStore();
+  const { draft, events, startDraft, cancelDraft, setEvents } = useAnnotationStore();
   const {
     currentTimeMs,
     durationMs,
@@ -57,6 +58,8 @@ export function AnnotationPage() {
   const [opacity, setOpacity] = useState(0.85);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const context = contextQuery.data;
   const categories = context?.categories ?? [];
@@ -207,6 +210,51 @@ export function AnnotationPage() {
     startDraft,
   ]);
 
+  const exportCsv = useCallback(() => {
+    const csv = eventsToCsv(events);
+    downloadCsv(`anotacoes-${videoId}.csv`, csv);
+  }, [events, videoId]);
+
+  const triggerImport = useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  const importCsv = useCallback(
+    async (file: File) => {
+      const text = await file.text();
+      const { rows, errors } = parseAnnotationCsv(text);
+      if (rows.length === 0) {
+        setMessage(errors[0] ?? 'Nenhuma linha válida encontrada no CSV.');
+        return;
+      }
+      setImporting(true);
+      let created = 0;
+      let failed = 0;
+      for (const row of rows) {
+        const category = categories.find((item) => item.code === row.actionCode);
+        try {
+          await createAnnotation.mutateAsync({
+            kind: row.kind,
+            actionCode: row.actionCode,
+            actionLabel: category?.label ?? row.actionLabel,
+            startFrame: row.startFrame,
+            endFrame: row.endFrame,
+            notes: row.notes,
+          });
+          created += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      setImporting(false);
+      const parts = [`${created} anotações importadas`];
+      if (failed > 0) parts.push(`${failed} falharam`);
+      if (errors.length > 0) parts.push(`${errors.length} linhas inválidas ignoradas`);
+      setMessage(parts.join(' · '));
+    },
+    [categories, createAnnotation],
+  );
+
   const review = (
     suggestion: AnnotationSuggestion,
     decision: 'accepted' | 'corrected' | 'rejected',
@@ -232,18 +280,18 @@ export function AnnotationPage() {
   };
 
   if (!videoId) {
-    return <div className="p-8">Vídeo não informado.</div>;
+    return <div className="p-8 text-text-primary">Vídeo não informado.</div>;
   }
   if (contextQuery.isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
   if (contextQuery.isError || !context) {
     return (
-      <div className="m-8 rounded-lg border border-red-200 bg-red-50 p-5 text-red-700">
+      <div className="m-8 rounded-lg border border-danger-border bg-danger-light p-5 text-danger">
         Não foi possível abrir o contexto de anotação.
       </div>
     );
@@ -256,37 +304,74 @@ export function AnnotationPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.16))] flex-col bg-slate-950 text-slate-100">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-5 py-3">
+    <div className="flex h-[calc(100vh-theme(spacing.16))] flex-col bg-app-bg text-text-primary">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div>
           <h1 className="text-base font-semibold">Anotação · {context.video.filename}</h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-muted">
             {fps.toFixed(2)} fps · quadro {timeToFrame(currentTimeMs, fps)}
             {context.task ? ` · tarefa ${context.task.id.slice(0, 8)}` : ''}
           </p>
         </div>
-        {!artifact && (
+        <div className="flex items-center gap-2">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file) void importCsv(file);
+            }}
+          />
           <Button
-            disabled={extracting || processVideo.isPending}
-            onClick={() =>
-              processVideo.mutate(videoId, {
-                onSuccess: () => void contextQuery.refetch(),
-                onError: (error) => setMessage(error.message),
-              })
-            }
+            variant="outline"
+            size="sm"
+            disabled={importing}
+            onClick={triggerImport}
+            title="Importar anotações de um CSV"
           >
-            {extracting ? (
+            {importing ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <Upload className="mr-2 h-4 w-4" />
             )}
-            {extracting ? 'Processando landmarks' : 'Processar landmarks'}
+            Importar CSV
           </Button>
-        )}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={events.length === 0}
+            onClick={exportCsv}
+            title="Exportar anotações para CSV"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Exportar CSV
+          </Button>
+          {!artifact && (
+            <Button
+              disabled={extracting || processVideo.isPending}
+              onClick={() =>
+                processVideo.mutate(videoId, {
+                  onSuccess: () => void contextQuery.refetch(),
+                  onError: (error) => setMessage(error.message),
+                })
+              }
+            >
+              {extracting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              {extracting ? 'Processando landmarks' : 'Processar landmarks'}
+            </Button>
+          )}
+        </div>
       </header>
 
       {message && (
-        <div className="flex items-center justify-between border-b border-amber-700/40 bg-amber-950/60 px-5 py-2 text-xs text-amber-200">
+        <div className="flex items-center justify-between border-b border-warning-border bg-warning-light px-5 py-2 text-xs text-warning">
           <span className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" /> {message}
           </span>
@@ -308,13 +393,13 @@ export function AnnotationPage() {
               opacity={opacity}
             />
 
-            <div className="mt-3 flex w-full max-w-5xl flex-wrap items-center gap-3 text-xs text-slate-400">
+            <div className="mt-3 flex w-full max-w-5xl flex-wrap items-center gap-3 text-xs text-text-secondary">
               <label>
                 Ação/ROI{' '}
                 <select
                   value={selectedAction}
                   onChange={(event) => setSelectedAction(event.target.value)}
-                  className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-200"
+                  className="rounded border border-border bg-surface px-2 py-1 text-text-primary"
                 >
                   {categories.map((category) => (
                     <option key={category.code} value={category.code}>
@@ -353,7 +438,7 @@ export function AnnotationPage() {
             </div>
           </div>
 
-          <div className="border-t border-slate-800 bg-slate-950 px-4 py-2">
+          <div className="border-t border-border bg-app-bg px-4 py-2">
             <AnnotationToolbar
               annotationMode={annotationMode}
               onAnnotationModeChange={setAnnotationMode}
@@ -368,9 +453,14 @@ export function AnnotationPage() {
           />
         </main>
 
-        <aside className="w-96 shrink-0 overflow-y-auto border-l border-slate-800 bg-slate-900">
-          <AnnotationSidebarList />
-          <div className="border-t border-slate-800">
+        <aside className="w-96 shrink-0 overflow-y-auto border-l border-border bg-surface">
+          <AnnotationSidebarList
+            videoId={videoId}
+            taskId={taskId}
+            categories={categories}
+            fps={fps}
+          />
+          <div className="border-t border-border">
             <SuggestionReviewPanel
               suggestions={suggestions}
               predictionId={suggestionsQuery.data?.predictionId ?? null}

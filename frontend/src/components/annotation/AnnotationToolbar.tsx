@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Eye, Activity, MessageSquare, UserCheck, XCircle, Save } from "lucide-react";
+import { Eye, Activity, MessageSquare, UserCheck, Frown, XCircle, Save } from "lucide-react";
 
-export type MicroActionType = 'OLHO_FECHADO' | 'OLHANDO_CANTO' | 'MEXEU_LABIOS' | 'VIROU_ROSTO';
+export type MicroActionType = 'OLHO_FECHADO' | 'OLHANDO_CANTO' | 'MEXEU_LABIOS' | 'VIROU_ROSTO' | 'MEXEU_SOBRANCELHA';
 
 interface AnnotationToolbarProps {
   activeAction: MicroActionType | null;
@@ -18,6 +18,7 @@ export function AnnotationToolbar({ activeAction, onSelectAction, onSave, onCanc
     { type: 'OLHANDO_CANTO', label: "Olhando de Canto", key: "2", icon: Activity, color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
     { type: 'MEXEU_LABIOS', label: "Mexeu Lábios", key: "3", icon: MessageSquare, color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
     { type: 'VIROU_ROSTO', label: "Virou Rosto", key: "4", icon: UserCheck, color: "text-rose-500 bg-rose-500/10 border-rose-500/20" },
+    { type: 'MEXEU_SOBRANCELHA', label: "Mexeu Sobrancelha", key: "5", icon: Frown, color: "text-pink-500 bg-pink-500/10 border-pink-500/20" },
   ];
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export function AnnotationToolbar({ activeAction, onSelectAction, onSave, onCanc
         case "2": onSelectAction('OLHANDO_CANTO'); break;
         case "3": onSelectAction('MEXEU_LABIOS'); break;
         case "4": onSelectAction('VIROU_ROSTO'); break;
+        case "5": onSelectAction('MEXEU_SOBRANCELHA'); break;
         case "Enter": 
           if (isSelecting) onSave();
           break;

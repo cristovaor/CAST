@@ -37,6 +37,7 @@ export type MicroAction =
   | 'OLHANDO_CANTO'
   | 'MEXEU_LABIOS'
   | 'VIROU_ROSTO'
+  | 'MEXEU_SOBRANCELHA'
   | 'NEUTRAL';
 
 // UI-only status extension (superset of backend statuses)

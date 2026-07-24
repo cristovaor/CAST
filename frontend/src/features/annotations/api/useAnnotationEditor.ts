@@ -5,6 +5,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import { annotationsApi, type AnnotationWrite } from './annotationsApi';
+import type { AnnotationEvent } from '@/types/annotation';
 
 export function landmarkChunkKey(
   videoId: string,
@@ -105,6 +106,23 @@ export function useCreateVideoAnnotation(videoId: string, taskId?: string) {
         ...payload,
         taskId: payload.taskId ?? taskId,
       }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['annotations', videoId, taskId ?? 'current'],
+      }),
+  });
+}
+
+export function useUpdateVideoAnnotation(videoId: string, taskId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      annotationId,
+      data,
+    }: {
+      annotationId: string;
+      data: Partial<AnnotationEvent>;
+    }) => annotationsApi.updateAnnotation(videoId, annotationId, data),
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: ['annotations', videoId, taskId ?? 'current'],

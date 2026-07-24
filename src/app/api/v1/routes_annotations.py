@@ -96,14 +96,14 @@ def get_tasks(
     
     return [
         {
-            "id": t.TaskModel.id, 
-            "video_id": t.TaskModel.video_asset_id, 
-            "assignee_id": t.TaskModel.assignee_id, 
-            "assignee_name": t.assignee_name or "Unknown",
-            "status": t.TaskModel.status.value,
-            "created_at": t.TaskModel.created_at.isoformat() if t.TaskModel.created_at else None
-        } 
-        for t in tasks
+            "id": task.id,
+            "video_id": task.video_asset_id,
+            "assignee_id": task.assignee_id,
+            "assignee_name": assignee_name or "Unknown",
+            "status": task.status.value,
+            "created_at": task.created_at.isoformat() if task.created_at else None
+        }
+        for task, assignee_name in tasks
     ]
 
 @router.get("/{task_id}")

@@ -53,18 +53,18 @@ export function AnnotationTimeline({
     duration > 0 ? `${(seconds / duration) * 100}%` : '0%';
 
   return (
-    <div className="flex h-52 select-none flex-col border-t border-slate-800 bg-slate-900">
-      <div className="flex h-8 items-center justify-between border-b border-slate-800 bg-slate-950 px-4 font-mono text-xs text-slate-400">
+    <div className="flex h-52 select-none flex-col border-t border-border bg-surface">
+      <div className="flex h-8 items-center justify-between border-b border-border bg-app-bg px-4 font-mono text-xs text-text-muted">
         <span>{currentTime.toFixed(2)}s</span>
         <span>{duration.toFixed(2)}s</span>
       </div>
       <div className="relative flex-1 space-y-1 overflow-y-auto p-2">
         {tracks.map(([actionCode, track]) => (
           <div key={actionCode} className="group flex h-8 items-center gap-4">
-            <div className="w-28 truncate text-xs text-slate-400">{actionCode}</div>
+            <div className="w-28 truncate text-xs text-text-muted">{actionCode}</div>
             <div
               ref={timelineRef}
-              className="relative h-full flex-1 cursor-pointer rounded-sm bg-slate-800/60"
+              className="relative h-full flex-1 cursor-pointer rounded-sm bg-surface-muted"
               onClick={seekFromClick}
             >
               {track.suggestions.map((suggestion) => (
@@ -120,14 +120,14 @@ export function AnnotationTimeline({
                 />
               )}
               <div
-                className="pointer-events-none absolute bottom-0 top-0 z-10 w-0.5 bg-white"
+                className="pointer-events-none absolute bottom-0 top-0 z-10 w-0.5 bg-text-primary"
                 style={{ left: position(currentTime) }}
               />
             </div>
           </div>
         ))}
         {tracks.length === 0 && (
-          <div className="flex h-full items-center justify-center text-sm italic text-slate-500">
+          <div className="flex h-full items-center justify-center text-sm italic text-text-muted">
             Nenhuma anotação. Use 1–9 para marcar.
           </div>
         )}

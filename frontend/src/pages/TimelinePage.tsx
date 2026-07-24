@@ -15,7 +15,7 @@ import type { TimelineEventDTO } from '@/features/videos/types';
 import { Crosshair } from 'lucide-react';
 
 const SAMPLE_VIDEO_URL = 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-const ACTIONS: MicroAction[] = ['OLHO_FECHADO', 'OLHANDO_CANTO', 'MEXEU_LABIOS', 'VIROU_ROSTO'];
+const ACTIONS: MicroAction[] = ['OLHO_FECHADO', 'OLHANDO_CANTO', 'MEXEU_LABIOS', 'VIROU_ROSTO', 'MEXEU_SOBRANCELHA'];
 
 function formatClock(ms: number): string {
   const totalSec = Math.max(0, ms) / 1000;

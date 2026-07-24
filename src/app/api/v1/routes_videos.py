@@ -9,6 +9,7 @@ from uuid import UUID
 
 from app.schemas.video import VideoAssetCreate, VideoAsset
 from app.db.models import (
+    AnnotationEvent,
     AnnotationTask,
     EEGAsset as EEGAssetModel,
     JobStatus,
@@ -168,7 +169,8 @@ def process_video(
     return {"job_id": job.id, "status": "queued"}
 
 def load_timeline_events(video_asset, db: Session):
-    """Loads micro-action events (from the latest prediction JSON) for a video.
+    """Loads micro-action events for a video: model predictions plus manual
+    annotations, merged into a single chronological timeline.
 
     Shared by the timeline endpoint and the EEG co-activation analysis so both
     read events from the same source. Returns (events, model_version).
@@ -206,10 +208,30 @@ def load_timeline_events(video_asset, db: Session):
                         "start_time": ev.get("start_ms", 0) / 1000.0,
                         "end_time": ev.get("end_ms", 0) / 1000.0,
                         "confidence_mean": ev.get("avg_confidence", 0.0),
+                        "origin": "model",
                     })
         except Exception as e:
             print(f"Failed to load prediction JSON: {e}")
 
+    annotation_events = (
+        db.query(AnnotationEvent)
+        .join(AnnotationTask, AnnotationEvent.task_id == AnnotationTask.id)
+        .filter(AnnotationTask.video_asset_id == video_asset.id)
+        .all()
+    )
+    for event in annotation_events:
+        events.append({
+            "event_id": str(event.id),
+            "action": event.action,
+            "start_frame": event.start_frame,
+            "end_frame": event.end_frame,
+            "start_time": event.start_time,
+            "end_time": event.end_time,
+            "confidence_mean": event.confidence if event.confidence is not None else 1.0,
+            "origin": "annotator" if event.source == "manual" else "model",
+        })
+
+    events.sort(key=lambda ev: ev["start_time"])
     return events, model_version
 
 
@@ -293,6 +315,7 @@ CANONICAL_ANNOTATION_CATEGORIES = [
     {"code": "OC", "label": "Olhando para canto", "shortcut": 2},
     {"code": "ML", "label": "Mexeu lábios", "shortcut": 3},
     {"code": "VR", "label": "Virou rosto", "shortcut": 4},
+    {"code": "MSO", "label": "Mexeu sobrancelha", "shortcut": 5},
 ]
 
 
@@ -309,7 +332,7 @@ def _annotation_categories(video_asset: VideoAssetModel) -> list[dict]:
     )
     categories = list(CANONICAL_ANNOTATION_CATEGORIES)
     known = {item["code"] for item in categories}
-    for index, item in enumerate(configured, start=5):
+    for index, item in enumerate(configured, start=6):
         if isinstance(item, str):
             code = "CUSTOM_" + "".join(
                 char if char.isalnum() else "_" for char in item.upper()

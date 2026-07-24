@@ -69,6 +69,7 @@ services:
     environment:
       - POSTGRES_SERVER=postgres
       - MINIO_URL=http://minio:9000
+      - MINIO_PUBLIC_URL=http://localhost:9000
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./models:/app/models  # Model registry volume

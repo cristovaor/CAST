@@ -71,43 +71,43 @@ export function CorrectionModal({ event, isOpen, onClose }: CorrectionModalProps
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
       
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-md mx-4 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-md mx-4 bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 bg-gradient-to-r from-violet-500/10 to-blue-500/10">
+        <div className="px-6 py-4 border-b border-border bg-gradient-to-r from-accent-light to-primary-light">
           <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-violet-400" />
-            <h2 className="text-lg font-semibold text-slate-100">Corrigir Predição da IA</h2>
+            <Sparkles size={18} className="text-accent" />
+            <h2 className="text-lg font-semibold text-text-primary">Corrigir Predição da IA</h2>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-text-secondary mt-1">
             A correção será exportada automaticamente para o dataset de retreino (Active Learning).
           </p>
         </div>
 
         {success ? (
           <div className="p-8 flex flex-col items-center gap-3 animate-fade-in">
-            <CheckCircle2 size={48} className="text-emerald-400" />
-            <p className="text-sm font-medium text-emerald-300">Correção aplicada e exportada para retreino!</p>
+            <CheckCircle2 size={48} className="text-success" />
+            <p className="text-sm font-medium text-success">Correção aplicada e exportada para retreino!</p>
           </div>
         ) : (
           <>
             {/* Body */}
             <div className="p-6 space-y-4">
               {/* Current prediction info */}
-              <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-                <p className="text-[11px] text-slate-500 uppercase tracking-wide font-medium mb-1">Predição Original</p>
+              <div className="p-3 rounded-lg bg-surface-muted border border-border">
+                <p className="text-[11px] text-text-muted uppercase tracking-wide font-medium mb-1">Predição Original</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-300">{event.actionLabel}</span>
-                  <span className="text-xs font-mono text-violet-400">conf: {((event.confidence || 0) * 100).toFixed(1)}%</span>
+                  <span className="text-sm font-medium text-text-secondary">{event.actionLabel}</span>
+                  <span className="text-xs font-mono text-accent">conf: {((event.confidence || 0) * 100).toFixed(1)}%</span>
                 </div>
               </div>
 
               {/* Corrected action */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">Ação Corrigida</label>
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">Ação Corrigida</label>
                 <select
                   value={correctedAction}
                   onChange={(e) => setCorrectedAction(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
                 >
                   {MICRO_ACTIONS.map((action) => (
                     <option key={action} value={action}>{action}</option>
@@ -118,31 +118,31 @@ export function CorrectionModal({ event, isOpen, onClose }: CorrectionModalProps
               {/* Time range */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Início (s)</label>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Início (s)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={correctedStart}
                     onChange={(e) => setCorrectedStart(parseFloat(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Fim (s)</label>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Fim (s)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={correctedEnd}
                     onChange={(e) => setCorrectedEnd(parseFloat(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
                   />
                 </div>
               </div>
 
               {/* Warning */}
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <AlertCircle size={14} className="text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-300/80 leading-relaxed">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-warning-light border border-warning-border">
+                <AlertCircle size={14} className="text-warning shrink-0 mt-0.5" />
+                <p className="text-[11px] text-warning leading-relaxed">
                   Esta ação exportará os dados corrigidos para o bucket de retreino do modelo.
                   Certifique-se de que a correção está precisa.
                 </p>
@@ -150,18 +150,18 @@ export function CorrectionModal({ event, isOpen, onClose }: CorrectionModalProps
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
               <Button
                 variant="ghost"
                 onClick={handleClose}
-                className="text-slate-400 hover:text-slate-200"
+                className="text-text-secondary hover:text-text-primary"
               >
                 Cancelar
               </Button>
               <button
                 onClick={handleSubmit}
                 disabled={correction.isPending}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 rounded-lg transition-all shadow-lg shadow-violet-500/20 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-accent to-primary hover:opacity-90 rounded-lg transition-all shadow-lg disabled:opacity-50"
               >
                 <Sparkles size={14} />
                 {correction.isPending ? 'Exportando...' : 'Corrigir e Exportar'}

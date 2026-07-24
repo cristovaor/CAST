@@ -12,6 +12,17 @@ class StorageService:
             config=Config(signature_version='s3v4'),
             region_name='us-east-1'
         )
+        # Separate client used only to sign URLs handed to the browser: it
+        # must sign against the host-reachable endpoint (e.g. localhost),
+        # which can differ from the in-network endpoint used above.
+        self.s3_public = boto3.client(
+            's3',
+            endpoint_url=settings.MINIO_PUBLIC_URL_RESOLVED,
+            aws_access_key_id=settings.MINIO_ACCESS_KEY,
+            aws_secret_access_key=settings.MINIO_SECRET_KEY,
+            config=Config(signature_version='s3v4'),
+            region_name='us-east-1'
+        )
         self.bucket_name = "cast-videos"
         self._ensure_bucket_exists()
 
@@ -26,7 +37,7 @@ class StorageService:
 
     def generate_presigned_upload_url(self, object_name: str, expiration=3600) -> str:
         try:
-            response = self.s3.generate_presigned_url(
+            response = self.s3_public.generate_presigned_url(
                 'put_object',
                 Params={'Bucket': self.bucket_name, 'Key': object_name},
                 ExpiresIn=expiration
@@ -38,7 +49,7 @@ class StorageService:
 
     def generate_presigned_download_url(self, object_name: str, expiration=3600) -> str:
         try:
-            response = self.s3.generate_presigned_url(
+            response = self.s3_public.generate_presigned_url(
                 'get_object',
                 Params={'Bucket': self.bucket_name, 'Key': object_name},
                 ExpiresIn=expiration
