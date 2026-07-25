@@ -153,7 +153,8 @@ def register_model(
 class TrainModelRequest(BaseModel):
     model_id: str
     version: str
-    action: str
+    action: Optional[str] = None
+    actions: Optional[List[str]] = None
     video_asset_ids: Optional[List[str]] = None
     training_config: Optional[dict[str, Any]] = None
 
@@ -163,44 +164,65 @@ def train_model(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Start an async training job for a micro-action model.
+    """Start async training job(s) for one or more micro-action models.
 
     Trains on real annotated videos (landmarks + annotation events) and, on
-    success, registers the resulting artifact as a new draft ModelVersion.
-    Poll /api/v1/models/train-jobs/{job_id} (or /stream) for progress.
+    success, registers each resulting artifact as a new draft ModelVersion.
+    One job is enqueued per requested action. Poll
+    /api/v1/models/train-jobs/{job_id} (or /stream) for progress on each.
     """
-    existing = db.query(ModelVersion).filter(
-        ModelVersion.model_id == req.model_id,
-        ModelVersion.version == req.version,
-        ModelVersion.action == req.action,
-    ).first()
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Version {req.version} already exists for model {req.model_id} action {req.action}",
-        )
+    from cast.config.actions import ALL_ACTIONS
 
-    job = ProcessingJob(
-        video_asset_id=None,
-        job_type=JobType.train_model,
-        status=JobStatus.queued,
-        progress=0.0,
-        logs=[{"level": "info", "message": "Job de treino criado, aguardando worker"}],
-    )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
+    requested_actions = req.actions if req.actions else ([req.action] if req.action else None)
+    if not requested_actions:
+        raise HTTPException(status_code=400, detail="Either 'action' or 'actions' must be provided")
+
+    unknown = [a for a in requested_actions if a not in ALL_ACTIONS]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown action(s): {', '.join(unknown)}")
 
     from app.workers.tasks_train import train_model_task
-    train_model_task.delay(
-        str(job.id), req.model_id, req.version, req.action,
-        req.video_asset_ids, req.training_config,
-    )
+
+    jobs: list[dict[str, str]] = []
+    skipped: list[str] = []
+
+    for action in requested_actions:
+        existing = db.query(ModelVersion).filter(
+            ModelVersion.model_id == req.model_id,
+            ModelVersion.version == req.version,
+            ModelVersion.action == action,
+        ).first()
+        if existing:
+            skipped.append(action)
+            continue
+
+        job = ProcessingJob(
+            video_asset_id=None,
+            job_type=JobType.train_model,
+            status=JobStatus.queued,
+            progress=0.0,
+            logs=[{"level": "info", "message": "Job de treino criado, aguardando worker"}],
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        train_model_task.delay(
+            str(job.id), req.model_id, req.version, action,
+            req.video_asset_ids, req.training_config,
+        )
+        jobs.append({"action": action, "job_id": str(job.id), "status": "queued"})
+
+    if not jobs:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Version {req.version} already exists for model {req.model_id} for all requested actions",
+        )
 
     return {
-        "job_id": str(job.id),
-        "status": "queued",
-        "message": "Training job enqueued. Poll /api/v1/models/train-jobs/{job_id} for status.",
+        "jobs": jobs,
+        "skipped": skipped,
+        "message": "Training job(s) enqueued. Poll /api/v1/models/train-jobs/{job_id} for status.",
     }
 
 
@@ -303,17 +325,25 @@ def update_model(
     mv = db.query(ModelVersion).filter(ModelVersion.id == version_id).first()
     if not mv:
         raise HTTPException(status_code=404, detail="Model version not found")
-        
-    if req.notes is not None:
-        mv.notes = req.notes
-    if req.status is not None:
-        if req.status not in {"draft", "candidate", "active", "archived", "rejected"}:
-            raise HTTPException(status_code=400, detail="Invalid model status")
-        mv.status = req.status
-        
-    db.commit()
-    db.refresh(mv)
-    
+
+    if req.status is not None and req.status not in {"draft", "candidate", "active", "archived", "rejected"}:
+        raise HTTPException(status_code=400, detail="Invalid model status")
+
+    if req.status == "active":
+        # Route through promote_model_version so the currently active version
+        # for this action gets demoted — avoids two "active" versions coexisting.
+        try:
+            mv = promote_model_version(db, str(version_id), "active", req.notes)
+        except ModelNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+    else:
+        if req.notes is not None:
+            mv.notes = req.notes
+        if req.status is not None:
+            mv.status = req.status
+        db.commit()
+        db.refresh(mv)
+
     return ModelVersionResponse(
         id=str(mv.id),
         model_id=mv.model_id,

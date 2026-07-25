@@ -152,7 +152,7 @@ export function ReportsPage() {
             title="Nenhum relatório encontrado"
             description="Este estudo ainda não possui relatórios persistidos. Gere um PDF científico ou exporte os dados em CSV."
             icon={<BarChart3 size={40} className="text-slate-300" />}
-            action={{ label: 'Gerar Laudo PDF', onClick: handleGeneratePdf }}
+            action={{ label: 'Gerar Relatório PDF', onClick: handleGeneratePdf }}
           />
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { RotateCcw, PenLine, Info, FileDown } from 'lucide-react';
+import { RotateCcw, PenLine, Info, FileDown, Download } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { QualityBadge } from '@/components/ui/QualityBadge';
@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { formatMs, formatPercentage } from '@/lib/formatters';
 import type { TimelineEvent, KPICardData, MicroAction } from '@/types/domain';
 import type { TimelineEventDTO } from '@/features/videos/types';
-import { useVideoDetails, useVideoTimeline, useVideoQualityReport, useProcessVideo, useVideoPlaybackUrl } from '@/features/videos/useVideos';
+import { useVideoDetails, useVideoTimeline, useVideoQualityReport, useProcessVideo, useVideoPlaybackUrl, useLandmarkDownloadUrls } from '@/features/videos/useVideos';
 import { useStartInference } from '@/features/inference/useInference';
 import { downloadDynamicPdf } from '@/features/reports/useReports';
 import { MultimodalPlayer } from '@/features/inference/components/MultimodalPlayer';
@@ -96,6 +96,7 @@ export function VideoDetailPage() {
   const { data: playback } = useVideoPlaybackUrl(videoId!);
   const { mutate: processVideo } = useProcessVideo();
   const startInference = useStartInference();
+  const landmarkDownload = useLandmarkDownloadUrls();
 
   const handleProcess = () => {
     processVideo(videoId!, {
@@ -105,6 +106,15 @@ export function VideoDetailPage() {
 
   const handleInference = () => {
     startInference.mutate({ videoId: videoId! });
+  };
+
+  const handleDownloadLandmarks = (kind: 'raw' | 'normalized') => {
+    landmarkDownload.mutate(videoId!, {
+      onSuccess: (data) => {
+        const url = data[kind];
+        if (url) window.open(url, '_blank');
+      },
+    });
   };
 
   if (loadingVideo || loadingTimeline || loadingQuality) {
@@ -194,8 +204,33 @@ export function VideoDetailPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
               <FileDown size={13} />
-              Baixar Laudo
+              Baixar Relatório
             </button>
+            {videoAsset?.landmark_artifact_id && (
+              <div className="relative group">
+                <button
+                  disabled={landmarkDownload.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  <Download size={13} />
+                  {landmarkDownload.isPending ? 'Gerando link...' : 'Baixar landmarks'}
+                </button>
+                <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden min-w-[160px]">
+                  <button
+                    onClick={() => handleDownloadLandmarks('normalized')}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    Normalizado (.parquet)
+                  </button>
+                  <button
+                    onClick={() => handleDownloadLandmarks('raw')}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    Bruto (.parquet)
+                  </button>
+                </div>
+              </div>
+            )}
             <button
               onClick={handleProcess}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
@@ -235,6 +270,9 @@ export function VideoDetailPage() {
               events={timelineData?.events || []}
               eegId={videoAsset?.eeg_asset_id ?? undefined}
               fps={videoAsset?.fps ? Number(videoAsset.fps) : undefined}
+              videoId={videoId}
+              landmarkArtifactId={videoAsset?.landmark_artifact_id ?? undefined}
+              landmarkChunkSizeFrames={videoAsset?.landmark_chunk_size_frames ?? undefined}
             />
 
             <div className="card p-4">

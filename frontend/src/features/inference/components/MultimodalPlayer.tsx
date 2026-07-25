@@ -1,19 +1,35 @@
 import { useRef, useState, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize2, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize2, SkipBack, SkipForward, Scan } from 'lucide-react';
 import { VideoCanvasOverlay } from './VideoCanvasOverlay';
+import { LandmarkOverlay } from '@/features/annotations/components/LandmarkOverlay';
 import { EEGChart } from '@/features/eeg/EEGChart';
 import { EEGSyncControl } from '@/features/eeg/components/EEGSyncControl';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import type { TimelineEventDTO } from '@/features/videos/types';
+
+type LandmarkOverlayMode = 'off' | 'roi' | 'mesh';
 
 interface MultimodalPlayerProps {
   videoUrl: string;
   events: TimelineEventDTO[];
   eegId?: string;
   fps?: number;
+  /** Video asset id — required to fetch MediaPipe landmark chunks. */
+  videoId?: string;
+  /** Present once landmark extraction finished; enables the mesh/ROI toggle. */
+  landmarkArtifactId?: string;
+  landmarkChunkSizeFrames?: number;
 }
 
-export function MultimodalPlayer({ videoUrl, events, eegId, fps }: MultimodalPlayerProps) {
+export function MultimodalPlayer({
+  videoUrl,
+  events,
+  eegId,
+  fps,
+  videoId,
+  landmarkArtifactId,
+  landmarkChunkSizeFrames,
+}: MultimodalPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -31,8 +47,10 @@ export function MultimodalPlayer({ videoUrl, events, eegId, fps }: MultimodalPla
 
   const [isMuted, setIsMuted] = useState(true); // Default muted to allow autoplay/easy dev
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [landmarkMode, setLandmarkMode] = useState<LandmarkOverlayMode>('off');
 
   const effectiveFps = fps || 30;
+  const canShowLandmarks = Boolean(videoId && landmarkArtifactId);
 
   // Mirror the <video> element (single source of truth) into the store
   useEffect(() => {
@@ -140,6 +158,19 @@ export function MultimodalPlayer({ videoUrl, events, eegId, fps }: MultimodalPla
         {/* Canvas Overlay for Bounding Boxes */}
         <VideoCanvasOverlay videoRef={videoRef} events={events} />
 
+        {/* MediaPipe facial landmarks (ROI dots or full mesh), toggled below */}
+        {canShowLandmarks && videoId && (
+          <LandmarkOverlay
+            videoId={videoId}
+            videoRef={videoRef}
+            artifactId={landmarkArtifactId}
+            chunkSizeFrames={landmarkChunkSizeFrames ?? Math.max(1, Math.round(effectiveFps))}
+            mode={landmarkMode}
+            pointSize={2}
+            opacity={0.85}
+          />
+        )}
+
         {/* Big Play Button Overlay */}
         {!isPlaying && (
           <div
@@ -196,6 +227,26 @@ export function MultimodalPlayer({ videoUrl, events, eegId, fps }: MultimodalPla
             </div>
           </div>
           <div className="flex items-center gap-4">
+            {canShowLandmarks && (
+              <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+                <Scan size={13} className="ml-1 text-slate-500" />
+                {(['off', 'roi', 'mesh'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setLandmarkMode(mode)}
+                    className={`rounded px-2 py-1 text-[11px] font-medium transition-colors ${
+                      landmarkMode === mode
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    title={mode === 'off' ? 'Landmarks desligados' : mode === 'roi' ? 'Pontos de interesse' : 'Malha completa'}
+                  >
+                    {mode === 'off' ? 'Off' : mode === 'roi' ? 'ROI' : 'Malha'}
+                  </button>
+                ))}
+              </div>
+            )}
             <EEGSyncControl eegId={eegId} />
             <button onClick={toggleFullscreen} className="hover:text-white transition-colors">
               <Maximize2 size={20} />

@@ -55,6 +55,7 @@ class JobType(str, enum.Enum):
     report = "report"
     dataset_build = "dataset_build"
     train_model = "train_model"
+    model_test_run = "model_test_run"
 
 
 class SessionState(str, enum.Enum):

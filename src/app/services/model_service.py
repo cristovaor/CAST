@@ -98,6 +98,31 @@ def promote_model_version(
     return mv
 
 
+def get_model_by_version_id(db: Session, model_version_id: str) -> Tuple[Any, ModelManifest, ModelVersion]:
+    """Load a specific model version's artifact regardless of its status.
+
+    Unlike get_active_model, this does not require status == "active" — it lets
+    callers (e.g. the model test-run flow) try out a draft/candidate version
+    before promoting it.
+
+    NOTE: This function imports ML frameworks dynamically and should only
+    be called from the Celery worker, not from the API server.
+    """
+    mv = db.query(ModelVersion).filter(ModelVersion.id == model_version_id).first()
+    if not mv:
+        raise ModelNotFoundError(f"Model version {model_version_id} not found")
+
+    if not mv.artifact_uri:
+        raise ValueError(f"Model version {model_version_id} has no artifact_uri")
+
+    manifest = ModelManifest.model_validate(mv.manifest)
+
+    from app.ml.model_loader import load_active_model_artifact
+    model = load_active_model_artifact(mv.artifact_uri, manifest)
+
+    return model, manifest, mv
+
+
 def get_active_model(db: Session, action: str) -> Tuple[Any, ModelManifest]:
     """Get the active model artifact and manifest for an action.
     

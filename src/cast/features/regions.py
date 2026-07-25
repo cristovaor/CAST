@@ -5,6 +5,26 @@ from typing import List, Dict
 from cast.config.landmarks import get_points, DEFAULT_100_POINT_REGIONS
 from cast.config.actions import ACTION_REGIONS
 
+
+def get_feature_names_for_action(action: str, feature_mode: str) -> List[str]:
+    """Canonical ordered feature names for an action, matching the column
+    order that extract_features_for_action produces (lm_{idx}_x, lm_{idx}_y).
+    """
+    if feature_mode == "strict_fig49":
+        target_regions = DEFAULT_100_POINT_REGIONS
+    elif feature_mode == "roi_features":
+        target_regions = ACTION_REGIONS.get(action, DEFAULT_100_POINT_REGIONS)
+    else:
+        raise ValueError(f"Unknown feature_mode: {feature_mode}")
+
+    target_points = get_points(target_regions)
+    names: List[str] = []
+    for lm_idx in target_points:
+        names.append(f"lm_{lm_idx}_x")
+        names.append(f"lm_{lm_idx}_y")
+    return names
+
+
 def extract_features_for_action(df_norm: pd.DataFrame, action: str, feature_mode: str) -> np.ndarray:
     """
     Extracts features for a specific action from a normalized DataFrame.

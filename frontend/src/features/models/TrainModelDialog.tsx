@@ -19,6 +19,7 @@ export function TrainModelDialog({ children }: { children: React.ReactNode }) {
   const [modelId, setModelId] = useState('cast-lstm-v6');
   const [version, setVersion] = useState('');
   const [action, setAction] = useState('OF');
+  const [trainAllActions, setTrainAllActions] = useState(false);
   const [epochs, setEpochs] = useState(40);
   const [batchSize, setBatchSize] = useState(34);
 
@@ -31,13 +32,18 @@ export function TrainModelDialog({ children }: { children: React.ReactNode }) {
       {
         model_id: modelId,
         version,
-        action,
+        ...(trainAllActions
+          ? { actions: ACTIONS.map(([value]) => value) }
+          : { action }),
         training_config: { epochs, batch_size: batchSize },
       },
       {
         onSuccess: (data) => {
           setOpen(false);
-          navigate(`/app/models/training/${data.job_id}`);
+          const [first, ...rest] = data.jobs;
+          navigate(`/app/models/training/${first.job_id}`, {
+            state: { batchJobIds: rest.map(j => j.job_id) },
+          });
         },
       },
     );
@@ -53,8 +59,9 @@ export function TrainModelDialog({ children }: { children: React.ReactNode }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <p className="text-xs text-slate-500">
             O treino usa os vídeos já anotados no sistema (landmarks extraídos + eventos
-            de anotação) para esta ação. Não é necessário fornecer um artefato — ele é
-            gerado e registrado automaticamente como <strong>draft</strong> ao final.
+            de anotação) para {trainAllActions ? 'todas as ações' : 'esta ação'}. Não é
+            necessário fornecer um artefato — ele é gerado e registrado automaticamente
+            como <strong>draft</strong> ao final{trainAllActions ? ' (um por ação)' : ''}.
           </p>
 
           {trainModel.isError && (
@@ -74,13 +81,29 @@ export function TrainModelDialog({ children }: { children: React.ReactNode }) {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Ação</label>
-              <select required value={action} onChange={e => setAction(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none bg-white">
+              <select
+                required={!trainAllActions}
+                disabled={trainAllActions}
+                value={action}
+                onChange={e => setAction(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none bg-white disabled:bg-slate-50 disabled:text-slate-400"
+              >
                 {ACTIONS.map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
             </div>
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={trainAllActions}
+              onChange={e => setTrainAllActions(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Treinar para todas as ações ({ACTIONS.length})
+          </label>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

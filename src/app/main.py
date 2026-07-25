@@ -20,7 +20,7 @@ app.add_middleware(
 def root():
     return {"message": "Welcome to CAST Platform API"}
 
-from app.api.v1 import routes_projects, routes_studies, routes_participants, routes_videos, routes_assessments, routes_reports, routes_jobs, routes_exports, routes_auth, routes_annotations, routes_dashboard, routes_settings, routes_users, routes_inference, routes_models_v2, routes_health, routes_eeg, routes_sessions, routes_audit
+from app.api.v1 import routes_projects, routes_studies, routes_participants, routes_videos, routes_assessments, routes_reports, routes_jobs, routes_exports, routes_auth, routes_annotations, routes_dashboard, routes_settings, routes_users, routes_inference, routes_models_v2, routes_model_testing, routes_health, routes_eeg, routes_sessions, routes_audit
 from app.api.v1 import routes_sync, routes_datasets, routes_variables, routes_governance
 # Authentication and health checks are the only public API surfaces. Applying
 # the dependency at router registration makes new endpoints secure by default;
@@ -51,6 +51,7 @@ protected_routers = (
     routes_users.router,
     routes_inference.router,
     routes_models_v2.router,
+    routes_model_testing.router,
 )
 for protected_router in protected_routers:
     app.include_router(

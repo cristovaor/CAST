@@ -70,6 +70,8 @@ export interface VideoDetails {
   session_id: string;
   eeg_asset_id: string | null;
   eeg_sync_offset_ms: number | null;
+  landmark_artifact_id: string | null;
+  landmark_chunk_size_frames: number | null;
 }
 
 export function useVideoDetails(videoId: string) {
@@ -102,6 +104,19 @@ export function useVideoQualityReport(videoId: string) {
     queryKey: ['videos', videoId, 'quality'],
     queryFn: () => apiClient.get<VideoQualityReport>(`/videos/${videoId}/quality-report`),
     enabled: !!videoId,
+  });
+}
+
+export interface LandmarkDownloadUrls {
+  artifactId: string;
+  raw: string | null;
+  normalized: string | null;
+}
+
+export function useLandmarkDownloadUrls() {
+  return useMutation({
+    mutationFn: (videoId: string) =>
+      apiClient.get<LandmarkDownloadUrls>(`/videos/${videoId}/landmarks/download`),
   });
 }
 

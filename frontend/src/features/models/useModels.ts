@@ -61,15 +61,28 @@ export function useRegisterModel() {
 export interface TrainModelPayload {
   model_id: string;
   version: string;
-  action: string;
+  action?: string;
+  actions?: string[];
   video_asset_ids?: string[];
   training_config?: Record<string, unknown>;
+}
+
+export interface TrainModelJob {
+  action: string;
+  job_id: string;
+  status: string;
+}
+
+export interface TrainModelResponse {
+  jobs: TrainModelJob[];
+  skipped: string[];
+  message: string;
 }
 
 export function useTrainModel() {
   return useMutation({
     mutationFn: (data: TrainModelPayload) =>
-      apiClient.post<{ job_id: string, status: string, message: string }>('/models/train', data),
+      apiClient.post<TrainModelResponse>('/models/train', data),
   });
 }
 

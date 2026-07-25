@@ -543,6 +543,50 @@ def get_video_landmarks(
     )
     return payload
 
+@router.get("/{video_id}/landmarks/download")
+def get_video_landmarks_download(
+    video_id: UUID,
+    artifact_id: UUID | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Presigned download URLs for the raw/normalized landmark Parquet files."""
+    get_owned_video(db, current_user, video_id)
+    query = db.query(LandmarkArtifact).filter(
+        LandmarkArtifact.video_asset_id == video_id,
+        LandmarkArtifact.status == "ready",
+    )
+    if artifact_id is not None:
+        query = query.filter(LandmarkArtifact.id == artifact_id)
+    artifact = query.order_by(LandmarkArtifact.created_at.desc()).first()
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Landmark artifact not found")
+
+    from app.api.v1.routes_governance import record_access
+
+    record_access(
+        db,
+        "video_landmarks",
+        video_id,
+        actor=current_user,
+        detail={"op": "download", "artifact_id": str(artifact.id)},
+    )
+
+    return {
+        "artifactId": str(artifact.id),
+        "raw": (
+            storage_service.generate_presigned_download_url(storage_service.key_from_uri(artifact.raw_uri))
+            if artifact.raw_uri
+            else None
+        ),
+        "normalized": (
+            storage_service.generate_presigned_download_url(storage_service.key_from_uri(artifact.normalized_uri))
+            if artifact.normalized_uri
+            else None
+        ),
+    }
+
+
 from pydantic import BaseModel
 class VideoRegister(BaseModel):
     study_id: UUID
@@ -606,6 +650,16 @@ def get_video(
 
     eeg_asset = db.query(EEGAssetModel).filter(EEGAssetModel.session_id == video_asset.session_id).first()
 
+    landmark_artifact = (
+        db.query(LandmarkArtifact)
+        .filter(
+            LandmarkArtifact.video_asset_id == video_id,
+            LandmarkArtifact.status == "ready",
+        )
+        .order_by(LandmarkArtifact.created_at.desc())
+        .first()
+    )
+
     return {
         "id": video_asset.id,
         "filename": video_asset.filename,
@@ -616,7 +670,9 @@ def get_video(
         "latest_job_id": latest_job.id if latest_job else None,
         "session_id": video_asset.session_id,
         "eeg_asset_id": eeg_asset.id if eeg_asset else None,
-        "eeg_sync_offset_ms": eeg_asset.sync_offset_ms if eeg_asset else None
+        "eeg_sync_offset_ms": eeg_asset.sync_offset_ms if eeg_asset else None,
+        "landmark_artifact_id": landmark_artifact.id if landmark_artifact else None,
+        "landmark_chunk_size_frames": landmark_artifact.chunk_size_frames if landmark_artifact else None,
     }
 
 @router.post("/{video_id}/quality-check", status_code=202)

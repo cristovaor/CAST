@@ -1,6 +1,8 @@
-// removed React import
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useModelVersion, usePromoteModel } from '@/features/models/useModels';
+import { TestModelDialog } from '@/features/models/TestModelDialog';
+import { ModelTestResultView } from '@/features/models/ModelTestResultView';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -11,6 +13,7 @@ export default function ModelDetailPage() {
   const navigate = useNavigate();
   const { data: model, isLoading } = useModelVersion(modelId!, version!, action!);
   const promoteMutation = usePromoteModel();
+  const [testJobId, setTestJobId] = useState<string | null>(null);
 
   if (isLoading) return <div className="p-8">Loading...</div>;
   if (!model) return <div className="p-8">Model not found</div>;
@@ -32,10 +35,20 @@ export default function ModelDetailPage() {
         </div>
         <div className="flex gap-2 items-center">
           <Badge>{model.status}</Badge>
+          <TestModelDialog versionId={model.id} onStarted={setTestJobId}>
+            <Button variant="outline">Testar contra vídeo</Button>
+          </TestModelDialog>
           {model.status === 'draft' && <Button onClick={() => handlePromote('candidate')}>Promote to Candidate</Button>}
           {model.status === 'candidate' && <Button onClick={() => handlePromote('active')}>Promote to Active</Button>}
         </div>
       </div>
+
+      {testJobId && (
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4">Resultado do teste</h2>
+          <ModelTestResultView jobId={testJobId} />
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-6">
         <Card className="p-6">
