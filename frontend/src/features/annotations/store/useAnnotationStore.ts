@@ -22,6 +22,7 @@ interface AnnotationState {
     spatialMetadata?: Record<string, unknown>,
   ) => void;
   cancelDraft: () => void;
+  restoreDraft: (draft: AnnotationDraft) => void;
   deleteEvent: (videoId: string, eventId: string) => Promise<void>;
   setActiveAction: (code: string | null) => void;
 }
@@ -58,6 +59,8 @@ export const useAnnotationStore = create<AnnotationState>((set) => ({
       activeActionCode: actionCode,
     }),
   cancelDraft: () => set({ draft: null, activeActionCode: null }),
+  restoreDraft: (draft) =>
+    set({ draft, activeActionCode: draft.actionCode }),
   deleteEvent: async (videoId, eventId) => {
     await annotationsApi.deleteAnnotation(videoId, eventId);
     set((state) => ({

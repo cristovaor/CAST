@@ -486,9 +486,27 @@ def _annotation_history_response(
         .limit(30)
         .all()
     )
+    can_undo = (
+        db.query(AnnotationMutationHistory.id)
+        .filter(
+            AnnotationMutationHistory.task_id == task.id,
+            AnnotationMutationHistory.undone.is_(False),
+        )
+        .first()
+        is not None
+    )
+    can_redo = (
+        db.query(AnnotationMutationHistory.id)
+        .filter(
+            AnnotationMutationHistory.task_id == task.id,
+            AnnotationMutationHistory.undone.is_(True),
+        )
+        .first()
+        is not None
+    )
     return {
-        "canUndo": any(not row.undone for row in rows),
-        "canRedo": any(row.undone for row in rows),
+        "canUndo": can_undo,
+        "canRedo": can_redo,
         "entries": [
             {
                 "id": str(row.id),

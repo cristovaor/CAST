@@ -13,7 +13,7 @@ interface PageHeaderProps {
 export function PageHeader({ title, description, context, actions, tabs, className }: PageHeaderProps) {
   return (
     <div className={cn('bg-surface border-b border-border', className)}>
-      <div className="px-6 pt-6 pb-0">
+      <div className="px-4 pt-5 pb-0 sm:px-6 sm:pt-6">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl lg:text-[28px] font-bold text-text-primary leading-tight tracking-tight">{title}</h1>

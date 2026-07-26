@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCorrectionExport } from '../api/useCorrectionExport';
@@ -19,22 +19,30 @@ interface CorrectionModalProps {
 }
 
 export function CorrectionModal({ event, isOpen, onClose }: CorrectionModalProps) {
+  if (!isOpen || !event) return null;
+  return (
+    <CorrectionModalContent
+      key={event.id}
+      event={event}
+      onClose={onClose}
+    />
+  );
+}
+
+function CorrectionModalContent({
+  event,
+  onClose,
+}: {
+  event: AnnotationEvent;
+  onClose: () => void;
+}) {
   const correction = useCorrectionExport();
-  const [correctedAction, setCorrectedAction] = useState('');
-  const [correctedStart, setCorrectedStart] = useState(0);
-  const [correctedEnd, setCorrectedEnd] = useState(0);
+  const [correctedAction, setCorrectedAction] = useState(event.actionCode);
+  const [correctedStart, setCorrectedStart] = useState(event.startTime);
+  const [correctedEnd, setCorrectedEnd] = useState(event.endTime);
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    if (!event || !isOpen) return;
-    setCorrectedAction(event.actionCode);
-    setCorrectedStart(event.startTime);
-    setCorrectedEnd(event.endTime);
-    setSuccess(false);
-  }, [event, isOpen]);
-
   const handleSubmit = () => {
-    if (!event) return;
     correction.mutate(
       {
         annotationId: event.id,
@@ -62,8 +70,6 @@ export function CorrectionModal({ event, isOpen, onClose }: CorrectionModalProps
     setSuccess(false);
     onClose();
   };
-
-  if (!isOpen || !event) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

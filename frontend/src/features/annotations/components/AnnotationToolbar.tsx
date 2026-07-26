@@ -1,4 +1,11 @@
-import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import {
+  Pause,
+  Play,
+  Redo2,
+  SkipBack,
+  SkipForward,
+  Undo2,
+} from 'lucide-react';
 import { useAnnotationStore } from '../store/useAnnotationStore';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +18,11 @@ interface AnnotationToolbarProps {
   overlayMode: LandmarkOverlayMode;
   onOverlayModeChange: (mode: LandmarkOverlayMode) => void;
   canShowLandmarks: boolean;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  historyPending?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export function AnnotationToolbar({
@@ -19,6 +31,11 @@ export function AnnotationToolbar({
   overlayMode,
   onOverlayModeChange,
   canShowLandmarks,
+  canUndo = false,
+  canRedo = false,
+  historyPending = false,
+  onUndo,
+  onRedo,
 }: AnnotationToolbarProps) {
   const draft = useAnnotationStore((state) => state.draft);
   const {
@@ -69,6 +86,25 @@ export function AnnotationToolbar({
           className="w-16 font-mono"
         >
           {playbackRate}x
+        </Button>
+        <span className="mx-1 h-5 w-px bg-border" />
+        <Button
+          variant="outline"
+          size="icon"
+          disabled={!canUndo || historyPending}
+          onClick={onUndo}
+          title="Desfazer última edição (Ctrl+Z)"
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          disabled={!canRedo || historyPending}
+          onClick={onRedo}
+          title="Refazer edição (Ctrl+Y)"
+        >
+          <Redo2 className="h-4 w-4" />
         </Button>
       </div>
 

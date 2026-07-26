@@ -9,9 +9,12 @@ import { VideoAnnotatorPlayer } from '@/features/annotations/components/VideoAnn
 import {
   useAnalyzeAnnotationInterval,
   useAnnotationContext,
+  useAnnotationHistory,
   useAnnotationSuggestions,
   useCreateVideoAnnotation,
+  useRedoAnnotation,
   useReviewSuggestion,
+  useUndoAnnotation,
   useVideoAnnotations,
 } from '@/features/annotations/api/useAnnotationEditor';
 import { useAnnotationStore } from '@/features/annotations/store/useAnnotationStore';
@@ -23,6 +26,7 @@ import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import { Button } from '@/components/ui/Button';
 import type {
   AnnotationIntervalAnalysis,
+  AnnotationDraft,
   AnnotationSide,
   AnnotationSuggestion,
 } from '@/types/annotation';
@@ -66,13 +70,23 @@ export function AnnotationPage() {
   const { data: playback } = useVideoPlaybackUrl(videoId);
   const contextQuery = useAnnotationContext(videoId, taskId);
   const annotationsQuery = useVideoAnnotations(videoId, taskId);
+  const historyQuery = useAnnotationHistory(videoId, taskId);
   const suggestionsQuery = useAnnotationSuggestions(videoId, taskId);
   const createAnnotation = useCreateVideoAnnotation(videoId, taskId);
   const analyzeInterval = useAnalyzeAnnotationInterval(videoId);
   const reviewSuggestion = useReviewSuggestion(videoId, taskId);
+  const undoAnnotation = useUndoAnnotation(videoId, taskId);
+  const redoAnnotation = useRedoAnnotation(videoId, taskId);
   const processVideo = useProcessVideo();
 
-  const { draft, events, startDraft, cancelDraft, setEvents } = useAnnotationStore();
+  const {
+    draft,
+    events,
+    startDraft,
+    cancelDraft,
+    restoreDraft,
+    setEvents,
+  } = useAnnotationStore();
   const {
     currentTimeMs,
     durationMs,
@@ -110,12 +124,16 @@ export function AnnotationPage() {
     context?.landmarkArtifact?.status === 'ready'
       ? context.landmarkArtifact
       : undefined;
-  const suggestions = suggestionsQuery.data?.suggestions ?? [];
+  const suggestions = useMemo(
+    () => suggestionsQuery.data?.suggestions ?? [],
+    [suggestionsQuery.data?.suggestions],
+  );
   const effectiveSelectedAction =
     selectedAction || categories[0]?.code || '';
   const effectiveOverlayMode: LandmarkOverlayMode = artifact
     ? overlayMode
     : 'off';
+  const draftStorageKey = `cast:annotation-draft:${videoId}:${taskId ?? 'current'}`;
   const comparisonOverlayEvents = useMemo<TimelineEventDTO[]>(() => {
     const humanEvents: TimelineEventDTO[] = events.map((event) => ({
       event_id: event.id,
@@ -156,6 +174,44 @@ export function AnnotationPage() {
   useEffect(() => {
     setEvents(annotationsQuery.data ?? []);
   }, [annotationsQuery.data, setEvents]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(draftStorageKey);
+    if (saved && !useAnnotationStore.getState().draft) {
+      try {
+        const payload = JSON.parse(saved) as { draft?: AnnotationDraft };
+        if (payload.draft) restoreDraft(payload.draft);
+      } catch {
+        localStorage.removeItem(draftStorageKey);
+      }
+    }
+    const persist = (savedDraft: AnnotationDraft | null) => {
+      if (savedDraft) {
+        localStorage.setItem(
+          draftStorageKey,
+          JSON.stringify({
+            draft: savedDraft,
+            savedAt: new Date().toISOString(),
+          }),
+        );
+      } else {
+        localStorage.removeItem(draftStorageKey);
+      }
+    };
+    persist(useAnnotationStore.getState().draft);
+    const unsubscribe = useAnnotationStore.subscribe((state) =>
+      persist(state.draft),
+    );
+    return () => {
+      unsubscribe();
+      // Keep the saved draft for this task, but do not leak it into the next
+      // video/task opened in the same single-page application session.
+      useAnnotationStore.setState({
+        draft: null,
+        activeActionCode: null,
+      });
+    };
+  }, [draftStorageKey, restoreDraft]);
 
   useEffect(() => () => reset(), [reset, videoId]);
 
@@ -286,6 +342,27 @@ export function AnnotationPage() {
         setIsPlaying(!isPlaying);
         return;
       }
+      if (
+        (event.ctrlKey || event.metaKey)
+        && event.key.toLowerCase() === 'z'
+      ) {
+        event.preventDefault();
+        const mutation = event.shiftKey ? redoAnnotation : undoAnnotation;
+        mutation.mutate(undefined, {
+          onError: (error) => setMessage(error.message),
+        });
+        return;
+      }
+      if (
+        (event.ctrlKey || event.metaKey)
+        && event.key.toLowerCase() === 'y'
+      ) {
+        event.preventDefault();
+        redoAnnotation.mutate(undefined, {
+          onError: (error) => setMessage(error.message),
+        });
+        return;
+      }
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
         setIsPlaying(false);
@@ -353,9 +430,11 @@ export function AnnotationPage() {
     isPlaying,
     intervalProposal,
     requestSeek,
+    redoAnnotation,
     savePoint,
     setIsPlaying,
     startDraft,
+    undoAnnotation,
   ]);
 
   const exportCsv = useCallback(() => {
@@ -697,6 +776,21 @@ export function AnnotationPage() {
               overlayMode={effectiveOverlayMode}
               onOverlayModeChange={setOverlayMode}
               canShowLandmarks={Boolean(artifact)}
+              canUndo={historyQuery.data?.canUndo}
+              canRedo={historyQuery.data?.canRedo}
+              historyPending={
+                undoAnnotation.isPending || redoAnnotation.isPending
+              }
+              onUndo={() =>
+                undoAnnotation.mutate(undefined, {
+                  onError: (error) => setMessage(error.message),
+                })
+              }
+              onRedo={() =>
+                redoAnnotation.mutate(undefined, {
+                  onError: (error) => setMessage(error.message),
+                })
+              }
             />
           </div>
           <AnnotationTimeline

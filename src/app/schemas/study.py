@@ -32,7 +32,8 @@ class StudyInDBBase(StudyBase):
     model_config = ConfigDict(from_attributes=True)
 
 class Study(StudyInDBBase):
-    pass
+    participant_count: int = 0
+    session_count: int = 0
 
 
 class ModalityQualitySummary(BaseModel):

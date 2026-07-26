@@ -63,6 +63,42 @@ def test_create_study_links_owned_project(
     assert study["config"]["design"] == "observational"
 
 
+def test_study_list_and_detail_include_live_counts(
+    client: TestClient,
+    db,
+    normal_user,
+    normal_user_token_headers: dict,
+) -> None:
+    project = Project(name="Count project", organization_id=normal_user.organization_id)
+    db.add(project)
+    db.flush()
+    study = Study(name="Count study", project_id=project.id, created_by=normal_user.id)
+    db.add(study)
+    db.flush()
+    participant = Participant(study_id=study.id, external_code="P-COUNT")
+    db.add(participant)
+    db.flush()
+    db.add(Session(participant_id=participant.id))
+    db.commit()
+
+    list_response = client.get(
+        f"{settings.API_V1_STR}/studies/",
+        headers=normal_user_token_headers,
+    )
+    detail_response = client.get(
+        f"{settings.API_V1_STR}/studies/{study.id}",
+        headers=normal_user_token_headers,
+    )
+
+    assert list_response.status_code == 200
+    listed_study = next(item for item in list_response.json() if item["id"] == str(study.id))
+    assert listed_study["participant_count"] == 1
+    assert listed_study["session_count"] == 1
+    assert detail_response.status_code == 200
+    assert detail_response.json()["participant_count"] == 1
+    assert detail_response.json()["session_count"] == 1
+
+
 def test_study_quality_summary_aggregates_persisted_metrics(
     client: TestClient,
     db,

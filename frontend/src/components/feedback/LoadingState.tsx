@@ -12,8 +12,8 @@ export function LoadingState({ variant = 'spinner', message, rows = 5, className
   if (variant === 'spinner') {
     return (
       <div className={cn('flex flex-col items-center justify-center py-16 gap-3', className)}>
-        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin-slow" />
-        {message && <p className="text-sm text-slate-400">{message}</p>}
+        <div className="h-8 w-8 animate-spin-slow rounded-full border-2 border-border border-t-blue-500" role="status" aria-label={message ?? 'Carregando'} />
+        {message && <p className="text-sm text-text-muted">{message}</p>}
       </div>
     );
   }
@@ -32,7 +32,7 @@ export function LoadingState({ variant = 'spinner', message, rows = 5, className
               <div className="skeleton w-full h-3 rounded" />
               <div className="skeleton w-2/3 h-3 rounded" />
             </div>
-            <div className="flex gap-2 pt-2 border-t border-slate-100">
+            <div className="flex gap-2 border-t border-border pt-2">
               <div className="skeleton w-16 h-4 rounded" />
               <div className="skeleton w-16 h-4 rounded" />
             </div>
@@ -47,7 +47,7 @@ export function LoadingState({ variant = 'spinner', message, rows = 5, className
       <div className={cn('space-y-2', className)}>
         <div className="skeleton h-10 rounded-lg w-full" />
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="flex gap-4 px-4 py-3 border-b border-slate-100">
+          <div key={i} className="flex gap-4 border-b border-border px-4 py-3">
             <div className="skeleton w-1/4 h-4 rounded" />
             <div className="skeleton w-1/6 h-4 rounded" />
             <div className="skeleton w-1/6 h-4 rounded" />

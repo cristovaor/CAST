@@ -18,12 +18,12 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <div className={cn('flex flex-col items-center justify-center py-16 px-8 text-center', className)}>
-      <div className="w-14 h-14 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mb-4">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-danger-border bg-danger-light">
         <AlertTriangle size={24} className="text-red-500" />
       </div>
 
-      <h3 className="text-base font-semibold text-slate-800 mb-1">{title}</h3>
-      <p className="text-sm text-slate-500 max-w-sm leading-relaxed mb-2">{message}</p>
+      <h3 className="mb-1 text-base font-semibold text-text-primary">{title}</h3>
+      <p className="mb-2 max-w-sm text-sm leading-relaxed text-text-secondary">{message}</p>
 
       {code && (
         <code className="text-[11px] font-mono text-red-500 bg-red-50 px-2 py-0.5 rounded mb-4">
@@ -35,7 +35,7 @@ export function ErrorState({
         {onRetry && (
           <button
             onClick={onRetry}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
           >
             <RefreshCw size={14} />
             Tentar novamente
@@ -45,7 +45,7 @@ export function ErrorState({
           href="https://github.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
         >
           <ExternalLink size={12} />
           Reportar problema

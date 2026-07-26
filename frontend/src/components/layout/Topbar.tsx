@@ -31,7 +31,8 @@ const PATH_LABELS: Record<string, string> = {
   annotations:  'Anotações',
   reports:      'Relatórios',
   audit:        'Auditoria',
-  settings:     'Configurações',
+  settings:     'Administração',
+  analysis:     'Análises',
   new:          'Novo',
   overview:     'Visão Geral',
   participants: 'Participantes',
@@ -122,7 +123,7 @@ function UserMenu() {
             <div className="py-1">
               <MenuItem icon={User} label="Meu Perfil"       onClick={() => { navigate('/app/settings'); setOpen(false); }} />
               <MenuItem icon={Building2} label="Organização" onClick={() => { navigate('/app/settings'); setOpen(false); }} />
-              <MenuItem icon={Settings} label="Configurações" onClick={() => { navigate('/app/settings'); setOpen(false); }} />
+              <MenuItem icon={Settings} label="Administração" onClick={() => { navigate('/app/settings'); setOpen(false); }} />
             </div>
             <div className="border-t border-border py-1">
               <MenuItem

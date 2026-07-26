@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -10,7 +11,17 @@ from app.schemas.study import (
     StudyQualitySummary,
     StudyUpdate,
 )
-from app.db.models import AuditAction, Study as StudyModel, User
+from app.db.models import (
+    AuditAction,
+    EEGAsset,
+    Participant,
+    ProcessingJob,
+    Session as DBSession,
+    Study as StudyModel,
+    User,
+    VideoAsset,
+    JobType,
+)
 from app.services.audit_service import build_changes, record_audit
 from app.db.session import SessionLocal
 
@@ -19,12 +30,40 @@ router = APIRouter(prefix="/studies", tags=["studies"])
 from app.api.deps import get_db, get_current_user
 from app.api.ownership import get_project, get_study as get_owned_study, studies_for_user
 
+
+def _enrich_study_counts(db: Session, studies: List[StudyModel]) -> List[StudyModel]:
+    """Attach live participant/session counts without persisting stale counters."""
+    study_ids = [study.id for study in studies]
+    if not study_ids:
+        return studies
+
+    participant_counts = dict(
+        db.query(Participant.study_id, func.count(Participant.id))
+        .filter(Participant.study_id.in_(study_ids))
+        .group_by(Participant.study_id)
+        .all()
+    )
+    session_counts = dict(
+        db.query(Participant.study_id, func.count(DBSession.id))
+        .join(DBSession, DBSession.participant_id == Participant.id)
+        .filter(Participant.study_id.in_(study_ids))
+        .group_by(Participant.study_id)
+        .all()
+    )
+
+    for study in studies:
+        study.participant_count = participant_counts.get(study.id, 0)
+        study.session_count = session_counts.get(study.id, 0)
+    return studies
+
+
 @router.get("/", response_model=List[Study])
 def get_studies(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return studies_for_user(db, current_user).all()
+    studies = studies_for_user(db, current_user).all()
+    return _enrich_study_counts(db, studies)
 
 @router.post("/", response_model=Study)
 def create_study(
@@ -63,7 +102,8 @@ def get_study(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_owned_study(db, current_user, study_id)
+    study = get_owned_study(db, current_user, study_id)
+    return _enrich_study_counts(db, [study])[0]
 
 @router.patch("/{study_id}", response_model=Study)
 def update_study(
@@ -85,7 +125,6 @@ def update_study(
     db.refresh(db_obj)
     return db_obj
 
-from app.db.models import EEGAsset, Participant, Session as DBSession, VideoAsset, ProcessingJob, JobType
 from app.workers.tasks_video import process_video_task
 
 @router.post("/{study_id}/batch-infer")

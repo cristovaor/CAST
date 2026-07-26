@@ -17,56 +17,67 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "annotation_mutation_history",
-        sa.Column(
-            "id",
-            postgresql.UUID(as_uuid=True),
-            primary_key=True,
-            nullable=False,
-        ),
-        sa.Column(
-            "task_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("annotation_tasks.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "event_id",
-            postgresql.UUID(as_uuid=True),
-            nullable=False,
-        ),
-        sa.Column("operation", sa.String(), nullable=False),
-        sa.Column("before_state", postgresql.JSONB(), nullable=True),
-        sa.Column("after_state", postgresql.JSONB(), nullable=True),
-        sa.Column(
-            "undone",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.false(),
-        ),
-        sa.Column(
-            "actor_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("users.id"),
-            nullable=False,
-        ),
-        sa.Column(
-            "created_at",
-            sa.DateTime(),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.CheckConstraint(
-            "operation IN ('create', 'update', 'delete')",
-            name="ck_annotation_mutation_history_operation",
-        ),
-    )
-    op.create_index(
-        "ix_annotation_mutation_history_task_created",
-        "annotation_mutation_history",
-        ["task_id", "created_at"],
-    )
+    # prestart.sh calls Base.metadata.create_all before Alembic. On an existing
+    # CAST installation that can create this new table first, so keep the
+    # migration safe for both clean databases and upgrades.
+    inspector = sa.inspect(op.get_bind())
+    if "annotation_mutation_history" not in inspector.get_table_names():
+        op.create_table(
+            "annotation_mutation_history",
+            sa.Column(
+                "id",
+                postgresql.UUID(as_uuid=True),
+                primary_key=True,
+                nullable=False,
+            ),
+            sa.Column(
+                "task_id",
+                postgresql.UUID(as_uuid=True),
+                sa.ForeignKey("annotation_tasks.id", ondelete="CASCADE"),
+                nullable=False,
+            ),
+            sa.Column(
+                "event_id",
+                postgresql.UUID(as_uuid=True),
+                nullable=False,
+            ),
+            sa.Column("operation", sa.String(), nullable=False),
+            sa.Column("before_state", postgresql.JSONB(), nullable=True),
+            sa.Column("after_state", postgresql.JSONB(), nullable=True),
+            sa.Column(
+                "undone",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.false(),
+            ),
+            sa.Column(
+                "actor_id",
+                postgresql.UUID(as_uuid=True),
+                sa.ForeignKey("users.id"),
+                nullable=False,
+            ),
+            sa.Column(
+                "created_at",
+                sa.DateTime(),
+                nullable=False,
+                server_default=sa.func.now(),
+            ),
+            sa.CheckConstraint(
+                "operation IN ('create', 'update', 'delete')",
+                name="ck_annotation_mutation_history_operation",
+            ),
+        )
+        inspector = sa.inspect(op.get_bind())
+    index_names = {
+        index["name"]
+        for index in inspector.get_indexes("annotation_mutation_history")
+    }
+    if "ix_annotation_mutation_history_task_created" not in index_names:
+        op.create_index(
+            "ix_annotation_mutation_history_task_created",
+            "annotation_mutation_history",
+            ["task_id", "created_at"],
+        )
 
 
 def downgrade() -> None:

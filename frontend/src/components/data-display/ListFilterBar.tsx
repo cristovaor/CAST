@@ -46,8 +46,8 @@ export function ListFilterBar({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-3 shadow-sm">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-        <label className="relative min-w-0 flex-1 xl:max-w-md">
+      <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center">
+        <label className="relative min-w-0 flex-1 2xl:max-w-md">
           <span className="sr-only">Buscar</span>
           <Search
             size={16}
@@ -63,16 +63,16 @@ export function ListFilterBar({
           />
         </label>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 2xl:flex 2xl:w-auto 2xl:flex-wrap 2xl:items-center">
           {filters.map((filter) => (
-            <label key={filter.id} className="flex items-center gap-2">
+            <label key={filter.id} className="flex min-w-0 items-center gap-2">
               <span className="sr-only">{filter.label}</span>
               <select
                 aria-label={filter.label}
                 value={filter.value}
                 disabled={filter.disabled}
                 onChange={(event) => filter.onChange(event.target.value)}
-                className="h-10 min-w-36 rounded-lg border border-border-strong bg-surface px-3 text-sm text-text-secondary outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-disabled"
+                className="h-10 min-w-0 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm text-text-secondary outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-disabled 2xl:min-w-36 2xl:w-auto"
               >
                 {filter.options.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -87,7 +87,7 @@ export function ListFilterBar({
             <button
               type="button"
               onClick={clearFilters}
-              className="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
             >
               <RotateCcw size={14} />
               Limpar
@@ -95,7 +95,7 @@ export function ListFilterBar({
           )}
         </div>
 
-        <p className="ml-auto whitespace-nowrap text-xs text-text-disabled" role="status">
+        <p className="ml-auto whitespace-nowrap text-right text-xs text-text-muted" role="status">
           {resultCount} {resultCount === 1 ? resultLabel : (resultLabelPlural ?? `${resultLabel}s`)}
           {resultCount !== totalCount ? ` de ${totalCount}` : ''}
         </p>
