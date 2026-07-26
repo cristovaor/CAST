@@ -7,6 +7,7 @@ import { AnnotationToolbar } from '@/features/annotations/components/AnnotationT
 import { SuggestionReviewPanel } from '@/features/annotations/components/SuggestionReviewPanel';
 import { VideoAnnotatorPlayer } from '@/features/annotations/components/VideoAnnotatorPlayer';
 import {
+  useAnalyzeAnnotationInterval,
   useAnnotationContext,
   useAnnotationSuggestions,
   useCreateVideoAnnotation,
@@ -20,9 +21,43 @@ import {
 } from '@/features/videos/useVideos';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import { Button } from '@/components/ui/Button';
-import type { AnnotationSuggestion } from '@/types/annotation';
+import type {
+  AnnotationIntervalAnalysis,
+  AnnotationSide,
+  AnnotationSuggestion,
+} from '@/types/annotation';
 import { timeToFrame } from '@/features/annotations/annotationFrame';
 import { downloadCsv, eventsToCsv, parseAnnotationCsv } from '@/features/annotations/annotationCsv';
+import type { LandmarkOverlayMode } from '@/features/annotations/components/landmarkOverlayGeometry';
+import type { FacialRegionSelection } from '@/features/annotations/components/LandmarkOverlay';
+import { SmartIntervalProposal } from '@/features/annotations/components/SmartIntervalProposal';
+import { AnnotationComparisonPanel } from '@/features/annotations/components/AnnotationComparisonPanel';
+import type { TimelineEventDTO } from '@/features/videos/types';
+
+const BILATERAL_ACTIONS = new Set(['OF', 'OC', 'MSO']);
+
+function defaultSideForAction(actionCode: string): AnnotationSide {
+  if (BILATERAL_ACTIONS.has(actionCode)) return 'both';
+  if (actionCode === 'ML') return 'center';
+  if (actionCode === 'VR') return 'whole';
+  return 'unspecified';
+}
+
+function regionForAction(
+  actionCode: string,
+  side: AnnotationSide,
+): string | undefined {
+  const prefix =
+    side === 'left' ? 'left' : side === 'right' ? 'right' : '';
+  if (actionCode === 'OF') return prefix ? `${prefix}Eye` : 'eyes';
+  if (actionCode === 'OC') return prefix ? `${prefix}Iris` : 'irises';
+  if (actionCode === 'MSO') {
+    return prefix ? `${prefix}Eyebrow` : 'eyebrows';
+  }
+  if (actionCode === 'ML') return 'lips';
+  if (actionCode === 'VR') return 'face';
+  return undefined;
+}
 
 export function AnnotationPage() {
   const { videoId = '' } = useParams();
@@ -33,6 +68,7 @@ export function AnnotationPage() {
   const annotationsQuery = useVideoAnnotations(videoId, taskId);
   const suggestionsQuery = useAnnotationSuggestions(videoId, taskId);
   const createAnnotation = useCreateVideoAnnotation(videoId, taskId);
+  const analyzeInterval = useAnalyzeAnnotationInterval(videoId);
   const reviewSuggestion = useReviewSuggestion(videoId, taskId);
   const processVideo = useProcessVideo();
 
@@ -52,22 +88,62 @@ export function AnnotationPage() {
   const [annotationMode, setAnnotationMode] = useState<'interval' | 'point'>(
     'interval',
   );
-  const [overlayMode, setOverlayMode] = useState<'off' | 'roi' | 'mesh'>('roi');
+  const [overlayMode, setOverlayMode] = useState<LandmarkOverlayMode>('area');
   const [selectedAction, setSelectedAction] = useState('');
+  const [selectedSide, setSelectedSide] = useState<AnnotationSide>('both');
   const [pointSize, setPointSize] = useState(2);
   const [opacity, setOpacity] = useState(0.85);
+  const [showMotionVectors, setShowMotionVectors] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [intervalProposal, setIntervalProposal] =
+    useState<AnnotationIntervalAnalysis | null>(null);
   const [importing, setImporting] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const context = contextQuery.data;
-  const categories = context?.categories ?? [];
+  const categories = useMemo(
+    () => context?.categories ?? [],
+    [context?.categories],
+  );
   const artifact =
     context?.landmarkArtifact?.status === 'ready'
       ? context.landmarkArtifact
       : undefined;
   const suggestions = suggestionsQuery.data?.suggestions ?? [];
+  const effectiveSelectedAction =
+    selectedAction || categories[0]?.code || '';
+  const effectiveOverlayMode: LandmarkOverlayMode = artifact
+    ? overlayMode
+    : 'off';
+  const comparisonOverlayEvents = useMemo<TimelineEventDTO[]>(() => {
+    const humanEvents: TimelineEventDTO[] = events.map((event) => ({
+      event_id: event.id,
+      action: event.actionCode,
+      start_frame: event.startFrame,
+      end_frame: event.endFrame,
+      start_time: event.startTime,
+      end_time: event.endTime,
+      confidence_mean: event.confidence ?? 1,
+      origin: 'annotator',
+      region: event.region,
+      side: event.side,
+    }));
+    if (!showSuggestions) return humanEvents;
+    const modelEvents: TimelineEventDTO[] = suggestions
+      .filter((suggestion) => suggestion.review?.decision !== 'rejected')
+      .map((suggestion) => ({
+        event_id: suggestion.modelEventKey,
+        action: suggestion.actionCode,
+        start_frame: suggestion.startFrame,
+        end_frame: suggestion.endFrame,
+        start_time: suggestion.startTime,
+        end_time: suggestion.endTime,
+        confidence_mean: suggestion.confidence,
+        origin: 'model',
+      }));
+    return [...humanEvents, ...modelEvents];
+  }, [events, showSuggestions, suggestions]);
 
   useEffect(() => {
     if (!context) return;
@@ -81,26 +157,28 @@ export function AnnotationPage() {
     setEvents(annotationsQuery.data ?? []);
   }, [annotationsQuery.data, setEvents]);
 
-  useEffect(() => {
-    if (!selectedAction && categories[0]) {
-      setSelectedAction(categories[0].code);
-    }
-  }, [categories, selectedAction]);
-
-  useEffect(() => {
-    if (!artifact) setOverlayMode('off');
-  }, [artifact]);
-
   useEffect(() => () => reset(), [reset, videoId]);
 
   const selectedCategory = useMemo(
-    () => categories.find((category) => category.code === selectedAction),
-    [categories, selectedAction],
+    () =>
+      categories.find(
+        (category) => category.code === effectiveSelectedAction,
+      ),
+    [categories, effectiveSelectedAction],
   );
 
   const savePoint = useCallback(
-    (actionCode: string, actionLabel: string) => {
+    (
+      actionCode: string,
+      actionLabel: string,
+      spatial?: {
+        region?: string;
+        side: AnnotationSide;
+        spatialMetadata?: Record<string, unknown>;
+      },
+    ) => {
       const frame = timeToFrame(currentTimeMs, fps);
+      const side = spatial?.side ?? selectedSide;
       createAnnotation.mutate(
         {
           kind: 'point',
@@ -108,32 +186,91 @@ export function AnnotationPage() {
           actionLabel,
           startFrame: frame,
           endFrame: frame,
+          region: spatial?.region ?? regionForAction(actionCode, side),
+          side,
+          spatialMetadata: spatial?.spatialMetadata,
         },
         {
           onError: (error) => setMessage(error.message),
         },
       );
     },
-    [createAnnotation, currentTimeMs, fps],
+    [createAnnotation, currentTimeMs, fps, selectedSide],
+  );
+
+  const commitInterval = useCallback(
+    (
+      startFrame: number,
+      endFrame: number,
+      analysis?: AnnotationIntervalAnalysis,
+    ) => {
+      if (!draft) return;
+      createAnnotation.mutate(
+        {
+          kind: 'interval',
+          actionCode: draft.actionCode,
+          actionLabel: draft.actionLabel,
+          startFrame: Math.min(startFrame, endFrame),
+          endFrame: Math.max(startFrame, endFrame),
+          region: draft.region,
+          side: draft.side,
+          spatialMetadata: {
+            ...draft.spatialMetadata,
+            boundaryAnalysis: analysis
+              ? {
+                  confidence: analysis.boundaryConfidence,
+                  originalStartFrame: analysis.originalStartFrame,
+                  originalEndFrame: analysis.originalEndFrame,
+                  warnings:
+                    analysis.quality?.warnings.map((warning) => warning.code)
+                    ?? [],
+                }
+              : undefined,
+          },
+        },
+        {
+          onSuccess: () => {
+            setIntervalProposal(null);
+            cancelDraft();
+          },
+          onError: (error) => setMessage(error.message),
+        },
+      );
+    },
+    [cancelDraft, createAnnotation, draft],
   );
 
   const finishInterval = useCallback(() => {
     if (!draft) return;
     const endFrame = timeToFrame(currentTimeMs, fps);
-    createAnnotation.mutate(
+    const startFrame = Math.min(draft.startFrame, endFrame);
+    const finalFrame = Math.max(draft.startFrame, endFrame);
+    if (!artifact) {
+      commitInterval(startFrame, finalFrame);
+      return;
+    }
+    analyzeInterval.mutate(
       {
-        kind: 'interval',
         actionCode: draft.actionCode,
-        actionLabel: draft.actionLabel,
-        startFrame: Math.min(draft.startFrame, endFrame),
-        endFrame: Math.max(draft.startFrame, endFrame),
+        startFrame,
+        endFrame: finalFrame,
       },
       {
-        onSuccess: () => cancelDraft(),
+        onSuccess: (analysis) => {
+          if (analysis.available) setIntervalProposal(analysis);
+          else commitInterval(startFrame, finalFrame);
+        },
         onError: (error) => setMessage(error.message),
       },
     );
-  }, [cancelDraft, createAnnotation, currentTimeMs, draft, fps]);
+  }, [
+    analyzeInterval,
+    artifact,
+    commitInterval,
+    currentTimeMs,
+    draft,
+    fps,
+  ]);
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -165,10 +302,11 @@ export function AnnotationPage() {
         return;
       }
       if (event.key === 'Escape') {
+        setIntervalProposal(null);
         cancelDraft();
         return;
       }
-      if (event.key === 'Enter' && draft) {
+      if (event.key === 'Enter' && draft && !intervalProposal) {
         event.preventDefault();
         finishInterval();
         return;
@@ -180,14 +318,23 @@ export function AnnotationPage() {
         if (!category) return;
         event.preventDefault();
         setSelectedAction(category.code);
+        const side = defaultSideForAction(category.code);
+        setSelectedSide(side);
         if (event.shiftKey || annotationMode === 'point') {
-          savePoint(category.code, category.label);
+          savePoint(category.code, category.label, {
+            region: regionForAction(category.code, side),
+            side,
+            spatialMetadata: { selectionSource: 'keyboard' },
+          });
         } else {
           startDraft(
             category.code,
             category.label,
             currentTimeMs / 1000,
             timeToFrame(currentTimeMs, fps),
+            regionForAction(category.code, side),
+            side,
+            { selectionSource: 'keyboard' },
           );
         }
       }
@@ -204,6 +351,7 @@ export function AnnotationPage() {
     finishInterval,
     fps,
     isPlaying,
+    intervalProposal,
     requestSeek,
     savePoint,
     setIsPlaying,
@@ -214,6 +362,48 @@ export function AnnotationPage() {
     const csv = eventsToCsv(events);
     downloadCsv(`anotacoes-${videoId}.csv`, csv);
   }, [events, videoId]);
+
+  const selectFacialRegion = useCallback(
+    (selection: FacialRegionSelection) => {
+      const category = categories.find(
+        (item) => item.code === selection.actionCode,
+      );
+      if (!category) return;
+      setSelectedAction(selection.actionCode);
+      setSelectedSide(selection.side);
+      setIsPlaying(false);
+      const spatial = {
+        region: selection.region,
+        side: selection.side,
+        spatialMetadata: {
+          selectionSource: 'facemesh_click',
+          landmarkRegion: selection.region,
+        },
+      };
+      if (annotationMode === 'point') {
+        savePoint(selection.actionCode, category.label, spatial);
+      } else {
+        startDraft(
+          selection.actionCode,
+          category.label,
+          currentTimeMs / 1000,
+          timeToFrame(currentTimeMs, fps),
+          spatial.region,
+          spatial.side,
+          spatial.spatialMetadata,
+        );
+      }
+    },
+    [
+      annotationMode,
+      categories,
+      currentTimeMs,
+      fps,
+      savePoint,
+      setIsPlaying,
+      startDraft,
+    ],
+  );
 
   const triggerImport = useCallback(() => {
     importInputRef.current?.click();
@@ -387,18 +577,26 @@ export function AnnotationPage() {
               videoUrl={playback?.url ?? ''}
               artifactId={artifact?.id}
               chunkSizeFrames={artifact?.chunkSizeFrames ?? Math.max(1, Math.round(fps))}
-              overlayMode={overlayMode}
-              overlayAction={selectedAction || undefined}
+              overlayMode={effectiveOverlayMode}
+              overlayAction={effectiveSelectedAction || undefined}
+              overlayActionLabel={selectedCategory?.label}
+              selectedSide={selectedSide}
+              onRegionSelect={selectFacialRegion}
+              showMotionVectors={showMotionVectors}
+              events={comparisonOverlayEvents}
               pointSize={pointSize}
               opacity={opacity}
             />
 
             <div className="mt-3 flex w-full max-w-5xl flex-wrap items-center gap-3 text-xs text-text-secondary">
               <label>
-                Ação/ROI{' '}
+                Ação/área{' '}
                 <select
-                  value={selectedAction}
-                  onChange={(event) => setSelectedAction(event.target.value)}
+                  value={effectiveSelectedAction}
+                  onChange={(event) => {
+                    setSelectedAction(event.target.value);
+                    setSelectedSide(defaultSideForAction(event.target.value));
+                  }}
                   className="rounded border border-border bg-surface px-2 py-1 text-text-primary"
                 >
                   {categories.map((category) => (
@@ -409,6 +607,22 @@ export function AnnotationPage() {
                   ))}
                 </select>
               </label>
+              {BILATERAL_ACTIONS.has(effectiveSelectedAction) && (
+                <label>
+                  Lado{' '}
+                  <select
+                    value={selectedSide}
+                    onChange={(event) =>
+                      setSelectedSide(event.target.value as AnnotationSide)
+                    }
+                    className="rounded border border-border bg-surface px-2 py-1 text-text-primary"
+                  >
+                    <option value="both">Ambos</option>
+                    <option value="right">Direito</option>
+                    <option value="left">Esquerdo</option>
+                  </select>
+                </label>
+              )}
               <label>
                 Tamanho{' '}
                 <input
@@ -431,18 +645,56 @@ export function AnnotationPage() {
                   onChange={(event) => setOpacity(Number(event.target.value))}
                 />
               </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={showMotionVectors}
+                  onChange={(event) =>
+                    setShowMotionVectors(event.target.checked)
+                  }
+                />
+                Vetores de movimento
+              </label>
               <span className="ml-auto">
-                {selectedCategory?.label ?? selectedAction} · número marca ·
-                Shift+número cria ponto
+                {selectedCategory?.label ?? effectiveSelectedAction}
+                {effectiveOverlayMode === 'area'
+                  ? ' · área acompanha o rosto'
+                  : ''}
+                {' · '}número marca · Shift+número cria ponto
               </span>
             </div>
+            {analyzeInterval.isPending && (
+              <div className="mt-3 flex w-full max-w-5xl items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-muted">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                Analisando movimento e qualidade do intervalo…
+              </div>
+            )}
+            {intervalProposal && (
+              <SmartIntervalProposal
+                analysis={intervalProposal}
+                onApply={(startFrame, endFrame) =>
+                  commitInterval(startFrame, endFrame, intervalProposal)
+                }
+                onKeepOriginal={() =>
+                  commitInterval(
+                    intervalProposal.originalStartFrame,
+                    intervalProposal.originalEndFrame,
+                    intervalProposal,
+                  )
+                }
+                onCancel={() => {
+                  setIntervalProposal(null);
+                  cancelDraft();
+                }}
+              />
+            )}
           </div>
 
           <div className="border-t border-border bg-app-bg px-4 py-2">
             <AnnotationToolbar
               annotationMode={annotationMode}
               onAnnotationModeChange={setAnnotationMode}
-              overlayMode={overlayMode}
+              overlayMode={effectiveOverlayMode}
               onOverlayModeChange={setOverlayMode}
               canShowLandmarks={Boolean(artifact)}
             />
@@ -459,6 +711,11 @@ export function AnnotationPage() {
             taskId={taskId}
             categories={categories}
             fps={fps}
+          />
+          <AnnotationComparisonPanel
+            events={events}
+            suggestions={suggestions}
+            onSeek={requestSeek}
           />
           <div className="border-t border-border">
             <SuggestionReviewPanel

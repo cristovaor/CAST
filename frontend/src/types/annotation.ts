@@ -15,6 +15,10 @@ export interface AnnotationEvent {
   confidence: number | null; // null for manual annotation, 0-1 for predictions
   annotatorId: string;
   notes?: string;
+  region?: string | null;
+  side: AnnotationSide;
+  spatialMetadata: Record<string, unknown>;
+  revision: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,6 +33,30 @@ export interface AnnotationDraft {
   actionLabel: string;
   startTime: number;
   startFrame: number;
+  region?: string;
+  side: AnnotationSide;
+  spatialMetadata?: Record<string, unknown>;
+}
+
+export type AnnotationSide =
+  | 'left'
+  | 'right'
+  | 'both'
+  | 'center'
+  | 'whole'
+  | 'unspecified';
+
+export interface AnnotationHistory {
+  canUndo: boolean;
+  canRedo: boolean;
+  entries: Array<{
+    id: string;
+    eventId: string;
+    operation: 'create' | 'update' | 'delete';
+    undone: boolean;
+    actionCode?: string | null;
+    createdAt: string;
+  }>;
 }
 
 export interface AnnotationCategory {
@@ -104,4 +132,26 @@ export interface AnnotationSuggestion {
     annotationEventId: string | null;
     reviewedAt: string;
   } | null;
+}
+
+export interface AnnotationIntervalAnalysis {
+  available: boolean;
+  reason?: string;
+  artifactId?: string;
+  originalStartFrame: number;
+  originalEndFrame: number;
+  suggestedStartFrame?: number;
+  suggestedEndFrame?: number;
+  boundaryConfidence?: number;
+  motionSeries?: Array<{ frameIndex: number; motion: number }>;
+  quality?: {
+    faceDetectionRate: number;
+    pointCoverage: number;
+    unstableTracking: boolean;
+    warnings: Array<{
+      code: string;
+      severity: 'info' | 'warning' | 'error';
+      message: string;
+    }>;
+  };
 }

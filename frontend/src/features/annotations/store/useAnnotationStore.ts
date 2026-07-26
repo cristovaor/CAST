@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import type { AnnotationDraft, AnnotationEvent } from '@/types/annotation';
+import type {
+  AnnotationDraft,
+  AnnotationEvent,
+  AnnotationSide,
+} from '@/types/annotation';
 import { annotationsApi } from '../api/annotationsApi';
 
 interface AnnotationState {
@@ -13,6 +17,9 @@ interface AnnotationState {
     actionLabel: string,
     startTime: number,
     startFrame: number,
+    region?: string,
+    side?: AnnotationSide,
+    spatialMetadata?: Record<string, unknown>,
   ) => void;
   cancelDraft: () => void;
   deleteEvent: (videoId: string, eventId: string) => Promise<void>;
@@ -29,9 +36,25 @@ export const useAnnotationStore = create<AnnotationState>((set) => ({
     const events = await annotationsApi.getAnnotationsByVideo(videoId, taskId);
     set({ events });
   },
-  startDraft: (actionCode, actionLabel, startTime, startFrame) =>
+  startDraft: (
+    actionCode,
+    actionLabel,
+    startTime,
+    startFrame,
+    region,
+    side = 'unspecified',
+    spatialMetadata,
+  ) =>
     set({
-      draft: { actionCode, actionLabel, startTime, startFrame },
+      draft: {
+        actionCode,
+        actionLabel,
+        startTime,
+        startFrame,
+        region,
+        side,
+        spatialMetadata,
+      },
       activeActionCode: actionCode,
     }),
   cancelDraft: () => set({ draft: null, activeActionCode: null }),

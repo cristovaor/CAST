@@ -229,6 +229,8 @@ def load_timeline_events(video_asset, db: Session):
             "end_time": event.end_time,
             "confidence_mean": event.confidence if event.confidence is not None else 1.0,
             "origin": "annotator" if event.source == "manual" else "model",
+            "region": event.region,
+            "side": event.side,
         })
 
     events.sort(key=lambda ev: ev["start_time"])

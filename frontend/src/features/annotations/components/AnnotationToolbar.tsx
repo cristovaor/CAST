@@ -3,12 +3,13 @@ import { useAnnotationStore } from '../store/useAnnotationStore';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import type { LandmarkOverlayMode } from './landmarkOverlayGeometry';
 
 interface AnnotationToolbarProps {
   annotationMode: 'interval' | 'point';
   onAnnotationModeChange: (mode: 'interval' | 'point') => void;
-  overlayMode: 'off' | 'roi' | 'mesh';
-  onOverlayModeChange: (mode: 'off' | 'roi' | 'mesh') => void;
+  overlayMode: LandmarkOverlayMode;
+  onOverlayModeChange: (mode: LandmarkOverlayMode) => void;
   canShowLandmarks: boolean;
 }
 
@@ -89,7 +90,7 @@ export function AnnotationToolbar({
       </div>
 
       <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
-        {(['off', 'roi', 'mesh'] as const).map((mode) => (
+        {(['off', 'roi', 'area', 'mesh'] as const).map((mode) => (
           <button
             key={mode}
             type="button"
@@ -101,7 +102,13 @@ export function AnnotationToolbar({
                 : 'text-text-muted hover:text-text-primary'
             }`}
           >
-            {mode === 'off' ? 'Pontos desligados' : mode === 'roi' ? 'ROI' : 'Malha'}
+            {mode === 'off'
+              ? 'Desligado'
+              : mode === 'roi'
+                ? 'Pontos'
+                : mode === 'area'
+                  ? 'Área'
+                  : 'Malha'}
           </button>
         ))}
       </div>

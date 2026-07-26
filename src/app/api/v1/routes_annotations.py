@@ -11,6 +11,7 @@ from datetime import datetime
 from app.db.session import SessionLocal
 from app.db.models import (
     AnnotationEvent as EventModel,
+    AnnotationMutationHistory,
     AnnotationTask as TaskModel,
     AnnotationTaskStatus,
     AuditAction,
@@ -173,6 +174,9 @@ class VideoAnnotationCreate(BaseModel):
     endTime: Optional[float] = None
     confidence: Optional[float] = None
     notes: Optional[str] = None
+    region: Optional[str] = None
+    side: str = "unspecified"
+    spatialMetadata: Optional[dict] = None
 
 
 class VideoAnnotationUpdate(BaseModel):
@@ -185,6 +189,60 @@ class VideoAnnotationUpdate(BaseModel):
     startFrame: Optional[int] = None
     endFrame: Optional[int] = None
     notes: Optional[str] = None
+    region: Optional[str] = None
+    side: Optional[str] = None
+    spatialMetadata: Optional[dict] = None
+
+
+class AnnotationIntervalAnalysisRequest(BaseModel):
+    actionCode: str
+    startFrame: int
+    endFrame: int
+    searchRadius: int = 6
+
+
+class AnnotationHistoryRequest(BaseModel):
+    taskId: Optional[UUID] = None
+
+
+VALID_ANNOTATION_SIDES = {
+    "left",
+    "right",
+    "both",
+    "center",
+    "whole",
+    "unspecified",
+}
+
+
+def _validate_spatial_side(side: str) -> None:
+    if side not in VALID_ANNOTATION_SIDES:
+        raise HTTPException(status_code=422, detail="Invalid annotation side")
+
+
+@annotation_events_router.post(
+    "/videos/{video_id}/annotation-interval-analysis"
+)
+def analyze_video_annotation_interval(
+    video_id: UUID,
+    payload: AnnotationIntervalAnalysisRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    video = get_video(db, current_user, video_id)
+    _validate_frames("interval", payload.startFrame, payload.endFrame)
+    from app.services.annotation_analysis_service import (
+        analyze_annotation_interval,
+    )
+
+    return analyze_annotation_interval(
+        db,
+        video,
+        payload.actionCode,
+        payload.startFrame,
+        payload.endFrame,
+        max(1, min(payload.searchRadius, 30)),
+    )
 
 
 def _video_event_response(event: EventModel, video_id: UUID) -> dict:
@@ -205,6 +263,10 @@ def _video_event_response(event: EventModel, video_id: UUID) -> dict:
         "confidence": event.confidence,
         "annotatorId": str(event.annotator_id or event.task.assignee_id),
         "notes": event.notes,
+        "region": event.region,
+        "side": event.side,
+        "spatialMetadata": event.spatial_metadata or {},
+        "revision": event.revision,
         "createdAt": event.created_at.isoformat() if event.created_at else "",
         "updatedAt": event.updated_at.isoformat() if event.updated_at else "",
     }
@@ -310,6 +372,139 @@ def _audit_change(
     )
 
 
+def _annotation_snapshot(event: EventModel) -> dict:
+    return {
+        "id": str(event.id),
+        "task_id": str(event.task_id),
+        "action": event.action,
+        "action_label": event.action_label,
+        "kind": event.kind,
+        "source": event.source,
+        "start_frame": event.start_frame,
+        "end_frame": event.end_frame,
+        "start_time": event.start_time,
+        "end_time": event.end_time,
+        "confidence": event.confidence,
+        "notes": event.notes,
+        "region": event.region,
+        "side": event.side,
+        "spatial_metadata": event.spatial_metadata or {},
+        "revision": event.revision,
+        "annotator_id": (
+            str(event.annotator_id) if event.annotator_id is not None else None
+        ),
+    }
+
+
+def _record_annotation_mutation(
+    db: Session,
+    current_user: User,
+    task_id: UUID,
+    event_id: UUID,
+    operation: str,
+    before_state: dict | None,
+    after_state: dict | None,
+) -> None:
+    # A fresh edit starts a new branch, so stale redo entries no longer apply.
+    (
+        db.query(AnnotationMutationHistory)
+        .filter(
+            AnnotationMutationHistory.task_id == task_id,
+            AnnotationMutationHistory.undone.is_(True),
+        )
+        .delete(synchronize_session=False)
+    )
+    db.add(
+        AnnotationMutationHistory(
+            task_id=task_id,
+            event_id=event_id,
+            operation=operation,
+            before_state=before_state,
+            after_state=after_state,
+            actor_id=current_user.id,
+        )
+    )
+
+
+def _apply_annotation_snapshot(
+    db: Session,
+    event_id: UUID,
+    task_id: UUID,
+    snapshot: dict | None,
+) -> EventModel | None:
+    event = (
+        db.query(EventModel)
+        .filter(EventModel.id == event_id, EventModel.task_id == task_id)
+        .first()
+    )
+    if snapshot is None:
+        if event is not None:
+            db.delete(event)
+        return None
+
+    if event is None:
+        event = EventModel(id=event_id, task_id=task_id)
+        db.add(event)
+    fields = (
+        "action",
+        "action_label",
+        "kind",
+        "source",
+        "start_frame",
+        "end_frame",
+        "start_time",
+        "end_time",
+        "confidence",
+        "notes",
+        "region",
+        "side",
+        "spatial_metadata",
+        "revision",
+    )
+    for field in fields:
+        setattr(event, field, snapshot.get(field))
+    annotator_id = snapshot.get("annotator_id")
+    event.annotator_id = UUID(annotator_id) if annotator_id else None
+    event.updated_at = datetime.utcnow()
+    db.flush()
+    return event
+
+
+def _annotation_history_response(
+    db: Session,
+    task: TaskModel | None,
+) -> dict:
+    if task is None:
+        return {"canUndo": False, "canRedo": False, "entries": []}
+    rows = (
+        db.query(AnnotationMutationHistory)
+        .filter(AnnotationMutationHistory.task_id == task.id)
+        .order_by(
+            AnnotationMutationHistory.created_at.desc(),
+            AnnotationMutationHistory.id.desc(),
+        )
+        .limit(30)
+        .all()
+    )
+    return {
+        "canUndo": any(not row.undone for row in rows),
+        "canRedo": any(row.undone for row in rows),
+        "entries": [
+            {
+                "id": str(row.id),
+                "eventId": str(row.event_id),
+                "operation": row.operation,
+                "undone": row.undone,
+                "actionCode": (
+                    (row.after_state or row.before_state or {}).get("action")
+                ),
+                "createdAt": row.created_at.isoformat(),
+            }
+            for row in rows
+        ],
+    }
+
+
 @annotation_events_router.get("/videos/{video_id}/annotations")
 def list_video_annotations(
     video_id: UUID,
@@ -352,6 +547,7 @@ def create_video_annotation(
     if not action_code:
         raise HTTPException(status_code=422, detail="actionCode is required")
     _validate_frames(payload.kind, payload.startFrame, payload.endFrame)
+    _validate_spatial_side(payload.side)
     start_time, end_time = _canonical_times(
         video,
         payload.startFrame,
@@ -371,10 +567,22 @@ def create_video_annotation(
         end_frame=payload.endFrame,
         confidence=payload.confidence,
         notes=payload.notes,
+        region=payload.region,
+        side=payload.side,
+        spatial_metadata=payload.spatialMetadata or {},
         annotator_id=current_user.id,
     )
     db.add(event)
     db.flush()
+    _record_annotation_mutation(
+        db,
+        current_user,
+        task.id,
+        event.id,
+        "create",
+        None,
+        _annotation_snapshot(event),
+    )
     _audit_change(
         db,
         current_user,
@@ -400,6 +608,7 @@ def update_video_annotation(
     event = get_annotation_event(db, current_user, event_id)
     if event.task.video_asset_id != video_id:
         raise HTTPException(status_code=404, detail="Annotation event not found")
+    before_state = _annotation_snapshot(event)
     update = payload.model_dump(exclude_unset=True)
     action_code = update.pop("actionCode", None) or update.pop(
         "microActionType",
@@ -429,7 +638,25 @@ def update_video_annotation(
     event.end_time = end_time
     if "notes" in update:
         event.notes = update["notes"]
+    if "region" in update:
+        event.region = update["region"]
+    if "side" in update:
+        _validate_spatial_side(update["side"])
+        event.side = update["side"]
+    if "spatialMetadata" in update:
+        event.spatial_metadata = update["spatialMetadata"] or {}
+    event.revision += 1
     event.updated_at = datetime.utcnow()
+    db.flush()
+    _record_annotation_mutation(
+        db,
+        current_user,
+        event.task_id,
+        event.id,
+        "update",
+        before_state,
+        _annotation_snapshot(event),
+    )
     _audit_change(
         db,
         current_user,
@@ -457,6 +684,8 @@ def delete_video_annotation(
     event = get_annotation_event(db, current_user, event_id)
     if event.task.video_asset_id != video_id:
         raise HTTPException(status_code=404, detail="Annotation event not found")
+    before_state = _annotation_snapshot(event)
+    task_id = event.task_id
     _audit_change(
         db,
         current_user,
@@ -466,8 +695,107 @@ def delete_video_annotation(
         {"video_id": str(video_id)},
     )
     db.delete(event)
+    _record_annotation_mutation(
+        db,
+        current_user,
+        task_id,
+        event_id,
+        "delete",
+        before_state,
+        None,
+    )
     db.commit()
     return None
+
+
+@annotation_events_router.get("/videos/{video_id}/annotation-history")
+def list_annotation_history(
+    video_id: UUID,
+    task_id: UUID | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_video(db, current_user, video_id)
+    task = _task_for_video(db, current_user, video_id, task_id)
+    return _annotation_history_response(db, task)
+
+
+@annotation_events_router.post("/videos/{video_id}/annotation-history/undo")
+def undo_annotation_history(
+    video_id: UUID,
+    payload: AnnotationHistoryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_video(db, current_user, video_id)
+    task = _task_for_video(db, current_user, video_id, payload.taskId)
+    if task is None:
+        raise HTTPException(status_code=409, detail="Nothing to undo")
+    row = (
+        db.query(AnnotationMutationHistory)
+        .filter(
+            AnnotationMutationHistory.task_id == task.id,
+            AnnotationMutationHistory.undone.is_(False),
+        )
+        .order_by(
+            AnnotationMutationHistory.created_at.desc(),
+            AnnotationMutationHistory.id.desc(),
+        )
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=409, detail="Nothing to undo")
+    _apply_annotation_snapshot(db, row.event_id, task.id, row.before_state)
+    row.undone = True
+    _audit_change(
+        db,
+        current_user,
+        AuditAction.update,
+        "annotation_history",
+        row.id,
+        {"video_id": str(video_id), "operation": "undo"},
+    )
+    db.commit()
+    return _annotation_history_response(db, task)
+
+
+@annotation_events_router.post("/videos/{video_id}/annotation-history/redo")
+def redo_annotation_history(
+    video_id: UUID,
+    payload: AnnotationHistoryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_video(db, current_user, video_id)
+    task = _task_for_video(db, current_user, video_id, payload.taskId)
+    if task is None:
+        raise HTTPException(status_code=409, detail="Nothing to redo")
+    row = (
+        db.query(AnnotationMutationHistory)
+        .filter(
+            AnnotationMutationHistory.task_id == task.id,
+            AnnotationMutationHistory.undone.is_(True),
+        )
+        .order_by(
+            AnnotationMutationHistory.created_at.asc(),
+            AnnotationMutationHistory.id.asc(),
+        )
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=409, detail="Nothing to redo")
+    _apply_annotation_snapshot(db, row.event_id, task.id, row.after_state)
+    row.undone = False
+    _audit_change(
+        db,
+        current_user,
+        AuditAction.update,
+        "annotation_history",
+        row.id,
+        {"video_id": str(video_id), "operation": "redo"},
+    )
+    db.commit()
+    return _annotation_history_response(db, task)
 
 
 def _model_event_key(
@@ -654,6 +982,8 @@ def review_annotation_suggestion(
         start_frame = correction.startFrame if correction else original["startFrame"]
         end_frame = correction.endFrame if correction else original["endFrame"]
         _validate_frames(kind, start_frame, end_frame)
+        side = correction.side if correction else "unspecified"
+        _validate_spatial_side(side)
         start_time, end_time = _canonical_times(
             video,
             start_frame,
@@ -675,10 +1005,24 @@ def review_annotation_suggestion(
             end_time=end_time,
             confidence=original["confidence"],
             notes=correction.notes if correction else None,
+            region=correction.region if correction else None,
+            side=side,
+            spatial_metadata=(
+                correction.spatialMetadata or {} if correction else {}
+            ),
             annotator_id=current_user.id,
         )
         db.add(annotation)
         db.flush()
+        _record_annotation_mutation(
+            db,
+            current_user,
+            task.id,
+            annotation.id,
+            "create",
+            None,
+            _annotation_snapshot(annotation),
+        )
 
     review = PredictionReview(
         task_id=task.id,

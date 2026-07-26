@@ -1,6 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, Maximize2, SkipBack, SkipForward, Scan } from 'lucide-react';
-import { VideoCanvasOverlay } from './VideoCanvasOverlay';
 import { LandmarkOverlay } from '@/features/annotations/components/LandmarkOverlay';
 import { EEGChart } from '@/features/eeg/EEGChart';
 import { EEGSyncControl } from '@/features/eeg/components/EEGSyncControl';
@@ -155,10 +154,7 @@ export function MultimodalPlayer({
           playsInline
         />
 
-        {/* Canvas Overlay for Bounding Boxes */}
-        <VideoCanvasOverlay videoRef={videoRef} events={events} />
-
-        {/* MediaPipe facial landmarks (ROI dots or full mesh), toggled below */}
+        {/* Action-aware facial contours plus optional MediaPipe dots/mesh. */}
         {canShowLandmarks && videoId && (
           <LandmarkOverlay
             videoId={videoId}
@@ -168,6 +164,7 @@ export function MultimodalPlayer({
             mode={landmarkMode}
             pointSize={2}
             opacity={0.85}
+            events={events}
           />
         )}
 

@@ -2,6 +2,9 @@ import { apiClient } from '@/lib/api';
 import type {
   AnnotationContext,
   AnnotationEvent,
+  AnnotationHistory,
+  AnnotationIntervalAnalysis,
+  AnnotationSide,
   AnnotationSuggestion,
   LandmarkChunk,
 } from '@/types/annotation';
@@ -16,6 +19,9 @@ export interface AnnotationWrite {
   startTime?: number;
   endTime?: number;
   notes?: string;
+  region?: string;
+  side?: AnnotationSide;
+  spatialMetadata?: Record<string, unknown>;
 }
 
 export const annotationsApi = {
@@ -35,6 +41,23 @@ export const annotationsApi = {
 
   deleteAnnotation: (videoId: string, annotationId: string) =>
     apiClient.delete<void>(`/videos/${videoId}/annotations/${annotationId}`),
+
+  getHistory: (videoId: string, taskId?: string) =>
+    apiClient.get<AnnotationHistory>(
+      `/videos/${videoId}/annotation-history${taskId ? `?task_id=${taskId}` : ''}`,
+    ),
+
+  undoHistory: (videoId: string, taskId?: string) =>
+    apiClient.post<AnnotationHistory>(
+      `/videos/${videoId}/annotation-history/undo`,
+      { taskId },
+    ),
+
+  redoHistory: (videoId: string, taskId?: string) =>
+    apiClient.post<AnnotationHistory>(
+      `/videos/${videoId}/annotation-history/redo`,
+      { taskId },
+    ),
 
   getContext: (videoId: string, taskId?: string) =>
     apiClient.get<AnnotationContext>(
@@ -85,6 +108,20 @@ export const annotationsApi = {
       idempotent: boolean;
     }>(
       `/videos/${videoId}/annotation-suggestions/${modelEventKey}/review`,
+      payload,
+    ),
+
+  analyzeInterval: (
+    videoId: string,
+    payload: {
+      actionCode: string;
+      startFrame: number;
+      endFrame: number;
+      searchRadius?: number;
+    },
+  ) =>
+    apiClient.post<AnnotationIntervalAnalysis>(
+      `/videos/${videoId}/annotation-interval-analysis`,
       payload,
     ),
 };

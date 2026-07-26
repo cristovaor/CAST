@@ -1,15 +1,26 @@
 import { useEffect, useRef } from 'react';
 import { useAnnotationStore } from '../store/useAnnotationStore';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
-import { LandmarkOverlay } from './LandmarkOverlay';
+import {
+  LandmarkOverlay,
+  type FacialRegionSelection,
+} from './LandmarkOverlay';
+import type { LandmarkOverlayMode } from './landmarkOverlayGeometry';
+import type { AnnotationSide } from '@/types/annotation';
+import type { TimelineEventDTO } from '@/features/videos/types';
 
 interface VideoAnnotatorPlayerProps {
   videoId: string;
   videoUrl: string;
   artifactId?: string;
   chunkSizeFrames: number;
-  overlayMode: 'off' | 'roi' | 'mesh';
+  overlayMode: LandmarkOverlayMode;
   overlayAction?: string;
+  overlayActionLabel?: string;
+  selectedSide?: AnnotationSide;
+  onRegionSelect?: (selection: FacialRegionSelection) => void;
+  showMotionVectors?: boolean;
+  events?: TimelineEventDTO[];
   pointSize: number;
   opacity: number;
 }
@@ -21,6 +32,11 @@ export function VideoAnnotatorPlayer({
   chunkSizeFrames,
   overlayMode,
   overlayAction,
+  overlayActionLabel,
+  selectedSide,
+  onRegionSelect,
+  showMotionVectors,
+  events,
   pointSize,
   opacity,
 }: VideoAnnotatorPlayerProps) {
@@ -99,6 +115,12 @@ export function VideoAnnotatorPlayer({
             chunkSizeFrames={chunkSizeFrames}
             mode={overlayMode}
             action={overlayAction}
+            actionLabel={overlayActionLabel}
+            actionActive={Boolean(draft && draft.actionCode === overlayAction)}
+            selectedSide={selectedSide}
+            onRegionSelect={onRegionSelect}
+            showMotionVectors={showMotionVectors}
+            events={events}
             pointSize={pointSize}
             opacity={opacity}
           />

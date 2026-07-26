@@ -61,11 +61,19 @@ export function useVideoAnnotations(videoId: string, taskId?: string) {
   });
 }
 
+export function useAnnotationHistory(videoId: string, taskId?: string) {
+  return useQuery({
+    queryKey: ['annotation-history', videoId, taskId ?? 'current'],
+    queryFn: () => annotationsApi.getHistory(videoId, taskId),
+    enabled: Boolean(videoId),
+  });
+}
+
 export function useLandmarkChunk(
   videoId: string,
   artifactId: string | undefined,
   chunk: number,
-  mode: 'off' | 'roi' | 'mesh',
+  mode: 'off' | 'roi' | 'area' | 'mesh',
   action?: string,
 ) {
   const transportMode = mode === 'mesh' ? 'mesh' : 'roi';
@@ -106,10 +114,16 @@ export function useCreateVideoAnnotation(videoId: string, taskId?: string) {
         ...payload,
         taskId: payload.taskId ?? taskId,
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ['annotations', videoId, taskId ?? 'current'],
-      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['annotations', videoId, taskId ?? 'current'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['annotation-history', videoId, taskId ?? 'current'],
+        }),
+      ]);
+    },
   });
 }
 
@@ -123,11 +137,67 @@ export function useUpdateVideoAnnotation(videoId: string, taskId?: string) {
       annotationId: string;
       data: Partial<AnnotationEvent>;
     }) => annotationsApi.updateAnnotation(videoId, annotationId, data),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ['annotations', videoId, taskId ?? 'current'],
-      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['annotations', videoId, taskId ?? 'current'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['annotation-history', videoId, taskId ?? 'current'],
+        }),
+      ]);
+    },
   });
+}
+
+export function useDeleteVideoAnnotation(videoId: string, taskId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (annotationId: string) =>
+      annotationsApi.deleteAnnotation(videoId, annotationId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['annotations', videoId, taskId ?? 'current'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['annotation-history', videoId, taskId ?? 'current'],
+        }),
+      ]);
+    },
+  });
+}
+
+function useHistoryMutation(
+  videoId: string,
+  taskId: string | undefined,
+  operation: 'undo' | 'redo',
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      operation === 'undo'
+        ? annotationsApi.undoHistory(videoId, taskId)
+        : annotationsApi.redoHistory(videoId, taskId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['annotations', videoId, taskId ?? 'current'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['annotation-history', videoId, taskId ?? 'current'],
+        }),
+      ]);
+    },
+  });
+}
+
+export function useUndoAnnotation(videoId: string, taskId?: string) {
+  return useHistoryMutation(videoId, taskId, 'undo');
+}
+
+export function useRedoAnnotation(videoId: string, taskId?: string) {
+  return useHistoryMutation(videoId, taskId, 'redo');
 }
 
 export function useReviewSuggestion(videoId: string, taskId?: string) {
@@ -160,5 +230,16 @@ export function useReviewSuggestion(videoId: string, taskId?: string) {
         }),
       ]);
     },
+  });
+}
+
+export function useAnalyzeAnnotationInterval(videoId: string) {
+  return useMutation({
+    mutationFn: (payload: {
+      actionCode: string;
+      startFrame: number;
+      endFrame: number;
+      searchRadius?: number;
+    }) => annotationsApi.analyzeInterval(videoId, payload),
   });
 }

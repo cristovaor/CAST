@@ -229,7 +229,7 @@ def run_action_inference(
         proba, pred = predict_action(model, X_windows, threshold=threshold)
 
     # Map predictions back to frame indices
-    frame_indices = [frame_list[int(idx)] for idx in target_indices]
+    frame_indices = [int(frame_list[int(idx)]) for idx in target_indices]
 
     result.frame_predictions = pred.tolist()
     result.frame_probabilities = proba.tolist()

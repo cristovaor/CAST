@@ -408,6 +408,10 @@ class AnnotationEvent(Base):
             "(kind = 'interval' AND end_frame >= start_frame)",
             name="ck_annotation_events_frame_range",
         ),
+        CheckConstraint(
+            "side IN ('left', 'right', 'both', 'center', 'whole', 'unspecified')",
+            name="ck_annotation_events_side",
+        ),
     )
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     task_id = Column(UUID(as_uuid=True), ForeignKey("annotation_tasks.id"))
@@ -421,6 +425,10 @@ class AnnotationEvent(Base):
     end_time = Column(Float)
     confidence = Column(Float, nullable=True)
     notes = Column(Text, nullable=True)
+    region = Column(String, nullable=True)
+    side = Column(String, nullable=False, default="unspecified")
+    spatial_metadata = Column(JSONB, nullable=False, default=dict)
+    revision = Column(Integer, nullable=False, default=1)
     annotator_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(
@@ -431,6 +439,37 @@ class AnnotationEvent(Base):
     )
 
     task = relationship("AnnotationTask", back_populates="events")
+
+
+class AnnotationMutationHistory(Base):
+    """Reversible edit made to one human annotation event."""
+
+    __tablename__ = "annotation_mutation_history"
+    __table_args__ = (
+        CheckConstraint(
+            "operation IN ('create', 'update', 'delete')",
+            name="ck_annotation_mutation_history_operation",
+        ),
+        Index(
+            "ix_annotation_mutation_history_task_created",
+            "task_id",
+            "created_at",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("annotation_tasks.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    event_id = Column(UUID(as_uuid=True), nullable=False)
+    operation = Column(String, nullable=False)
+    before_state = Column(JSONB, nullable=True)
+    after_state = Column(JSONB, nullable=True)
+    undone = Column(Boolean, nullable=False, default=False)
+    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
 class PredictionReview(Base):

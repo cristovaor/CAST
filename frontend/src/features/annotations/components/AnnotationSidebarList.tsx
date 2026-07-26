@@ -4,9 +4,16 @@ import { useAnnotationStore } from '../store/useAnnotationStore';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { Button } from '@/components/ui/Button';
 import { CorrectionModal } from './CorrectionModal';
-import type { AnnotationCategory, AnnotationEvent } from '@/types/annotation';
+import type {
+  AnnotationCategory,
+  AnnotationEvent,
+  AnnotationSide,
+} from '@/types/annotation';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
-import { useUpdateVideoAnnotation } from '../api/useAnnotationEditor';
+import {
+  useDeleteVideoAnnotation,
+  useUpdateVideoAnnotation,
+} from '../api/useAnnotationEditor';
 
 interface AnnotationSidebarListProps {
   videoId: string;
@@ -20,6 +27,8 @@ interface EditState {
   startFrame: number;
   endFrame: number;
   notes: string;
+  region: string;
+  side: AnnotationSide;
 }
 
 export function AnnotationSidebarList({
@@ -28,12 +37,13 @@ export function AnnotationSidebarList({
   categories,
   fps,
 }: AnnotationSidebarListProps) {
-  const { events, deleteEvent } = useAnnotationStore();
+  const events = useAnnotationStore((state) => state.events);
   const requestSeek = usePlaybackStore((state) => state.requestSeek);
   const [correctionEvent, setCorrectionEvent] = useState<AnnotationEvent | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
   const updateAnnotation = useUpdateVideoAnnotation(videoId, taskId);
+  const deleteAnnotation = useDeleteVideoAnnotation(videoId, taskId);
 
   const formatTime = (time: number) => {
     const mins = Math.floor(time / 60);
@@ -51,6 +61,8 @@ export function AnnotationSidebarList({
       startFrame: event.startFrame,
       endFrame: event.endFrame,
       notes: event.notes ?? '',
+      region: event.region ?? '',
+      side: event.side ?? 'unspecified',
     });
   };
 
@@ -76,6 +88,8 @@ export function AnnotationSidebarList({
           startTime: startFrame / fps,
           endTime: endFrame / fps,
           notes: edit.notes || undefined,
+          region: edit.region || undefined,
+          side: edit.side,
         },
       },
       { onSuccess: () => cancelEditing() },
@@ -142,7 +156,8 @@ export function AnnotationSidebarList({
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-text-muted hover:text-danger hover:bg-danger-light"
-                          onClick={() => deleteEvent(event.videoId, event.id)}
+                          disabled={deleteAnnotation.isPending}
+                          onClick={() => deleteAnnotation.mutate(event.id)}
                           title="Excluir"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -193,6 +208,38 @@ export function AnnotationSidebarList({
                           />
                         </label>
                       </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="text-[10px] text-text-muted">
+                          Lado
+                          <select
+                            value={edit.side}
+                            onChange={(event) =>
+                              setEdit({
+                                ...edit,
+                                side: event.target.value as AnnotationSide,
+                              })
+                            }
+                            className="mt-0.5 w-full rounded border border-border bg-surface px-2 py-1 text-xs text-text-primary"
+                          >
+                            <option value="both">Ambos</option>
+                            <option value="right">Direito</option>
+                            <option value="left">Esquerdo</option>
+                            <option value="center">Centro</option>
+                            <option value="whole">Rosto inteiro</option>
+                            <option value="unspecified">Não informado</option>
+                          </select>
+                        </label>
+                        <label className="text-[10px] text-text-muted">
+                          Região
+                          <input
+                            value={edit.region}
+                            onChange={(event) =>
+                              setEdit({ ...edit, region: event.target.value })
+                            }
+                            className="mt-0.5 w-full rounded border border-border bg-surface px-2 py-1 text-xs text-text-primary"
+                          />
+                        </label>
+                      </div>
                       <input
                         type="text"
                         placeholder="Notas (opcional)"
@@ -223,10 +270,17 @@ export function AnnotationSidebarList({
                       </div>
                     </div>
                   ) : (
-                    <div className="flex justify-between text-xs text-text-muted font-mono bg-surface-muted p-1.5 rounded">
-                      <span>{formatTime(event.startTime)}</span>
-                      <span>{formatTime(event.endTime)}</span>
-                    </div>
+                    <>
+                      <div className="flex justify-between text-xs text-text-muted font-mono bg-surface-muted p-1.5 rounded">
+                        <span>{formatTime(event.startTime)}</span>
+                        <span>{formatTime(event.endTime)}</span>
+                      </div>
+                      {event.side && event.side !== 'unspecified' && (
+                        <div className="mt-1.5 text-[10px] text-text-muted">
+                          {event.region ?? 'região facial'} · {event.side}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               );
