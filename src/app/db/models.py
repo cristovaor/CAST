@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -163,17 +164,64 @@ class Study(Base):
 
     project = relationship("Project", back_populates="studies")
     participants = relationship("Participant", back_populates="study")
+    groups = relationship("StudyGroup", back_populates="study", cascade="all, delete-orphan")
+
+
+class StudyGroup(Base):
+    """Structured study arm/cohort used by reproducible comparative reports."""
+
+    __tablename__ = "study_groups"
+    __table_args__ = (
+        UniqueConstraint("study_id", "code", name="uq_study_groups_study_code"),
+        CheckConstraint(
+            "role IN ('control', 'intervention', 'comparison', 'other')",
+            name="ck_study_groups_role",
+        ),
+        Index(
+            "uq_study_groups_single_control",
+            "study_id",
+            unique=True,
+            postgresql_where=text("role = 'control'"),
+            sqlite_where=text("role = 'control'"),
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    study_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("studies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    code = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="other")
+    description = Column(Text)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    study = relationship("Study", back_populates="groups")
+    participants = relationship("Participant", back_populates="group")
 
 class Participant(Base):
     __tablename__ = "participants"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     study_id = Column(UUID(as_uuid=True), ForeignKey("studies.id"))
+    group_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("study_groups.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     external_code = Column(String, nullable=False)
     demographic_group = Column(JSONB)
     consent_status = Column(SQLEnum(ConsentStatus), default=ConsentStatus.pending)
+    is_active = Column(Boolean, nullable=False, default=True, server_default="true", index=True)
+    deactivated_at = Column(DateTime, nullable=True)
+    deactivation_reason = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     study = relationship("Study", back_populates="participants")
+    group = relationship("StudyGroup", back_populates="participants")
     sessions = relationship("Session", back_populates="participant")
 
 class Session(Base):
@@ -256,6 +304,7 @@ class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     video_asset_id = Column(UUID(as_uuid=True), ForeignKey("video_assets.id"), nullable=True)
+    study_id = Column(UUID(as_uuid=True), ForeignKey("studies.id"), nullable=True, index=True)
     job_type = Column(SQLEnum(JobType))
     status = Column(SQLEnum(JobStatus), default=JobStatus.queued)
     progress = Column(Numeric, default=0.0)
@@ -267,6 +316,7 @@ class ProcessingJob(Base):
     worker_id = Column(String)
 
     video_asset = relationship("VideoAsset", back_populates="processing_jobs")
+    study = relationship("Study", backref="processing_jobs")
 
 class ModelVersion(Base):
     __tablename__ = "model_versions"
@@ -522,6 +572,18 @@ class AnalysisReport(Base):
     study_id = Column(UUID(as_uuid=True), ForeignKey("studies.id"))
     report_type = Column(SQLEnum(ReportType))
     storage_uri = Column(String)
+    template_key = Column(String, nullable=False, default="study_overview")
+    scope_type = Column(String, nullable=False, default="study")
+    participant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("participants.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    analysis_spec = Column(JSONB, nullable=False, default=dict)
+    result_summary = Column(JSONB, nullable=False, default=dict)
+    artifact_manifest = Column(JSONB, nullable=False, default=dict)
+    methodology_version = Column(String, nullable=False, default="cast-scientific-v1")
+    data_snapshot_hash = Column(String)
     generated_at = Column(DateTime, default=datetime.utcnow)
     generated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     
@@ -582,6 +644,9 @@ class ResearchVariable(Base):
     computation_method = Column(Text)
     version = Column(String)
     missing_policy = Column(String)
+    source_key = Column(String)
+    aggregation = Column(String)
+    time_axis = Column(String)
     allowed_values = Column(JSONB, default=list)
     role = Column(String)              # independent, dependent, covariate…
     owner = Column(String)

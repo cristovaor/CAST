@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+import os
 import redis
 
 from app.api.deps import get_db
-from app.core.config import settings
 from app.services.storage_service import storage_service
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -23,7 +23,8 @@ def health_check(db: Session = Depends(get_db)):
         
     # 2. Check Redis (Celery Broker)
     try:
-        r = redis.Redis(host="localhost", port=6379, socket_timeout=1)
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        r = redis.Redis.from_url(redis_url, socket_timeout=1)
         r.ping()
         health_status["services"]["redis"] = "ok"
     except Exception as e:

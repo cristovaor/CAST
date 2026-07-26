@@ -37,6 +37,11 @@ RUN python -m venv /opt/mediapipe-legacy \
     && /opt/mediapipe-legacy/bin/pip install --no-cache-dir --no-deps \
         "mediapipe==0.10.21"
 
+# Scientific inference runtime is layered separately so updates do not
+# invalidate the much larger ML dependency layers above.
+COPY requirements-scientific.txt .
+RUN pip install --no-cache-dir -r requirements-scientific.txt
+
 # Copy the rest of the application
 COPY . .
 

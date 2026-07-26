@@ -19,7 +19,7 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId?: string
   const [criteria, setCriteria] = useState<DatasetBuildCriteria>({
     modalities: ['video', 'eeg'],
     require_consent: true,
-    require_sync: false,
+    require_sync: true,
     min_eeg_valid_ratio: null,
   });
 

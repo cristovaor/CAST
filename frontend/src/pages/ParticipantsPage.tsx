@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Clipboard, History, Pencil, Plus, ShieldAlert, ShieldCheck, ShieldX, Users } from 'lucide-react';
+import { CirclePause, Clipboard, History, Pencil, Plus, ShieldAlert, ShieldCheck, UserCheck, Users } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ListFilterBar } from '@/components/data-display/ListFilterBar';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -11,6 +11,7 @@ import { EditParticipantDialog } from '@/features/participants/EditParticipantDi
 import { EntityHistoryDialog } from '@/features/audit/EntityHistoryDialog';
 import { useParticipants } from '@/features/participants/useParticipants';
 import { useStudies } from '@/features/studies/useStudies';
+import { cn } from '@/lib/utils';
 import type { Participant } from '@/types/domain';
 
 export function ParticipantsPage() {
@@ -25,6 +26,7 @@ export function ParticipantsPage() {
   const { data: studies = [] } = useStudies();
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const [consentStatus, setConsentStatus] = useState(() => searchParams.get('consent') ?? '');
+  const [activityStatus, setActivityStatus] = useState(() => searchParams.get('status') ?? '');
   const [selectedStudyId, setSelectedStudyId] = useState(() => searchParams.get('study') ?? '');
   const [sort, setSort] = useState(() => searchParams.get('sort') ?? '');
   const participants = useMemo(() => participantsData?.items ?? [], [participantsData?.items]);
@@ -46,39 +48,43 @@ export function ParticipantsPage() {
       ].some((value) => value?.toLocaleLowerCase('pt-BR').includes(term));
       const matchesStudy = !studyId || participant.study_id === studyId;
       const matchesConsent = !consentStatus || participant.consent_status === consentStatus;
-      return matchesSearch && matchesStudy && matchesConsent;
+      const matchesActivity = !activityStatus
+        || (activityStatus === 'active' ? participant.is_active : !participant.is_active);
+      return matchesSearch && matchesStudy && matchesConsent && matchesActivity;
     }).sort((a, b) => {
       if (sort === 'code') return a.external_code.localeCompare(b.external_code, 'pt-BR');
       if (sort === 'oldest') return Date.parse(a.created_at) - Date.parse(b.created_at);
       return Date.parse(b.created_at) - Date.parse(a.created_at);
     });
-  }, [consentStatus, participants, search, sort, studyId, studyNames]);
+  }, [activityStatus, consentStatus, participants, search, sort, studyId, studyNames]);
 
   useEffect(() => {
     const next = new URLSearchParams();
     if (search) next.set('q', search);
     if (!routeStudyId && selectedStudyId) next.set('study', selectedStudyId);
     if (consentStatus) next.set('consent', consentStatus);
+    if (activityStatus) next.set('status', activityStatus);
     if (sort) next.set('sort', sort);
     setSearchParams(next, { replace: true });
-  }, [consentStatus, routeStudyId, search, selectedStudyId, setSearchParams, sort]);
+  }, [activityStatus, consentStatus, routeStudyId, search, selectedStudyId, setSearchParams, sort]);
 
   const consentCounts = useMemo(() => ({
     accepted: participants.filter((participant) => participant.consent_status === 'accepted').length,
     pending: participants.filter((participant) => participant.consent_status === 'pending').length,
-    revoked: participants.filter((participant) => participant.consent_status === 'revoked').length,
+    active: participants.filter((participant) => participant.is_active).length,
+    inactive: participants.filter((participant) => !participant.is_active).length,
   }), [participants]);
 
   return (
     <div className="min-h-full">
       <PageHeader
         title="Participantes"
-        description="Gerenciamento de participantes, metadados e consentimentos (LGPD)."
+        description="Recrutamento, caracterização da amostra e consentimento com proteção de identidade."
         actions={
           <CreateParticipantDialog>
             <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700">
               <Plus size={16} />
-              Cadastrar
+              Registrar participante
             </button>
           </CreateParticipantDialog>
         }
@@ -102,11 +108,12 @@ export function ParticipantsPage() {
           />
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <ParticipantMetric icon={Users} label="Total" value={participants.length} />
-              <ParticipantMetric icon={ShieldCheck} label="Aceitos" value={consentCounts.accepted} tone="success" />
+              <ParticipantMetric icon={UserCheck} label="Ativos" value={consentCounts.active} tone="success" />
+              <ParticipantMetric icon={CirclePause} label="Inativos" value={consentCounts.inactive} />
+              <ParticipantMetric icon={ShieldCheck} label="TCLE aceito" value={consentCounts.accepted} tone="success" />
               <ParticipantMetric icon={ShieldAlert} label="Pendentes" value={consentCounts.pending} tone="warning" />
-              <ParticipantMetric icon={ShieldX} label="Revogados" value={consentCounts.revoked} tone="danger" />
             </div>
 
             <ListFilterBar
@@ -127,6 +134,17 @@ export function ParticipantsPage() {
                   options: [
                     { value: '', label: 'Todos os estudos' },
                     ...studies.map((study) => ({ value: study.id, label: study.name })),
+                  ],
+                },
+                {
+                  id: 'activity',
+                  label: 'Filtrar por situação',
+                  value: activityStatus,
+                  onChange: setActivityStatus,
+                  options: [
+                    { value: '', label: 'Ativos e inativos' },
+                    { value: 'active', label: 'Ativos' },
+                    { value: 'inactive', label: 'Inativos' },
                   ],
                 },
                 {
@@ -172,7 +190,10 @@ export function ParticipantsPage() {
                           <p className="text-xs font-medium uppercase tracking-wide text-text-muted">Código pseudonimizado</p>
                           <p className="mt-1 break-words font-semibold text-text-primary">{participant.external_code}</p>
                         </div>
-                        <ConsentBadge status={participant.consent_status} />
+                        <div className="flex flex-col items-end gap-1.5">
+                          <ParticipantStatusBadge active={participant.is_active} />
+                          <ConsentBadge status={participant.consent_status} />
+                        </div>
                       </div>
 
                       <dl className="grid grid-cols-1 gap-3 text-sm">
@@ -207,6 +228,7 @@ export function ParticipantsPage() {
                         <th className="px-6 py-3">Código</th>
                         {!routeStudyId && <th className="px-6 py-3">Estudo</th>}
                         <th className="px-6 py-3">Grupo demográfico</th>
+                        <th className="px-6 py-3">Situação</th>
                         <th className="px-6 py-3">Consentimento</th>
                         <th className="px-6 py-3">Data de cadastro</th>
                         <th className="px-6 py-3 text-right">Ações</th>
@@ -214,7 +236,13 @@ export function ParticipantsPage() {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {filteredParticipants.map((participant) => (
-                        <tr key={participant.id} className="transition-colors hover:bg-surface-hover">
+                        <tr
+                          key={participant.id}
+                          className={cn(
+                            'transition-colors hover:bg-surface-hover',
+                            !participant.is_active && 'bg-surface-muted/50',
+                          )}
+                        >
                           <td className="px-6 py-4 font-medium text-text-primary">
                             <div className="flex items-center gap-1.5">
                               <span>{participant.external_code}</span>
@@ -227,6 +255,7 @@ export function ParticipantsPage() {
                             </td>
                           )}
                           <td className="max-w-xs px-6 py-4">{formatDemographicGroup(participant.demographic_group)}</td>
+                          <td className="px-6 py-4"><ParticipantStatusBadge active={participant.is_active} /></td>
                           <td className="px-6 py-4"><ConsentBadge status={participant.consent_status} /></td>
                           <td className="px-6 py-4">{formatDate(participant.created_at)}</td>
                           <td className="px-6 py-4"><ParticipantActions participant={participant} /></td>
@@ -285,6 +314,19 @@ function ConsentBadge({ status }: { status: Participant['consent_status'] }) {
   return (
     <span className={`inline-flex shrink-0 rounded-full px-2 py-1 text-xs font-medium ${meta.className}`}>
       {meta.label}
+    </span>
+  );
+}
+
+function ParticipantStatusBadge({ active }: { active: boolean }) {
+  return (
+    <span className={cn(
+      'inline-flex shrink-0 rounded-full px-2 py-1 text-xs font-medium',
+      active
+        ? 'bg-blue-100 text-blue-700'
+        : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+    )}>
+      {active ? 'Ativo' : 'Inativo'}
     </span>
   );
 }

@@ -18,7 +18,7 @@ from app.db.models import (
     Project,
 )
 from app.api.deps import get_current_user
-from app.api.ownership import get_job
+from app.api.ownership import get_job, jobs_for_user
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -41,7 +41,7 @@ async def job_status_generator(job_id: UUID, db: Session):
             payload = {
                 "status": job.status.value,
                 "progress": float(job.progress) if job.progress else 0,
-                "currentStep": _map_status_to_step(job.status, job.progress),
+                "currentStep": _map_status_to_step(job.status, job.progress, job.job_type),
                 "logs": all_logs[last_log_count:]
             }
             last_log_count = len(all_logs)
@@ -62,10 +62,15 @@ async def job_status_generator(job_id: UUID, db: Session):
     except asyncio.CancelledError:
         pass
 
-def _map_status_to_step(status: JobStatus, progress):
+def _map_status_to_step(status: JobStatus, progress, job_type=None):
     if status == JobStatus.queued: return "Aguardando na fila..."
     if status == JobStatus.running:
         p = float(progress) if progress else 0
+        if job_type == "report" or getattr(job_type, "value", None) == "report":
+            if p < 15: return "Congelando snapshot"
+            if p < 55: return "Executando análises estatísticas"
+            if p < 90: return "Gerando PDF e JSON"
+            return "Persistindo proveniência"
         if p < 15: return "Extraindo metadados"
         if p < 30: return "Validando qualidade"
         if p < 50: return "Extraindo landmarks faciais"
@@ -73,7 +78,13 @@ def _map_status_to_step(status: JobStatus, progress):
         if p < 85: return "Executando inferência"
         if p < 95: return "Sumarizando microações"
         return "Gerando relatório"
-    if status == JobStatus.succeeded: return "Gerando relatório"
+    if status == JobStatus.succeeded:
+        return (
+            "Relatório concluído"
+            if job_type == "report" or getattr(job_type, "value", None) == "report"
+            else "Processamento concluído"
+        )
+    if status == JobStatus.canceled: return "Cancelado"
     return "Falha"
 
 
@@ -85,18 +96,10 @@ def list_jobs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    query = (
-        db.query(ProcessingJob, VideoAsset.filename, Study.name)
-        .join(VideoAsset, ProcessingJob.video_asset_id == VideoAsset.id)
-        .join(SessionModel, VideoAsset.session_id == SessionModel.id)
-        .join(Participant, SessionModel.participant_id == Participant.id)
-        .join(Study, Participant.study_id == Study.id)
-        .join(Project, Study.project_id == Project.id)
-        .filter(Project.organization_id == current_user.organization_id)
-    )
+    query = jobs_for_user(db, current_user)
     if job_status is not None:
         query = query.filter(ProcessingJob.status == job_status)
-    rows = (
+    jobs = (
         query.order_by(
             ProcessingJob.started_at.desc().nullslast(),
             ProcessingJob.id.desc(),
@@ -117,16 +120,27 @@ def list_jobs(
             "started_at": job.started_at,
             "finished_at": job.finished_at,
             "worker_id": job.worker_id,
-            "current_step": _map_status_to_step(job.status, job.progress),
-            "video_filename": filename,
-            "study_name": study_name,
+            "current_step": _map_status_to_step(job.status, job.progress, job.job_type),
+            "video_filename": job.video_asset.filename if job.video_asset else None,
+            "study_name": (
+                job.study.name
+                if job.study
+                else (
+                    job.video_asset.session.participant.study.name
+                    if job.video_asset
+                    and job.video_asset.session
+                    and job.video_asset.session.participant
+                    else None
+                )
+            ),
+            "result": job.result or {},
             "elapsed_seconds": int(
                 ((job.finished_at or now) - job.started_at).total_seconds()
             )
             if job.started_at
             else 0,
         }
-        for job, filename, study_name in rows
+        for job in jobs
     ]
 
 
@@ -157,9 +171,10 @@ def get_job_status(
     return {
         "id": job.id,
         "status": job.status.value,
-        "step": _map_status_to_step(job.status, job.progress),
+        "step": _map_status_to_step(job.status, job.progress, job.job_type),
         "progress": float(job.progress) if job.progress else 0,
-        "error": job.error_message
+        "error": job.error_message,
+        "result": job.result or {},
     }
 
 @router.post("/{job_id}/cancel", status_code=202)
@@ -204,8 +219,14 @@ def retry_job(
         job.logs = current_logs
     db.commit()
     
-    from app.workers.tasks_video import process_video_task
-    process_video_task.delay(str(job.id))
+    if job.job_type.value == "report":
+        from app.workers.tasks_reports import generate_scientific_report_task
+        generate_scientific_report_task.apply_async(
+            args=[str(job.id)], task_id=str(job.id)
+        )
+    else:
+        from app.workers.tasks_video import process_video_task
+        process_video_task.delay(str(job.id))
     
     return {"message": "Job retried"}
 

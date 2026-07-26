@@ -125,9 +125,13 @@ export interface StudyConfigDTO {
 export interface Participant {
   id: string;
   study_id: string;
+  group_id?: string;
   external_code: string;
   demographic_group?: Record<string, unknown>;
   consent_status: ConsentStatus;
+  is_active: boolean;
+  deactivated_at?: string;
+  deactivation_reason?: string;
   created_at: string;
 }
 
@@ -366,7 +370,18 @@ export interface StudyCreate {
 export interface ParticipantCreate {
   study_id: string;
   external_code: string;
+  group_id?: string;
   demographic_group?: Record<string, unknown>;
+  consent_status?: Extract<ConsentStatus, 'pending' | 'accepted'>;
+  consent_version?: string;
+}
+
+export interface ParticipantUpdate {
+  external_code?: string;
+  group_id?: string;
+  demographic_group?: Record<string, unknown>;
+  consent_status?: ConsentStatus;
+  consent_version?: string;
 }
 
 export interface AssessmentCreate {

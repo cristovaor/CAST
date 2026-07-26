@@ -8,6 +8,7 @@ tenant while keeping route code concise and consistent.
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Query, Session
 
 from app.db.models import (
@@ -20,6 +21,7 @@ from app.db.models import (
     ResearchVariable,
     Session as SessionModel,
     Study,
+    StudyGroup,
     User,
     VideoAsset,
 )
@@ -82,12 +84,29 @@ def eeg_assets_for_user(db: Session, user: User) -> Query:
 
 
 def jobs_for_user(db: Session, user: User) -> Query:
-    return (
-        db.query(ProcessingJob)
-        .join(VideoAsset, ProcessingJob.video_asset_id == VideoAsset.id)
+    owned_studies = select(Study.id).join(Project).where(
+        Project.organization_id == user.organization_id
+    )
+    owned_videos = (
+        select(VideoAsset.id)
         .join(SessionModel, VideoAsset.session_id == SessionModel.id)
         .join(Participant, SessionModel.participant_id == Participant.id)
         .join(Study, Participant.study_id == Study.id)
+        .join(Project, Study.project_id == Project.id)
+        .where(Project.organization_id == user.organization_id)
+    )
+    return db.query(ProcessingJob).filter(
+        or_(
+            ProcessingJob.study_id.in_(owned_studies),
+            ProcessingJob.video_asset_id.in_(owned_videos),
+        )
+    )
+
+
+def study_groups_for_user(db: Session, user: User) -> Query:
+    return (
+        db.query(StudyGroup)
+        .join(Study, StudyGroup.study_id == Study.id)
         .join(Project, Study.project_id == Project.id)
         .filter(Project.organization_id == user.organization_id)
     )
@@ -156,6 +175,17 @@ def get_participant(db: Session, user: User, entity_id: UUID) -> Participant:
     )
     if entity is None:
         raise _not_found("Participant")
+    return entity
+
+
+def get_study_group(db: Session, user: User, entity_id: UUID) -> StudyGroup:
+    entity = (
+        study_groups_for_user(db, user)
+        .filter(StudyGroup.id == entity_id)
+        .first()
+    )
+    if entity is None:
+        raise _not_found("Study group")
     return entity
 
 

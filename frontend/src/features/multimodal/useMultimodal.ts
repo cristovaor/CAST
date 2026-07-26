@@ -237,7 +237,13 @@ export interface DatasetDTO {
   session_count: number;
   checksum?: string;
   owner?: string;
+  build_status?: string | null;
+  build_error?: string | null;
+  excluded_sessions?: { session_id: string; reason: string }[];
+  lineage?: Record<string, unknown>;
+  storage_uri?: string | null;
   created_at: string;
+  built_at?: string | null;
   frozen_at?: string | null;
 }
 
@@ -245,6 +251,98 @@ export function useDatasets() {
   return useQuery<DatasetDTO[]>({
     queryKey: ['datasets'],
     queryFn: () => apiClient.get<DatasetDTO[]>(`/datasets/`),
+    refetchInterval: (query) =>
+      query.state.data?.some((dataset) =>
+        dataset.state === 'building' || dataset.build_status === 'building'
+      ) ? 2000 : false,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export interface DatasetLandmarkInfo {
+  artifact_id: string;
+  status: string;
+  extractor?: string | null;
+  extractor_version?: string | null;
+  frame_count?: number | null;
+  point_count?: number | null;
+  face_detection_rate?: number | null;
+  chunk_size_frames?: number | null;
+  normalized_checksum?: string | null;
+}
+
+export interface DatasetRecord {
+  session_id: string;
+  study_id: string;
+  participant_code: string;
+  condition?: string | null;
+  state?: string | null;
+  video?: {
+    id?: string | null;
+    filename?: string | null;
+    verdict?: string | null;
+    landmarks?: DatasetLandmarkInfo | null;
+  } | null;
+  eeg?: {
+    id?: string | null;
+    filename?: string | null;
+    channel_count?: number | null;
+    sample_rate_hz?: number | null;
+    valid_ratio?: number | null;
+    verdict?: string | null;
+  } | null;
+  sync?: {
+    state?: string | null;
+    offset_ms?: number | null;
+    drift_ms_per_min?: number | null;
+    confidence?: number | null;
+  } | null;
+}
+
+export interface DatasetRecordsResponse {
+  dataset_id: string;
+  dataset_version: string;
+  checksum?: string | null;
+  total: number;
+  skip: number;
+  limit: number;
+  records: DatasetRecord[];
+  excluded: { session_id: string; reason: string }[];
+  schema: Record<string, string>;
+  summary: {
+    record_count: number;
+    modality_coverage: {
+      video: number;
+      eeg: number;
+      multimodal: number;
+      landmarks_ready: number;
+    };
+    sync: {
+      states: Record<string, number>;
+      approved: number;
+      coverage_ratio: number;
+      offset_ms_mean?: number | null;
+      offset_ms_median?: number | null;
+      offset_ms_range?: [number, number] | null;
+      drift_ms_per_min_mean?: number | null;
+      confidence_mean?: number | null;
+      confidence_n: number;
+    };
+    eeg: {
+      valid_ratio_mean?: number | null;
+      valid_ratio_range?: [number, number] | null;
+      valid_ratio_n: number;
+    };
+  };
+}
+
+export function useDatasetRecords(datasetId?: string) {
+  return useQuery<DatasetRecordsResponse>({
+    queryKey: ['dataset-records', datasetId],
+    queryFn: () =>
+      apiClient.get<DatasetRecordsResponse>(`/datasets/${datasetId}/records?limit=200`),
+    enabled: Boolean(datasetId),
+    retry: false,
   });
 }
 

@@ -3,7 +3,7 @@ from app.db.models import (
     Study, Project, Organization, SessionState, QualityVerdict, SyncState,
     ConsentStatus,
 )
-from app.services.dataset_service import select_sessions, build_manifest
+from app.services.dataset_service import select_sessions, build_manifest, summarize_records
 
 
 def _make_study(db):
@@ -88,6 +88,36 @@ def test_select_sessions_requires_approved_sync(db):
     included, excluded = select_sessions(db, {"require_sync": True})
     assert included == []
     assert "sincronização" in excluded[0]["reason"]
+
+
+def test_summarize_records_reports_denominators_and_sync_coverage():
+    records = [
+        {
+            "video": {"landmarks": {"status": "ready"}},
+            "eeg": {"valid_ratio": 0.9},
+            "sync": {
+                "state": "synced",
+                "offset_ms": 120,
+                "drift_ms_per_min": 1.5,
+                "confidence": 0.8,
+            },
+        },
+        {
+            "video": {"landmarks": {"status": "failed"}},
+            "eeg": {"valid_ratio": 0.7},
+            "sync": None,
+        },
+    ]
+
+    summary = summarize_records(records)
+
+    assert summary["record_count"] == 2
+    assert summary["modality_coverage"]["multimodal"] == 2
+    assert summary["modality_coverage"]["landmarks_ready"] == 1
+    assert summary["sync"]["approved"] == 1
+    assert summary["sync"]["coverage_ratio"] == 0.5
+    assert summary["sync"]["confidence_n"] == 1
+    assert summary["eeg"]["valid_ratio_n"] == 2
 
 
 def test_build_manifest_reflects_selection(db):

@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
-import type { Participant, ParticipantCreate, PaginatedResponse } from '@/types/domain';
+import type {
+  Participant,
+  ParticipantCreate,
+  ParticipantUpdate,
+  PaginatedResponse,
+} from '@/types/domain';
 
 export function useParticipants(skip = 0, limit = 100) {
   return useQuery<PaginatedResponse<Participant>>({
@@ -27,8 +32,36 @@ export function useUpdateParticipant() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...data }: Partial<Pick<Participant, 'external_code' | 'demographic_group' | 'consent_status'>> & { id: string }) =>
+    mutationFn: ({ id, ...data }: ParticipantUpdate & { id: string }) =>
       apiClient.patch<Participant>(`/participants/${id}`, data),
+    onSuccess: (participant) => {
+      queryClient.invalidateQueries({ queryKey: ['participants'] });
+      queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'participant', participant.id] });
+      queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
+    },
+  });
+}
+
+export function useDeactivateParticipant() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiClient.post<Participant>(`/participants/${id}/deactivate`, { reason }),
+    onSuccess: (participant) => {
+      queryClient.invalidateQueries({ queryKey: ['participants'] });
+      queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'participant', participant.id] });
+      queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
+    },
+  });
+}
+
+export function useActivateParticipant() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post<Participant>(`/participants/${id}/activate`),
     onSuccess: (participant) => {
       queryClient.invalidateQueries({ queryKey: ['participants'] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'participant', participant.id] });

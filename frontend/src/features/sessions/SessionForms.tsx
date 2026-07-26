@@ -17,7 +17,7 @@ export function SessionInfoForm({ defaultValues, onNext, pending }: { defaultVal
             <label className="text-sm font-medium">Participante (pseudonimizado)</label>
             <select {...register("participantId", { required: true })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={isLoading}>
               <option value="">Selecione um participante…</option>
-              {participantsData?.items?.map(p => (
+              {participantsData?.items?.filter((participant) => participant.is_active).map(p => (
                 <option key={p.id} value={p.id}>{p.external_code}</option>
               ))}
             </select>

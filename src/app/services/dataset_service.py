@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from app.db.models import (
     Session as SessionModel, Participant, VideoAsset, EEGAsset, Synchronization,
-    Study, Project, ConsentStatus, SyncState,
+    Study, Project, ConsentStatus, SyncState, LandmarkArtifact,
 )
 
 RECORD_SCHEMA = {
@@ -31,8 +31,8 @@ RECORD_SCHEMA = {
     "participant_code": "str (pseudonymized)",
     "condition": "str | null",
     "state": "str",
-    "video": "{filename, verdict} | null (observed)",
-    "eeg": "{filename, channel_count, sample_rate_hz, valid_ratio, verdict} | null (observed)",
+    "video": "{id, filename, verdict, landmarks} | null (observed)",
+    "eeg": "{id, filename, channel_count, sample_rate_hz, valid_ratio, verdict} | null (observed)",
     "sync": "{state, offset_ms, drift_ms_per_min, confidence} | null (derived)",
 }
 
@@ -113,6 +113,14 @@ def select_sessions(
         video = db.query(VideoAsset).filter(VideoAsset.session_id == session.id).first()
         eeg = db.query(EEGAsset).filter(EEGAsset.session_id == session.id).first()
         sync = db.query(Synchronization).filter(Synchronization.session_id == session.id).first()
+        landmark = None
+        if video is not None:
+            landmark = (
+                db.query(LandmarkArtifact)
+                .filter(LandmarkArtifact.video_asset_id == video.id)
+                .order_by(LandmarkArtifact.created_at.desc())
+                .first()
+            )
 
         reason = _passes(session, participant, study_id, video, eeg, sync, criteria)
         if reason:
@@ -126,10 +134,23 @@ def select_sessions(
             "condition": session.condition,
             "state": session.state.value if session.state else None,
             "video": None if not video else {
+                "id": str(video.id),
                 "filename": video.filename,
                 "verdict": video.quality_verdict.value if video.quality_verdict else None,
+                "landmarks": None if not landmark else {
+                    "artifact_id": str(landmark.id),
+                    "status": landmark.status,
+                    "extractor": landmark.extractor,
+                    "extractor_version": landmark.extractor_version,
+                    "frame_count": landmark.frame_count,
+                    "point_count": landmark.point_count,
+                    "face_detection_rate": landmark.face_detection_rate,
+                    "chunk_size_frames": landmark.chunk_size_frames,
+                    "normalized_checksum": landmark.normalized_checksum,
+                },
             },
             "eeg": None if not eeg else {
+                "id": str(eeg.id),
                 "filename": eeg.filename,
                 "channel_count": eeg.channel_count,
                 "sample_rate_hz": eeg.sample_rate_hz,
@@ -145,6 +166,71 @@ def select_sessions(
         })
 
     return included, excluded
+
+
+def summarize_records(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Return descriptive coverage statistics with explicit denominators."""
+    from statistics import mean, median
+
+    total = len(records)
+    sync_states: Dict[str, int] = {}
+    offsets: List[float] = []
+    drifts: List[float] = []
+    confidences: List[float] = []
+    eeg_valid_ratios: List[float] = []
+    with_video = with_eeg = with_landmarks = 0
+
+    for record in records:
+        video = record.get("video")
+        eeg = record.get("eeg")
+        sync = record.get("sync")
+        if video:
+            with_video += 1
+            if (video.get("landmarks") or {}).get("status") == "ready":
+                with_landmarks += 1
+        if eeg:
+            with_eeg += 1
+            if eeg.get("valid_ratio") is not None:
+                eeg_valid_ratios.append(float(eeg["valid_ratio"]))
+        state = (sync or {}).get("state") or "not_synced"
+        sync_states[state] = sync_states.get(state, 0) + 1
+        if sync:
+            if sync.get("offset_ms") is not None:
+                offsets.append(float(sync["offset_ms"]))
+            if sync.get("drift_ms_per_min") is not None:
+                drifts.append(float(sync["drift_ms_per_min"]))
+            if sync.get("confidence") is not None:
+                confidences.append(float(sync["confidence"]))
+
+    approved = sync_states.get("synced", 0) + sync_states.get("synced_with_caveats", 0)
+    return {
+        "record_count": total,
+        "modality_coverage": {
+            "video": with_video,
+            "eeg": with_eeg,
+            "multimodal": sum(1 for record in records if record.get("video") and record.get("eeg")),
+            "landmarks_ready": with_landmarks,
+        },
+        "sync": {
+            "states": sync_states,
+            "approved": approved,
+            "coverage_ratio": (approved / total) if total else 0.0,
+            "offset_ms_mean": mean(offsets) if offsets else None,
+            "offset_ms_median": median(offsets) if offsets else None,
+            "offset_ms_range": [min(offsets), max(offsets)] if offsets else None,
+            "drift_ms_per_min_mean": mean(drifts) if drifts else None,
+            "confidence_mean": mean(confidences) if confidences else None,
+            "confidence_n": len(confidences),
+        },
+        "eeg": {
+            "valid_ratio_mean": mean(eeg_valid_ratios) if eeg_valid_ratios else None,
+            "valid_ratio_range": (
+                [min(eeg_valid_ratios), max(eeg_valid_ratios)]
+                if eeg_valid_ratios else None
+            ),
+            "valid_ratio_n": len(eeg_valid_ratios),
+        },
+    }
 
 
 def build_manifest(

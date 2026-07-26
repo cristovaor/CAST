@@ -9,6 +9,7 @@ export interface SessionListItem {
   condition?: string | null;
   video_asset_id?: string | null;
   eeg_asset_id?: string | null;
+  sync_state?: string | null;
   study_id: string;
 }
 

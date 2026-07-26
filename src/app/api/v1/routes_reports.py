@@ -1,8 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from uuid import UUID
 
-from app.schemas.report import DashboardMetrics, ExportResponse
+from app.schemas.report import (
+    DashboardMetrics,
+    ExportResponse,
+    ScientificReportJobResponse,
+    ScientificReportPreview,
+    ScientificReportRequest,
+)
 from app.db.session import SessionLocal
 from app.services.report_service import generate_export_url
 from app.db.models import User
@@ -10,7 +16,7 @@ from app.db.models import User
 router = APIRouter(prefix="/studies", tags=["reports"])
 
 from app.api.deps import get_db, get_current_user
-from app.api.ownership import get_study
+from app.api.ownership import get_participant, get_study, get_study_group
 
 # Note: GET /{study_id}/dashboard lives in routes_studies.py (registered
 # first in main.py). This router used to define a second, shadowed copy
@@ -35,29 +41,135 @@ def get_export(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-from app.services.report_service import generate_json_report, generate_pdf_report
-from app.db.models import AnalysisReport
+from app.db.models import AnalysisReport, JobStatus, JobType, ProcessingJob
 from app.services.storage_service import storage_service
 
-@router.post("/{study_id}/reports/generate")
-def generate_study_report(
+from app.services.scientific_report_service import (
+    build_scientific_report,
+    get_report_templates,
+)
+from app.workers.tasks_reports import (
+    generate_scientific_report_task,
+    run_scientific_report_job,
+)
+
+
+def _validate_report_scope(
     study_id: UUID,
-    format: str = "json",
+    payload: ScientificReportRequest,
+    db: Session,
+    current_user: User,
+) -> None:
+    if payload.participant_id:
+        participant = get_participant(db, current_user, payload.participant_id)
+        if participant.study_id != study_id:
+            raise HTTPException(status_code=404, detail="Participant not found")
+    group_ids = [
+        item
+        for item in [payload.control_group_id, *payload.comparison_group_ids]
+        if item is not None
+    ]
+    for group_id in group_ids:
+        group = get_study_group(db, current_user, group_id)
+        if group.study_id != study_id:
+            raise HTTPException(status_code=404, detail="Study group not found")
+    if payload.control_group_id:
+        control = get_study_group(db, current_user, payload.control_group_id)
+        if control.role != "control":
+            raise HTTPException(
+                status_code=422,
+                detail="Selected control group is not marked with the control role",
+            )
+
+
+@router.get("/{study_id}/reports/templates")
+def list_report_templates(
+    study_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    study = get_study(db, current_user, study_id)
+    return get_report_templates(study, db)
+
+
+@router.post(
+    "/{study_id}/reports/preview",
+    response_model=ScientificReportPreview,
+)
+def preview_scientific_report(
+    study_id: UUID,
+    payload: ScientificReportRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     get_study(db, current_user, study_id)
-    if format == "json":
-        report = generate_json_report(study_id, current_user.id, db)
-    elif format == "pdf":
-        report = generate_pdf_report(study_id, current_user.id, db)
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported format. Use 'json' or 'pdf'.")
+    _validate_report_scope(study_id, payload, db, current_user)
+    try:
+        return build_scientific_report(
+            study_id, payload.model_dump(mode="json"), db, full=False
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+
+@router.post(
+    "/{study_id}/reports/generate",
+    response_model=ScientificReportJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def generate_study_report(
+    study_id: UUID,
+    payload: ScientificReportRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_study(db, current_user, study_id)
+    _validate_report_scope(study_id, payload, db, current_user)
+    try:
+        # Validate consent, data bindings and model identifiability before a
+        # durable job enters the queue. The worker repeats this against its
+        # immutable snapshot and remains the source of the final analysis.
+        build_scientific_report(
+            study_id, payload.model_dump(mode="json"), db, full=False
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    job = ProcessingJob(
+        study_id=study_id,
+        job_type=JobType.report,
+        status=JobStatus.queued,
+        progress=0,
+        result={
+            "request": payload.model_dump(mode="json"),
+            "generated_by": str(current_user.id),
+        },
+        logs=[],
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    try:
+        generate_scientific_report_task.apply_async(
+            args=[str(job.id)], task_id=str(job.id)
+        )
+    except Exception:
+        # Local/offline deployments may temporarily lack Redis. Keep the API
+        # asynchronous from the caller's perspective and run after the response.
+        background_tasks.add_task(run_scientific_report_job, str(job.id))
     from app.api.v1.routes_governance import record_access
-    record_access(db, "study", study_id, actor=current_user, detail={"op": "report_generate", "format": format})
-
-    return {"message": "Report generated", "report_id": report.id}
+    record_access(
+        db,
+        "study",
+        study_id,
+        actor=current_user,
+        detail={
+            "op": "scientific_report_enqueue",
+            "template": payload.template_key,
+            "job_id": str(job.id),
+        },
+    )
+    return {"job_id": job.id, "status": job.status.value}
 
 @router.get("/{study_id}/reports")
 def list_reports(
@@ -71,10 +183,20 @@ def list_reports(
         {
             "id": r.id,
             "type": r.report_type.value,
+            "template_key": r.template_key,
+            "scope_type": r.scope_type,
+            "participant_id": r.participant_id,
+            "methodology_version": r.methodology_version,
+            "data_snapshot_hash": r.data_snapshot_hash,
+            "summary": r.result_summary,
             "generated_at": r.generated_at.isoformat(),
             "download_url": storage_service.generate_presigned_download_url(
                 r.storage_uri.replace(f"s3://{storage_service.bucket_name}/", "")
-            )
+            ),
+            "artifact_urls": {
+                artifact_type: storage_service.generate_presigned_download_url(key)
+                for artifact_type, key in (r.artifact_manifest or {}).items()
+            },
         } for r in reports
     ]
 

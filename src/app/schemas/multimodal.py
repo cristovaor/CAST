@@ -175,6 +175,9 @@ class VariableCreate(BaseModel):
     computation_method: Optional[str] = None
     version: Optional[str] = None
     missing_policy: Optional[str] = None
+    source_key: Optional[str] = None
+    aggregation: Optional[str] = None
+    time_axis: Optional[str] = None
     allowed_values: List[str] = Field(default_factory=list)
     role: str = "exploratory"
     owner: Optional[str] = None

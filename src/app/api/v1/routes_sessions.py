@@ -87,7 +87,12 @@ def create_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    get_participant(db, current_user, payload.participant_id)
+    participant = get_participant(db, current_user, payload.participant_id)
+    if not participant.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Inactive participants cannot start new sessions",
+        )
 
     s = SessionModel(
         participant_id=payload.participant_id,
@@ -157,6 +162,7 @@ class SessionListResponse(BaseModel):
     condition: Optional[str] = None
     video_asset_id: Optional[UUID] = None
     eeg_asset_id: Optional[UUID] = None
+    sync_state: Optional[str] = None
     study_id: UUID
 
 
@@ -178,12 +184,14 @@ def list_global_sessions(
             Participant.study_id,
             VideoAsset.id.label("video_asset_id"),
             EEGAsset.id.label("eeg_asset_id"),
+            Synchronization.state.label("sync_state"),
         )
         .join(Participant, SessionModel.participant_id == Participant.id)
         .join(Study, Participant.study_id == Study.id)
         .join(Project, Study.project_id == Project.id)
         .outerjoin(VideoAsset, SessionModel.id == VideoAsset.session_id)
         .outerjoin(EEGAsset, SessionModel.id == EEGAsset.session_id)
+        .outerjoin(Synchronization, SessionModel.id == Synchronization.session_id)
         .filter(Project.organization_id == current_user.organization_id)
     )
     if study_id:
@@ -204,6 +212,7 @@ def list_global_sessions(
             condition=s.condition,
             video_asset_id=s.video_asset_id,
             eeg_asset_id=s.eeg_asset_id,
+            sync_state=s.sync_state.value if s.sync_state else None,
             study_id=s.study_id,
         ) for s in sessions
     ]

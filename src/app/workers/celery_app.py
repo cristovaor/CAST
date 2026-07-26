@@ -11,6 +11,7 @@ celery_app = Celery(
         "app.workers.tasks_video", "app.workers.tasks_inference",
         "app.workers.tasks_eeg", "app.workers.tasks_dataset", "app.workers.tasks_sync",
         "app.workers.tasks_train", "app.workers.tasks_model_testing",
+        "app.workers.tasks_reports",
     ]
 )
 
