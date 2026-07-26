@@ -130,7 +130,7 @@ def _capabilities(
         capabilities.append(
             {
                 "method": method,
-                "status": "available" if not missing else "requires_input",
+                "status": "available" if not missing else "requires_inputs",
                 "missing_inputs": missing,
                 "description": METHOD_DESCRIPTIONS[method],
             }
@@ -189,21 +189,32 @@ def _sync_detail(db: Session, session_id: UUID) -> dict[str, Any]:
         float(video.duration_seconds or 0) * 1000 if video else 0,
         float(eeg.duration_seconds or 0) * 1000 if eeg else 0,
     )
+    has_approved_mapping = bool(
+        synchronization and synchronization.approved_run_id and approved_run
+    )
     return {
         "id": synchronization.id if synchronization else None,
         "session_id": session_id,
         "state": synchronization.state if synchronization else SyncState.not_synced,
-        "method": synchronization.method if synchronization else None,
-        "offset_ms": synchronization.offset_ms if synchronization else 0,
-        "drift_ms_per_min": synchronization.drift_ms_per_min if synchronization else None,
-        "confidence": synchronization.confidence if synchronization else None,
-        "anchors": synchronization.anchors or [] if synchronization else [],
+        "method": synchronization.method if has_approved_mapping else None,
+        "offset_ms": synchronization.offset_ms if has_approved_mapping else 0,
+        "drift_ms_per_min": (
+            synchronization.drift_ms_per_min if has_approved_mapping else None
+        ),
+        "confidence": synchronization.confidence if has_approved_mapping else None,
+        "anchors": (
+            synchronization.anchors or [] if has_approved_mapping else []
+        ),
         "history": synchronization.history or [] if synchronization else [],
         "justification": synchronization.justification if synchronization else None,
         "approved_run_id": synchronization.approved_run_id if synchronization else None,
         "mapping_version": synchronization.mapping_version if synchronization else "affine-v1",
-        "quality_grade": synchronization.quality_grade if synchronization else None,
-        "uncertainty_ms": synchronization.uncertainty_ms if synchronization else None,
+        "quality_grade": (
+            synchronization.quality_grade if has_approved_mapping else None
+        ),
+        "uncertainty_ms": (
+            synchronization.uncertainty_ms if has_approved_mapping else None
+        ),
         "duration_ms": duration_ms or None,
         "capabilities": _capabilities(db, session_id, video, eeg),
         "latest_run": _run_detail(latest_run),
@@ -233,11 +244,13 @@ def _evidence_rows(
 
 
 def _input_hash(
+    session_id: UUID,
     method: str,
     parameters: dict[str, Any],
     evidence: list[SyncEvidence],
 ) -> str:
     canonical = {
+        "session_id": str(session_id),
         "method": method,
         "algorithm_version": ALGORITHM_VERSION,
         "parameters": parameters,
@@ -274,7 +287,7 @@ def _start_run(
     parameters = dict(payload.parameters)
     if payload.anchors:
         parameters["anchors"] = [anchor.model_dump() for anchor in payload.anchors]
-    input_hash = _input_hash(payload.method, parameters, evidence)
+    input_hash = _input_hash(session_id, payload.method, parameters, evidence)
     existing = db.query(SyncRun).filter(SyncRun.input_hash == input_hash).first()
     if existing and existing.job_id:
         return SyncRunStart(

@@ -15,6 +15,7 @@ from datetime import datetime
 import math
 from statistics import median
 from typing import Any, Callable, Iterable
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 ALGORITHM_VERSION = "sync-v1"
@@ -231,7 +232,7 @@ def fit_affine_anchors(
     )
 
 
-def _parse_datetime(value: Any) -> datetime | None:
+def _parse_datetime(value: Any, timezone_name: str | None = None) -> datetime | None:
     if not isinstance(value, str) or not value.strip():
         return None
     try:
@@ -239,13 +240,19 @@ def _parse_datetime(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        return None
+        if not timezone_name:
+            return None
+        try:
+            parsed = parsed.replace(tzinfo=ZoneInfo(timezone_name))
+        except ZoneInfoNotFoundError:
+            return None
     return parsed
 
 
 def process_absolute_timestamp(parameters: dict[str, Any], _: dict[str, Any]) -> dict[str, Any]:
-    video_start = _parse_datetime(parameters.get("video_start"))
-    eeg_start = _parse_datetime(parameters.get("eeg_start"))
+    timezone_name = str(parameters.get("timezone") or "").strip() or None
+    video_start = _parse_datetime(parameters.get("video_start"), timezone_name)
+    eeg_start = _parse_datetime(parameters.get("eeg_start"), timezone_name)
     if not video_start or not eeg_start:
         return insufficient(
             "Timestamps absolutos precisam de timezone explícito.",
@@ -265,8 +272,8 @@ def process_absolute_timestamp(parameters: dict[str, Any], _: dict[str, Any]) ->
     anchors = [
         {"label": "início", "video_time_ms": 0.0, "eeg_time_ms": -offset}
     ]
-    video_end = _parse_datetime(parameters.get("video_end"))
-    eeg_end = _parse_datetime(parameters.get("eeg_end"))
+    video_end = _parse_datetime(parameters.get("video_end"), timezone_name)
+    eeg_end = _parse_datetime(parameters.get("eeg_end"), timezone_name)
     if bool(video_end) != bool(eeg_end):
         return insufficient(
             "Os timestamps finais devem ser fornecidos em par.",

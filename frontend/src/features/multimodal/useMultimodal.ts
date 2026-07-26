@@ -4,7 +4,7 @@
 // /variables and /governance.
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api';
+import { apiClient, uploadApiForm } from '@/lib/api';
 
 // ─── Sessions ────────────────────────────────────────────────
 
@@ -171,18 +171,85 @@ export function useSetEEGQuality(eegId?: string) {
 
 // ─── Synchronization ─────────────────────────────────────────
 
-export interface SyncDTO {
+export interface SyncCapabilityDTO {
+  method: string;
+  status: 'available' | 'requires_input' | 'requires_inputs' | 'insufficient_evidence';
+  missing_inputs: string[];
+  description: string;
+}
+
+export interface SyncEvidenceDTO {
   id: string;
   session_id: string;
+  kind: string;
+  filename?: string | null;
+  content_type?: string | null;
+  checksum_sha256: string;
+  payload: Record<string, unknown>;
+  metadata_info: Record<string, unknown>;
+  created_by: string;
+  created_at: string;
+}
+
+export interface SyncRunDTO {
+  id: string;
+  session_id: string;
+  job_id?: string | null;
+  method: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled';
+  outcome?: string | null;
+  algorithm_version: string;
+  input_manifest: Record<string, unknown>;
+  parameters: Record<string, unknown>;
+  result: Record<string, unknown>;
+  metrics: Record<string, unknown>;
+  quality_grade?: string | null;
+  uncertainty_ms?: number | null;
+  error_message?: string | null;
+  review_decision?: 'approved' | 'rejected' | null;
+  review_justification?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+}
+
+export interface SyncDTO {
+  id?: string | null;
+  session_id: string;
   state: string;
-  method?: string;
+  method?: string | null;
   offset_ms: number;
-  drift_ms_per_min?: number;
-  confidence?: number;
+  drift_ms_per_min?: number | null;
+  confidence?: number | null;
   anchors: { label: string; video_time_ms: number; eeg_time_ms: number }[];
   history: { at: string; action: string; note?: string }[];
-  justification?: string;
-  updated_at: string;
+  justification?: string | null;
+  approved_run_id?: string | null;
+  mapping_version: string;
+  quality_grade?: string | null;
+  uncertainty_ms?: number | null;
+  duration_ms?: number | null;
+  capabilities: SyncCapabilityDTO[];
+  latest_run?: SyncRunDTO | null;
+  approved_run?: SyncRunDTO | null;
+  updated_at?: string | null;
+}
+
+export interface SyncRunStartDTO {
+  run_id: string;
+  job_id: string;
+  status: string;
+  reused: boolean;
+}
+
+export interface ProcessingJobDTO {
+  id: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled';
+  step: string;
+  progress: number;
+  error?: string | null;
+  result: Record<string, unknown>;
 }
 
 export function useSync(sessionId?: string) {
@@ -190,6 +257,123 @@ export function useSync(sessionId?: string) {
     queryKey: ['sync', sessionId],
     queryFn: () => apiClient.get<SyncDTO>(`/sync/${sessionId}`),
     enabled: !!sessionId,
+  });
+}
+
+export function useSyncEvidence(sessionId?: string) {
+  return useQuery<SyncEvidenceDTO[]>({
+    queryKey: ['sync-evidence', sessionId],
+    queryFn: () => apiClient.get<SyncEvidenceDTO[]>(`/sync/${sessionId}/evidence`),
+    enabled: !!sessionId,
+  });
+}
+
+export function useUploadSyncEvidence(sessionId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      kind: string;
+      file?: File | null;
+      payload?: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+    }) => {
+      const form = new FormData();
+      form.set('kind', input.kind);
+      form.set('payload_json', JSON.stringify(input.payload ?? {}));
+      form.set('metadata_json', JSON.stringify(input.metadata ?? {}));
+      if (input.file) form.set('file', input.file);
+      return uploadApiForm<SyncEvidenceDTO>(`/sync/${sessionId}/evidence`, form);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sync-evidence', sessionId] });
+      qc.invalidateQueries({ queryKey: ['sync', sessionId] });
+    },
+  });
+}
+
+export function useDeleteSyncEvidence(sessionId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (evidenceId: string) =>
+      apiClient.delete<void>(`/sync/${sessionId}/evidence/${evidenceId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sync-evidence', sessionId] });
+      qc.invalidateQueries({ queryKey: ['sync', sessionId] });
+    },
+  });
+}
+
+export function useSyncRuns(sessionId?: string) {
+  return useQuery<SyncRunDTO[]>({
+    queryKey: ['sync-runs', sessionId],
+    queryFn: () => apiClient.get<SyncRunDTO[]>(`/sync/${sessionId}/runs`),
+    enabled: !!sessionId,
+  });
+}
+
+export function useSyncRun(sessionId?: string, runId?: string) {
+  return useQuery<SyncRunDTO>({
+    queryKey: ['sync-run', sessionId, runId],
+    queryFn: () => apiClient.get<SyncRunDTO>(`/sync/${sessionId}/runs/${runId}`),
+    enabled: !!sessionId && !!runId,
+    refetchInterval: (query) =>
+      ['queued', 'running'].includes(query.state.data?.status ?? '') ? 1500 : false,
+  });
+}
+
+export function useSyncJob(jobId?: string) {
+  return useQuery<ProcessingJobDTO>({
+    queryKey: ['job', jobId],
+    queryFn: () => apiClient.get<ProcessingJobDTO>(`/jobs/${jobId}`),
+    enabled: !!jobId,
+    refetchInterval: (query) =>
+      ['queued', 'running'].includes(query.state.data?.status ?? '') ? 1500 : false,
+  });
+}
+
+export function useCreateSyncRun(sessionId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      method: string;
+      evidence_ids: string[];
+      parameters: Record<string, unknown>;
+      anchors: { label: string; video_time_ms: number; eeg_time_ms: number }[];
+    }) => apiClient.post<SyncRunStartDTO>(`/sync/${sessionId}/runs`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sync-runs', sessionId] });
+      qc.invalidateQueries({ queryKey: ['sync', sessionId] });
+    },
+  });
+}
+
+export function useSyncRunDecision(sessionId?: string, runId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (decision: { approve: boolean; justification: string }) =>
+      apiClient.post<SyncDTO>(`/sync/${sessionId}/runs/${runId}/decision`, decision),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sync', sessionId] });
+      qc.invalidateQueries({ queryKey: ['sync-runs', sessionId] });
+      qc.invalidateQueries({ queryKey: ['sync-run', sessionId, runId] });
+      qc.invalidateQueries({ queryKey: ['session', sessionId] });
+    },
+  });
+}
+
+export function useCancelSyncJob(jobId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.post<{ message: string }>(`/jobs/${jobId}/cancel`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['job', jobId] }),
+  });
+}
+
+export function useRetrySyncJob(jobId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.post<{ message: string }>(`/jobs/${jobId}/retry`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['job', jobId] }),
   });
 }
 
@@ -207,8 +391,16 @@ export function useUpdateSync(sessionId?: string) {
 export function useDetectSync(sessionId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => apiClient.post<SyncDTO>(`/sync/${sessionId}/detect?sync=true`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sync', sessionId] }),
+    mutationFn: () => apiClient.post<SyncRunStartDTO>(`/sync/${sessionId}/runs`, {
+      method: 'event_correlation',
+      evidence_ids: [],
+      parameters: {},
+      anchors: [],
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sync', sessionId] });
+      qc.invalidateQueries({ queryKey: ['sync-runs', sessionId] });
+    },
   });
 }
 

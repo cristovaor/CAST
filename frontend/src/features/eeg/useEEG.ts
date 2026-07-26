@@ -15,7 +15,28 @@ export interface EEGAssetData {
   eeg_asset_id: string;
   filename: string;
   sync_offset_ms: number;
+  sync_transform: SyncTransform;
   data: EEGTimeSeries[];
+}
+
+export interface SyncTransform {
+  mapping_version: string;
+  approved: boolean;
+  offset_ms: number;
+  drift_ms_per_min: number;
+  quality_grade?: string | null;
+  uncertainty_ms?: number | null;
+  approved_run_id?: string;
+}
+
+export function videoToEegMs(videoMs: number, mapping?: SyncTransform) {
+  const slope = 1 + (mapping?.drift_ms_per_min ?? 0) / 60000;
+  return videoMs * slope - (mapping?.offset_ms ?? 0);
+}
+
+export function eegToVideoMs(eegMs: number, mapping?: SyncTransform) {
+  const slope = 1 + (mapping?.drift_ms_per_min ?? 0) / 60000;
+  return (eegMs + (mapping?.offset_ms ?? 0)) / slope;
 }
 
 // Module-level so React Query memoizes the result (an inline select would
@@ -56,6 +77,7 @@ export interface EEGCoactivationAction {
 export interface EEGCoactivation {
   eeg_asset_id: string;
   sync_offset_ms: number;
+  sync_transform: SyncTransform;
   bands: string[];
   baseline_sample_count: number;
   alpha: number;

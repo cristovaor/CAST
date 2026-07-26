@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProvenanceLegend } from '@/components/data-display/ProvenanceLegend';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
 import { CoactivationPanel } from '@/features/eeg/components/CoactivationPanel';
-import { useEEGData } from '@/features/eeg/useEEG';
+import { eegToVideoMs, useEEGData } from '@/features/eeg/useEEG';
 import { useAnnotationContext } from '@/features/annotations/api/useAnnotationEditor';
 import { useSessionByReference, useSync } from '@/features/multimodal/useMultimodal';
 import { SyncStatusPanel } from '@/features/multimodal/components/SyncStatusPanel';
@@ -56,7 +56,10 @@ export function AnalysisWorkspacePage() {
 
   const cursorSeconds = cursorMs / 1000;
   const eegSpanSeconds = eeg?.data.length
-    ? Math.max(0, (eeg.data[eeg.data.length - 1].timestamp_ms - eeg.data[0].timestamp_ms) / 1000)
+    ? Math.max(
+        0,
+        eegToVideoMs(eeg.data[eeg.data.length - 1].timestamp_ms, eeg.sync_transform) / 1000,
+      )
     : 0;
   const durationSeconds = Math.max(
     durationMs / 1000,
@@ -105,12 +108,15 @@ export function AnalysisWorkspacePage() {
     }
 
     if (eeg) {
-      const start = toPercent(Math.max(0, eeg.sync_offset_ms / 1000));
+      const firstEegMs = eeg.data[0]?.timestamp_ms ?? 0;
+      const lastEegMs = eeg.data[eeg.data.length - 1]?.timestamp_ms ?? 0;
+      const start = toPercent(Math.max(0, eegToVideoMs(firstEegMs, eeg.sync_transform) / 1000));
+      const end = toPercent(Math.max(0, eegToVideoMs(lastEegMs, eeg.sync_transform) / 1000));
       built.push({
         key: 'eeg',
         label: `EEG (${eeg.data.length.toLocaleString('pt-BR')})`,
         kind: 'eeg_observed',
-        segments: [[start, 100]],
+        segments: [[start, end]],
       });
     }
 

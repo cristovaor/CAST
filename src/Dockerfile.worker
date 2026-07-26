@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     libgl1 \
     libglib2.0-0 \
-    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -19,6 +18,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Worker/test-only columnar runtime. Kept out of Dockerfile.api so the
 # production API image does not carry MediaPipe/Parquet dependencies.
 RUN pip install --no-cache-dir "pyarrow>=16.0.0" "bcrypt==4.0.1"
+
+# Audio synchronization runtime. Kept after the large ML layer so adding or
+# updating FFmpeg does not invalidate the multi-gigabyte Python dependency cache.
+RUN apt-get update && apt-get install -y ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 # MediaPipe Legacy Solutions needs protobuf/numpy versions that conflict with
 # the current TensorFlow inference runtime. Keep extraction isolated so both

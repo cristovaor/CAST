@@ -128,7 +128,8 @@ export function CoactivationPanel({ eegId }: CoactivationPanelProps) {
             <p className="text-[10px] text-text-muted border-t border-border pt-2 leading-relaxed">
               <span className="text-amber-500">★</span> = diferença significativa (teste de permutação, p&lt;{data.alpha}).
               Barras esbatidas = não significativas. Linha de base: {data.baseline_sample_count.toLocaleString('pt-BR')} amostras
-              fora de microações; offset de sincronização: {data.sync_offset_ms} ms.
+              fora de microações; transformação aprovada: offset {data.sync_transform.offset_ms} ms,
+              drift {data.sync_transform.drift_ms_per_min} ms/min.
               Tooltip mostra p e o tamanho de efeito (Cohen&apos;s d).
             </p>
           </div>

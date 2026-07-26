@@ -65,7 +65,135 @@ def _read_csv_rows(data: bytes) -> list[dict[str, Any]]:
 
 def _read_eeg_rows(eeg_asset: EEGAsset) -> list[dict[str, Any]]:
     key = storage_service.key_from_uri(eeg_asset.storage_uri)
-    return _read_csv_rows(storage_service.download_bytes(key))
+    data = storage_service.download_bytes(key)
+    filename = (eeg_asset.filename or "eeg.csv").lower()
+    if filename.endswith((".csv", ".tsv", ".txt")):
+        return _read_csv_rows(data)
+
+    raw = _read_mne_raw(data, filename)
+    try:
+        import numpy as np
+    except ImportError as exc:
+        raise RuntimeError("NumPy is unavailable in the worker") from exc
+    sample_rate = float(raw.info["sfreq"])
+    step = max(1, int(sample_rate / 50.0))
+    sample_indices = np.arange(0, raw.n_times, step, dtype=int)
+    channel_indices = [
+        index
+        for index, channel_type in enumerate(raw.get_channel_types())
+        if channel_type not in {"stim", "misc"}
+    ][:32]
+    if not channel_indices:
+        channel_indices = list(range(min(len(raw.ch_names), 32)))
+    values = raw.get_data(picks=channel_indices)[:, sample_indices]
+    rows: list[dict[str, Any]] = []
+    for position, sample_index in enumerate(sample_indices):
+        row: dict[str, Any] = {
+            "timestamp_ms": float(sample_index) * 1000.0 / sample_rate,
+        }
+        for value_index, channel_index in enumerate(channel_indices):
+            row[raw.ch_names[channel_index]] = float(values[value_index, position])
+        rows.append(row)
+    return rows
+
+
+def _read_mne_raw(data: bytes, filename: str):
+    try:
+        import mne
+    except ImportError as exc:
+        raise RuntimeError("MNE is unavailable in the worker") from exc
+
+    suffix = os.path.splitext(filename)[1].lower()
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp:
+        temp.write(data)
+        temp_path = temp.name
+    try:
+        mne.set_log_level("ERROR")
+        if suffix == ".edf":
+            return mne.io.read_raw_edf(temp_path, preload=True)
+        if suffix == ".bdf":
+            return mne.io.read_raw_bdf(temp_path, preload=True)
+        if suffix == ".vhdr":
+            return mne.io.read_raw_brainvision(temp_path, preload=True)
+        if suffix == ".fif":
+            return mne.io.read_raw_fif(temp_path, preload=True)
+        if suffix == ".set":
+            return mne.io.read_raw_eeglab(temp_path, preload=True)
+        raise ValueError(f"Unsupported EEG format for synchronization: {suffix}")
+    finally:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+
+
+def _mne_events(eeg_asset: EEGAsset, parameters: dict[str, Any]) -> list[dict[str, Any]]:
+    data = storage_service.download_bytes(
+        storage_service.key_from_uri(eeg_asset.storage_uri)
+    )
+    raw = _read_mne_raw(data, eeg_asset.filename or "eeg.edf")
+    sample_rate = float(raw.info["sfreq"])
+    events: list[dict[str, Any]] = []
+    try:
+        import mne
+
+        stim_events = mne.find_events(
+            raw,
+            stim_channel=parameters.get("eeg_channel"),
+            shortest_event=1,
+            verbose=False,
+        )
+        events.extend(
+            {
+                "time_ms": float(sample) * 1000.0 / sample_rate,
+                "code": str(code),
+            }
+            for sample, _, code in stim_events
+        )
+    except (RuntimeError, ValueError):
+        pass
+    if not events and raw.annotations:
+        events.extend(
+            {
+                "time_ms": float(onset) * 1000.0,
+                "code": str(description),
+            }
+            for onset, description in zip(
+                raw.annotations.onset,
+                raw.annotations.description,
+            )
+        )
+    if events:
+        return events
+
+    channel_name = parameters.get("eeg_channel")
+    if channel_name and channel_name in raw.ch_names:
+        signal = raw.get_data(picks=[channel_name])[0]
+        try:
+            import numpy as np
+        except ImportError as exc:
+            raise RuntimeError("NumPy is unavailable in the worker") from exc
+        center = float(np.median(signal))
+        mad = float(np.median(np.abs(signal - center)))
+        threshold = center + max(1e-12, 5.0 * mad)
+        high = signal >= threshold
+        edge_samples = np.flatnonzero(np.logical_and(high[1:], ~high[:-1])) + 1
+        debounce_samples = max(
+            1,
+            int(sample_rate * float(parameters.get("debounce_ms") or 5) / 1000),
+        )
+        last = -debounce_samples
+        for sample in edge_samples:
+            if int(sample) - last < debounce_samples:
+                continue
+            events.append(
+                {
+                    "time_ms": float(sample) * 1000.0 / sample_rate,
+                    "code": "edge",
+                }
+            )
+            last = int(sample)
+    return events
 
 
 def _payload_from_evidence(evidence: SyncEvidence) -> dict[str, Any]:
@@ -244,14 +372,39 @@ def _run_context(
         if eeg and eeg.sample_rate_hz
         else None,
     }
+    evidence_payloads = context["evidence_payloads"]
+    has_evidence_key = lambda key: any(
+        key in payload for payload in evidence_payloads
+    )
+    mne_supported = bool(
+        eeg
+        and (eeg.filename or "").lower().endswith(
+            (".edf", ".bdf", ".vhdr", ".fif", ".set")
+        )
+    )
     if run.method == "event_correlation" and video and eeg:
         from app.api.v1.routes_videos import load_timeline_events
 
         facial_events, _ = load_timeline_events(video, db)
         context["facial_events"] = facial_events
         context["eeg_rows"] = _read_eeg_rows(eeg)
+    elif (
+        run.method in {"hardware_trigger", "digital_marker"}
+        and eeg
+        and mne_supported
+        and not has_evidence_key(
+            "eeg_markers" if run.method == "digital_marker" else "eeg_events"
+        )
+    ):
+        eeg_events = _mne_events(eeg, run.parameters or {})
+        if run.method == "digital_marker":
+            context["eeg_markers"] = eeg_events
+        else:
+            context["eeg_events"] = eeg_events
     elif run.method == "visual_event" and video:
         context["visual_peaks"] = _visual_peaks(video, run.parameters or {})
+        if eeg and mne_supported and not has_evidence_key("eeg_events"):
+            context["eeg_events"] = _mne_events(eeg, run.parameters or {})
     elif run.method == "audio_event" and video:
         context.update(_audio_context(video, evidences, run.parameters or {}))
     elif run.method == "semi_automatic":
@@ -342,14 +495,6 @@ def process_sync_run(run_id: str) -> dict[str, Any]:
         if synchronization.approved_run_id is None:
             if run.outcome == "proposal":
                 synchronization.state = SyncState.auto_available
-                synchronization.method = run.method
-                synchronization.offset_ms = int(round(run.result["offset_ms"]))
-                synchronization.drift_ms_per_min = run.result.get("drift_ms_per_min")
-                synchronization.confidence = run.result.get("confidence")
-                synchronization.anchors = run.result.get("anchors", [])
-                synchronization.mapping_version = "affine-v1"
-                synchronization.quality_grade = run.quality_grade
-                synchronization.uncertainty_ms = run.uncertainty_ms
             else:
                 synchronization.state = SyncState.not_synced
         history = list(synchronization.history or [])

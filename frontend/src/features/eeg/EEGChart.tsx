@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useEEGData } from './useEEG';
+import { eegToVideoMs, useEEGData, videoToEegMs } from './useEEG';
 import { sliceWindow, decimate } from './utils/downsample';
 import { EEG_BANDS } from './bands';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
@@ -65,11 +65,8 @@ export const EEGChart: React.FC<EEGChartProps> = ({ eegId, events, variant = 'ca
   const currentTimeMs = usePlaybackStore((s) => s.currentTimeMs);
   const requestSeek = usePlaybackStore((s) => s.requestSeek);
 
-  const syncOffsetMs = data?.sync_offset_ms || 0;
-
-  // apply offset: if sync_offset_ms is e.g. 2000, the EEG started 2 seconds
-  // after the video. So if video is at 5000ms, EEG time is 3000ms.
-  const eegTimeMs = currentTimeMs - syncOffsetMs;
+  const syncTransform = data?.sync_transform;
+  const eegTimeMs = videoToEegMs(currentTimeMs, syncTransform);
   const windowStart = eegTimeMs - WINDOW_HALF_MS;
   const windowEnd = eegTimeMs + WINDOW_HALF_MS;
 
@@ -88,17 +85,16 @@ export const EEGChart: React.FC<EEGChartProps> = ({ eegId, events, variant = 'ca
       .map((ev) => ({
         key: ev.event_id,
         action: ev.action as MicroAction,
-        startEegMs: ev.start_time * 1000 - syncOffsetMs,
-        endEegMs: ev.end_time * 1000 - syncOffsetMs,
+        startEegMs: videoToEegMs(ev.start_time * 1000, syncTransform),
+        endEegMs: videoToEegMs(ev.end_time * 1000, syncTransform),
       }))
       .filter((b) => b.endEegMs >= windowStart && b.startEegMs <= windowEnd);
-  }, [events, syncOffsetMs, windowStart, windowEnd]);
+  }, [events, syncTransform, windowStart, windowEnd]);
 
   const handleClick = (state: { activeLabel?: string | number }) => {
     const eegMs = Number(state?.activeLabel);
     if (!Number.isFinite(eegMs)) return; // click outside plotted points
-    // inverse of eegTimeMs = currentTimeMs - sync_offset_ms
-    requestSeek(eegMs + syncOffsetMs);
+    requestSeek(eegToVideoMs(eegMs, syncTransform));
   };
 
   if (!eegId || (data && data.data.length === 0)) {
