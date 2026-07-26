@@ -305,6 +305,7 @@ class ProcessingJob(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     video_asset_id = Column(UUID(as_uuid=True), ForeignKey("video_assets.id"), nullable=True)
     study_id = Column(UUID(as_uuid=True), ForeignKey("studies.id"), nullable=True, index=True)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True, index=True)
     job_type = Column(SQLEnum(JobType))
     status = Column(SQLEnum(JobStatus), default=JobStatus.queued)
     progress = Column(Numeric, default=0.0)
@@ -317,6 +318,7 @@ class ProcessingJob(Base):
 
     video_asset = relationship("VideoAsset", back_populates="processing_jobs")
     study = relationship("Study", backref="processing_jobs")
+    session = relationship("Session", foreign_keys=[session_id], backref="processing_jobs")
 
 class ModelVersion(Base):
     __tablename__ = "model_versions"
@@ -621,10 +623,88 @@ class Synchronization(Base):
     justification = Column(Text)
     approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime, nullable=True)
+    approved_run_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("sync_runs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    mapping_version = Column(String, nullable=False, default="affine-v1")
+    quality_grade = Column(String, nullable=True)
+    uncertainty_ms = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     session = relationship("Session", back_populates="synchronization")
+    approved_run = relationship("SyncRun", foreign_keys=[approved_run_id])
+
+
+class SyncEvidence(Base):
+    """Immutable evidence supplied to one or more synchronization runs."""
+
+    __tablename__ = "sync_evidence"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    kind = Column(String, nullable=False, index=True)
+    filename = Column(String, nullable=True)
+    content_type = Column(String, nullable=True)
+    storage_uri = Column(String, nullable=True)
+    checksum_sha256 = Column(String, nullable=False)
+    payload = Column(JSONB, nullable=False, default=dict)
+    metadata_info = Column(JSONB, nullable=False, default=dict)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    session = relationship("Session", foreign_keys=[session_id])
+    creator = relationship("User", foreign_keys=[created_by])
+
+
+class SyncRun(Base):
+    """Immutable, versioned execution of one synchronization method."""
+
+    __tablename__ = "sync_runs"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    job_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("processing_jobs.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+    )
+    method = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False, default="queued", index=True)
+    outcome = Column(String, nullable=True)
+    algorithm_version = Column(String, nullable=False, default="sync-v1")
+    input_manifest = Column(JSONB, nullable=False, default=dict)
+    input_hash = Column(String, nullable=False, unique=True, index=True)
+    parameters = Column(JSONB, nullable=False, default=dict)
+    result = Column(JSONB, nullable=False, default=dict)
+    metrics = Column(JSONB, nullable=False, default=dict)
+    quality_grade = Column(String, nullable=True)
+    uncertainty_ms = Column(Float, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    reviewed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    review_decision = Column(String, nullable=True)
+    review_justification = Column(Text, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+
+    session = relationship("Session", foreign_keys=[session_id])
+    job = relationship("ProcessingJob", foreign_keys=[job_id])
+    creator = relationship("User", foreign_keys=[created_by])
+    reviewer = relationship("User", foreign_keys=[reviewed_by])
 
 
 class ResearchVariable(Base):

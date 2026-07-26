@@ -71,6 +71,11 @@ def _map_status_to_step(status: JobStatus, progress, job_type=None):
             if p < 55: return "Executando análises estatísticas"
             if p < 90: return "Gerando PDF e JSON"
             return "Persistindo proveniência"
+        if job_type == "sync" or getattr(job_type, "value", None) == "sync":
+            if p < 20: return "Validando evidências"
+            if p < 50: return "Normalizando relógios e eventos"
+            if p < 85: return "Calculando transformação temporal"
+            return "Persistindo resultado auditável"
         if p < 15: return "Extraindo metadados"
         if p < 30: return "Validando qualidade"
         if p < 50: return "Extraindo landmarks faciais"
@@ -113,6 +118,7 @@ def list_jobs(
         {
             "id": job.id,
             "video_asset_id": job.video_asset_id,
+            "session_id": job.session_id,
             "job_type": job.job_type.value,
             "status": job.status.value,
             "progress": float(job.progress or 0),
@@ -190,6 +196,13 @@ def cancel_job(
     celery_app.control.revoke(str(job.id), terminate=True, signal='SIGKILL')
         
     job.status = JobStatus.canceled
+    if job.job_type.value == "sync":
+        from app.db.models import SyncRun
+
+        run = db.query(SyncRun).filter(SyncRun.job_id == job.id).first()
+        if run and run.status in {"queued", "running"}:
+            run.status = "canceled"
+            run.finished_at = datetime.utcnow()
     db.commit()
     
     return {"message": "Job cancelled"}
@@ -224,6 +237,19 @@ def retry_job(
         generate_scientific_report_task.apply_async(
             args=[str(job.id)], task_id=str(job.id)
         )
+    elif job.job_type.value == "sync":
+        from app.db.models import SyncRun
+        from app.workers.tasks_sync import process_sync_run_task
+
+        run = db.query(SyncRun).filter(SyncRun.job_id == job.id).first()
+        if run is None:
+            raise HTTPException(status_code=409, detail="Synchronization run not found")
+        run.status = "queued"
+        run.error_message = None
+        run.started_at = None
+        run.finished_at = None
+        db.commit()
+        process_sync_run_task.apply_async(args=[str(run.id)], task_id=str(job.id))
     else:
         from app.workers.tasks_video import process_video_task
         process_video_task.delay(str(job.id))

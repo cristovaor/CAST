@@ -7,7 +7,7 @@ from app.db.models import (
     EEGAsset, ProcessingJob, ModelVersion, MicroActionModel, Prediction,
     LandmarkArtifact, LearningAssessment, AnnotationTask, AnnotationEvent,
     PredictionReview, AnalysisReport,
-    ConsentTerm, Synchronization, ResearchVariable, Dataset, AuditLog,
+    ConsentTerm, Synchronization, SyncEvidence, SyncRun, ResearchVariable, Dataset, AuditLog,
 )
 
 __all__ = [
@@ -15,5 +15,5 @@ __all__ = [
     "Session", "VideoAsset", "EEGAsset", "ProcessingJob", "ModelVersion",
     "MicroActionModel", "Prediction", "LandmarkArtifact", "LearningAssessment",
     "AnnotationTask", "AnnotationEvent", "PredictionReview", "AnalysisReport",
-    "ResearchVariable", "Dataset", "AuditLog",
+    "Synchronization", "SyncEvidence", "SyncRun", "ResearchVariable", "Dataset", "AuditLog",
 ]

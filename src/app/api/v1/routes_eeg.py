@@ -319,11 +319,15 @@ def get_eeg_timeseries(
         actor=current_user,
         detail={"op": "timeseries"},
     )
+    from app.services.sync_transform_service import approved_mapping
+
+    mapping = approved_mapping(db, eeg_asset.session_id)
 
     return {
         "eeg_asset_id": eeg_id,
         "filename": eeg_asset.filename,
-        "sync_offset_ms": eeg_asset.sync_offset_ms,
+        "sync_offset_ms": mapping["offset_ms"],
+        "sync_transform": mapping,
         "data": timeseries
     }
 
@@ -411,14 +415,17 @@ def get_eeg_coactivation(
         raise HTTPException(status_code=500, detail=f"Failed to read from storage: {e}")
 
     events, _ = load_timeline_events(video_asset, db)
-    offset = eeg_asset.sync_offset_ms or 0
+    from app.services.sync_transform_service import approved_mapping, video_to_eeg_ms
+
+    mapping = approved_mapping(db, eeg_asset.session_id)
+    offset = mapping["offset_ms"]
 
     # Micro-action windows in EEG time (ms)
     windows = [
         {
             "action": ev["action"],
-            "start_ms": ev["start_time"] * 1000 - offset,
-            "end_ms": ev["end_time"] * 1000 - offset,
+            "start_ms": video_to_eeg_ms(ev["start_time"] * 1000, mapping),
+            "end_ms": video_to_eeg_ms(ev["end_time"] * 1000, mapping),
         }
         for ev in events
     ]
@@ -488,6 +495,7 @@ def get_eeg_coactivation(
     return {
         "eeg_asset_id": eeg_id,
         "sync_offset_ms": offset,
+        "sync_transform": mapping,
         "bands": present_bands,
         "baseline_sample_count": baseline_count,
         "alpha": 0.05,

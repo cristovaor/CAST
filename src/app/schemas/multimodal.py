@@ -4,7 +4,7 @@ Covers rich sessions, EEG import/quality, synchronization, research variables,
 datasets and governance/audit — mirroring the frontend types in
 frontend/src/types/research.ts.
 """
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any, Dict, Literal
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
@@ -127,8 +127,8 @@ class EEGAssetDetail(BaseModel):
 
 class SyncAnchor(BaseModel):
     label: str
-    video_time_ms: int
-    eeg_time_ms: int
+    video_time_ms: float
+    eeg_time_ms: float
 
 
 class SyncUpdate(BaseModel):
@@ -144,8 +144,81 @@ class SyncDecision(BaseModel):
     justification: str
 
 
-class SyncDetail(BaseModel):
+SyncMethodName = Literal[
+    "absolute_timestamp",
+    "hardware_trigger",
+    "digital_marker",
+    "visual_event",
+    "audio_event",
+    "reference_frame",
+    "manual",
+    "event_correlation",
+    "informed_offset",
+    "semi_automatic",
+]
+
+
+class SyncEvidenceDetail(BaseModel):
     id: UUID
+    session_id: UUID
+    kind: str
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+    checksum_sha256: str
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    metadata_info: Dict[str, Any] = Field(default_factory=dict)
+    created_by: UUID
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SyncRunCreate(BaseModel):
+    method: SyncMethodName
+    evidence_ids: List[UUID] = Field(default_factory=list)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    anchors: List[SyncAnchor] = Field(default_factory=list)
+
+
+class SyncRunStart(BaseModel):
+    run_id: UUID
+    job_id: UUID
+    status: str
+    reused: bool = False
+
+
+class SyncRunDetail(BaseModel):
+    id: UUID
+    session_id: UUID
+    job_id: Optional[UUID] = None
+    method: str
+    status: str
+    outcome: Optional[str] = None
+    algorithm_version: str
+    input_manifest: Dict[str, Any] = Field(default_factory=dict)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    result: Dict[str, Any] = Field(default_factory=dict)
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+    quality_grade: Optional[str] = None
+    uncertainty_ms: Optional[float] = None
+    error_message: Optional[str] = None
+    review_decision: Optional[str] = None
+    review_justification: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SyncCapability(BaseModel):
+    method: str
+    status: str
+    missing_inputs: List[str] = Field(default_factory=list)
+    description: str
+
+
+class SyncDetail(BaseModel):
+    id: Optional[UUID] = None
     session_id: UUID
     state: SyncState
     method: Optional[str] = None
@@ -155,7 +228,15 @@ class SyncDetail(BaseModel):
     anchors: List[Dict[str, Any]] = Field(default_factory=list)
     history: List[Dict[str, Any]] = Field(default_factory=list)
     justification: Optional[str] = None
-    updated_at: datetime
+    approved_run_id: Optional[UUID] = None
+    mapping_version: str = "affine-v1"
+    quality_grade: Optional[str] = None
+    uncertainty_ms: Optional[float] = None
+    duration_ms: Optional[float] = None
+    capabilities: List[SyncCapability] = Field(default_factory=list)
+    latest_run: Optional[SyncRunDetail] = None
+    approved_run: Optional[SyncRunDetail] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 

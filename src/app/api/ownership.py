@@ -95,10 +95,18 @@ def jobs_for_user(db: Session, user: User) -> Query:
         .join(Project, Study.project_id == Project.id)
         .where(Project.organization_id == user.organization_id)
     )
+    owned_sessions = (
+        select(SessionModel.id)
+        .join(Participant, SessionModel.participant_id == Participant.id)
+        .join(Study, Participant.study_id == Study.id)
+        .join(Project, Study.project_id == Project.id)
+        .where(Project.organization_id == user.organization_id)
+    )
     return db.query(ProcessingJob).filter(
         or_(
             ProcessingJob.study_id.in_(owned_studies),
             ProcessingJob.video_asset_id.in_(owned_videos),
+            ProcessingJob.session_id.in_(owned_sessions),
         )
     )
 
