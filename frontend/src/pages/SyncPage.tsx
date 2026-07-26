@@ -32,6 +32,7 @@ import {
   useSyncRuns,
   useUploadSyncEvidence,
   useSessionDetail,
+  type SyncEvidenceDTO,
   type SyncRunDTO,
 } from '@/features/multimodal/useMultimodal';
 import { MultimodalPlayer } from '@/features/inference/components/MultimodalPlayer';
@@ -44,6 +45,8 @@ type Parameters = Record<string, string | number | boolean>;
 
 const INPUT =
   'w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
+const NO_EVIDENCE: SyncEvidenceDTO[] = [];
+const NO_RUNS: SyncRunDTO[] = [];
 
 const EVIDENCE_KIND: Record<SyncMethod, string> = {
   absolute_timestamp: 'clock_manifest',
@@ -100,8 +103,8 @@ export function SyncPage() {
   const session = sessionQuery.data;
   const playbackQuery = useVideoPlaybackUrl(session?.video_asset_id ?? '');
   const timelineQuery = useVideoTimeline(session?.video_asset_id ?? '');
-  const runs = runsQuery.data ?? [];
-  const evidence = evidenceQuery.data ?? [];
+  const runs = runsQuery.data ?? NO_RUNS;
+  const evidence = evidenceQuery.data ?? NO_EVIDENCE;
   const latestRun = runQuery.data ?? sync?.latest_run ?? runs[0] ?? null;
   const reviewRun = runs.find((run) => run.id === reviewRunId) ?? latestRun;
   const decision = useSyncRunDecision(sessionId, reviewRun?.id);
@@ -109,18 +112,23 @@ export function SyncPage() {
   const durationMs = Math.max(sync?.duration_ms ?? 0, 1);
   const state = SYNC_STATE_META[(sync?.state ?? 'not_synced') as SyncState];
 
-  useEffect(() => {
-    setEvidenceKind(EVIDENCE_KIND[method]);
+  const selectMethod = (nextMethod: SyncMethod) => {
+    setMethod(nextMethod);
+    setEvidenceKind(EVIDENCE_KIND[nextMethod]);
     setParameters({});
     setAnchors([]);
-  }, [method]);
+  };
+
+  const refetchSync = syncQuery.refetch;
+  const refetchRuns = runsQuery.refetch;
+  const refetchRun = runQuery.refetch;
 
   useEffect(() => {
     if (!jobQuery.data || !['succeeded', 'failed', 'canceled'].includes(jobQuery.data.status)) return;
-    void syncQuery.refetch();
-    void runsQuery.refetch();
-    void runQuery.refetch();
-  }, [jobQuery.data?.status]);
+    void refetchSync();
+    void refetchRuns();
+    void refetchRun();
+  }, [jobQuery.data, refetchRun, refetchRuns, refetchSync]);
 
   const submittedInputs = useMemo(
     () => evidence.map((item) => item.id),
@@ -243,7 +251,7 @@ export function SyncPage() {
                 <button
                   key={item.value}
                   type="button"
-                  onClick={() => setMethod(item.value)}
+                  onClick={() => selectMethod(item.value)}
                   aria-pressed={selected}
                   className={`min-h-40 rounded-xl border p-3 text-left transition ${
                     selected
@@ -712,7 +720,11 @@ function ReviewPanel({
   sessionId?: string;
   approvedRunId?: string | null;
 }) {
-  const valid = run?.status === 'succeeded' && run.outcome === 'proposal';
+  const valid = (
+    run?.status === 'succeeded'
+    && run.outcome === 'proposal'
+    && !run.review_decision
+  );
   const result = run?.result ?? {};
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="review-heading">
@@ -738,6 +750,16 @@ function ReviewPanel({
             </div>
           )}
           <MetricList metrics={run.metrics} />
+          {run.review_decision && (
+            <p className={`mt-3 rounded-lg p-2 text-xs font-medium ${
+              run.review_decision === 'approved'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-red-50 text-red-700'
+            }`}>
+              Run {run.review_decision === 'approved' ? 'aprovado' : 'rejeitado'}
+              {run.review_justification ? ` · ${run.review_justification}` : ''}
+            </p>
+          )}
           <label className="mt-3 block">
             <span className="text-xs font-medium text-slate-700">Justificativa da decisão</span>
             <textarea className={`${INPUT} mt-1`} rows={3} value={justification} onChange={(e) => setJustification(e.target.value)} placeholder="Obrigatória para aprovar ou rejeitar" />

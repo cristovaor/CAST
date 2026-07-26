@@ -25,8 +25,23 @@ else:
     exit(1)
 "
 
-echo "Creating base tables via SQLAlchemy..."
-python -c "from app.db.base import Base; from app.db.session import engine; Base.metadata.create_all(bind=engine)"
+echo "Inspecting database bootstrap state..."
+if python -c "
+import sys
+from sqlalchemy import inspect
+from app.db.session import engine
 
-echo "Running Alembic migrations..."
-alembic upgrade head
+with engine.connect() as connection:
+    public_tables = inspect(connection).get_table_names()
+sys.exit(0 if not public_tables else 1)
+"; then
+    echo "Empty database detected; creating the current baseline schema..."
+    python -c "from app.db.base import Base; from app.db.session import engine; Base.metadata.create_all(bind=engine)"
+    echo "Stamping the baseline at the current Alembic head..."
+    alembic stamp head
+else
+    echo "Existing database detected; running Alembic migrations..."
+    alembic upgrade head
+    echo "Reconciling tables that are managed by SQLAlchemy..."
+    python -c "from app.db.base import Base; from app.db.session import engine; Base.metadata.create_all(bind=engine)"
+fi

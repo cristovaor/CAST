@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from uuid import UUID
 
 from app.db.models import (
     EEGAsset,
@@ -122,9 +123,13 @@ def test_evidence_run_idempotency_conflict_and_reference_protection(
         )
         assert conflict.status_code == 409
 
-        job = db.query(ProcessingJob).filter_by(id=first.json()["job_id"]).one()
+        job = db.query(ProcessingJob).filter_by(
+            id=UUID(first.json()["job_id"])
+        ).one()
         job.status = JobStatus.succeeded
-        run = db.query(SyncRun).filter_by(id=first.json()["run_id"]).one()
+        run = db.query(SyncRun).filter_by(
+            id=UUID(first.json()["run_id"])
+        ).one()
         run.status = "succeeded"
         db.commit()
 
