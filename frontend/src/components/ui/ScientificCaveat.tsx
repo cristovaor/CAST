@@ -34,7 +34,7 @@ const VARIANTS: Record<Variant, { icon: typeof Info; title: string; body: string
     title: 'Qualidade dos dados',
     body:
       'A qualidade de vídeo e EEG é avaliada de forma independente. Um único score não substitui a inspeção por canal, segmento e critério explícito.',
-    cls: 'bg-slate-50 border-slate-200 text-slate-700',
+    cls: 'bg-app-bg border-border text-text-secondary',
   },
 };
 

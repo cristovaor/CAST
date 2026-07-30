@@ -1,0 +1,216 @@
+# CAST — EasyPanel deployment that builds the images LOCALLY on the VPS from
+# the Dockerfiles in this repository (no registry required).
+#
+# ─── Triton is deliberately absent ────────────────────────────────────────
+# The GPU inference server from docker-compose.yml is NOT part of this stack:
+# the VPS has no NVIDIA GPU, and Triton would fail to start (or silently
+# reserve resources the box does not have). The worker reaches Triton lazily
+# through TRITON_SERVER_URL, so leaving it unset makes the worker fall back to
+# CPU execution. Do not add a triton service here without first confirming the
+# host actually exposes a GPU plus nvidia-container-toolkit.
+#
+# ─── Shared Postgres/Redis ────────────────────────────────────────────────
+# Postgres and Redis are NOT started here: they are the shared EasyPanel
+# services already running on the VPS. Services that talk to them must join the
+# overlay network those services live on ("easypanel-doutorado"), not just the
+# default network Compose creates for this project — otherwise their hostnames
+# do not resolve. Create the CAST database and role before the first deploy;
+# see docs/deployment/DEPLOY_EASYPANEL.md.
+#
+# Trade-off versus building in CI: no automated image scan or test gate runs
+# before the build. Run the test suite locally before deploying a new version.
+#
+# Usage on the VPS:
+#   docker compose -f docker-compose.easypanel.build.yml up -d --build
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-shared-services-networks: &shared_services_networks
+  networks:
+    - default
+    - easypanel-doutorado
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://api.cast.crlabs.com.br/api/v1}
+        # Public Firebase web config; empty values disable the Google button.
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
+    environment:
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+    expose:
+      - "8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+    logging: *default-logging
+    restart: unless-stopped
+
+  backend:
+    <<: *shared_services_networks
+    build:
+      context: ./src
+      dockerfile: Dockerfile.api
+    command: bash -c "chmod +x ./prestart.sh && ./prestart.sh && uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers ${API_WORKERS:-2}"
+    environment: &backend_environment
+      ENVIRONMENT: production
+      PYTHONPATH: /app
+      # Browser origins allowed to call the API. Must list the real frontend
+      # origin: unset would fall back to "*", which with credentials enabled
+      # lets any site drive the API using a logged-in user's token.
+      CORS_ORIGINS: ${CORS_ORIGINS:?required}
+      # Shared EasyPanel Postgres. POSTGRES_SERVER is the service hostname on
+      # the overlay network, not localhost.
+      POSTGRES_SERVER: ${POSTGRES_SERVER:?required}
+      POSTGRES_USER: ${POSTGRES_USER:?required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: ${POSTGRES_DB:-cast_db}
+      REDIS_URL: ${REDIS_URL:?required}
+      SECRET_KEY: ${SECRET_KEY:?required}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-11520}
+      # Object storage stays local to this stack (see the minio service below).
+      MINIO_URL: http://minio:9000
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://cast.crlabs.com.br/storage}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?required}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?required}
+      # ── Invite-only Google login ──────────────────────────────────────
+      # Must equal the Firebase project ID: it is the expected audience of
+      # every ID token. Empty disables Google login server-side.
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      INVITATION_ACCEPT_URL: ${INVITATION_ACCEPT_URL:-https://cast.crlabs.com.br/accept-invite}
+      INVITATION_EXPIRE_HOURS: ${INVITATION_EXPIRE_HOURS:-168}
+      # ── Invitation e-mail delivery ────────────────────────────────────
+      # With SMTP_HOST empty the invitation is still created and the link is
+      # returned to the admin to share manually.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-CAST Platform <no-reply@crlabs.com.br>}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_SSL: ${SMTP_SSL:-false}
+    expose:
+      - "8080"
+    volumes:
+      - cast_models:/app/models
+    depends_on:
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8080/api/v1/health/', timeout=5).status == 200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 2G
+    logging: *default-logging
+    restart: unless-stopped
+
+  worker:
+    <<: *shared_services_networks
+    build:
+      context: ./src
+      dockerfile: Dockerfile.worker
+    command: celery -A app.workers.celery_app worker -l info --concurrency=${WORKER_CONCURRENCY:-2}
+    environment:
+      <<: *backend_environment
+      # TRITON_SERVER_URL is intentionally unset: there is no GPU on this host,
+      # so the worker runs its models on CPU instead of failing to reach Triton.
+      TF_CPP_MIN_LOG_LEVEL: "2"
+    volumes:
+      - cast_models:/app/models
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.workers.celery_app", "inspect", "ping", "-d", "celery@$$HOSTNAME"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          # ML inference on CPU is memory-hungry; below ~4G the extraction jobs
+          # get OOM-killed mid-video.
+          cpus: "3.00"
+          memory: 6G
+    logging: *default-logging
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?required}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?required}
+    expose:
+      - "9000"
+      - "9001"
+    volumes:
+      - cast_minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+    logging: *default-logging
+    restart: unless-stopped
+
+networks:
+  default: {}
+  # Pre-existing EasyPanel overlay network carrying the shared Postgres/Redis.
+  # Must already exist on the VPS — adjust the name if the EasyPanel project is
+  # not "doutorado" (check with `docker network ls`).
+  easypanel-doutorado:
+    external: true
+
+volumes:
+  cast_minio: {}
+  cast_models: {}

@@ -36,10 +36,10 @@ export function ParticipantTable({ participants }: ParticipantTableProps) {
       <table className="w-full text-sm text-left">
         <thead className="bg-muted/50 text-muted-foreground border-b">
           <tr>
-            <th className="h-12 px-4 font-medium">Código Pseudonimizado</th>
-            <th className="h-12 px-4 font-medium">Grupo Experimental</th>
-            <th className="h-12 px-4 font-medium">Status do Consentimento</th>
-            <th className="h-12 px-4 font-medium text-right">Ações</th>
+            <th scope="col" className="h-12 px-4 font-medium">Código Pseudonimizado</th>
+            <th scope="col" className="h-12 px-4 font-medium">Grupo Experimental</th>
+            <th scope="col" className="h-12 px-4 font-medium">Status do Consentimento</th>
+            <th scope="col" className="h-12 px-4 font-medium text-right">Ações</th>
           </tr>
         </thead>
         <tbody>

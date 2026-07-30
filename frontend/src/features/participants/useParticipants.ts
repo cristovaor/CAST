@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { toast } from '@/app/stores/useToastStore';
 import type {
   Participant,
   ParticipantCreate,
@@ -24,6 +25,7 @@ export function useCreateParticipant() {
     mutationFn: (data: ParticipantCreate) => apiClient.post<Participant>('/participants/', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['participants'] });
+      toast.success('Participante criado');
     },
   });
 }
@@ -38,6 +40,7 @@ export function useUpdateParticipant() {
       queryClient.invalidateQueries({ queryKey: ['participants'] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'participant', participant.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
+      toast.success('Participante atualizado');
     },
   });
 }
@@ -52,6 +55,7 @@ export function useDeactivateParticipant() {
       queryClient.invalidateQueries({ queryKey: ['participants'] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'participant', participant.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
+      toast.success('Participante desativado');
     },
   });
 }
@@ -66,6 +70,7 @@ export function useActivateParticipant() {
       queryClient.invalidateQueries({ queryKey: ['participants'] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'participant', participant.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
+      toast.success('Participante reativado');
     },
   });
 }
@@ -73,5 +78,8 @@ export function useActivateParticipant() {
 export function useRequestParticipantDeletion() {
   return useMutation({
     mutationFn: (participantId: string) => apiClient.post(`/participants/${participantId}/deletion-request`),
+    onSuccess: () => {
+      toast.success('Solicitação de exclusão registrada', 'A remoção será processada conforme a política de retenção.');
+    },
   });
 }

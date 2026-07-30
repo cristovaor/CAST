@@ -79,20 +79,20 @@ export function EEGQualityPage() {
   };
 
   return (
-    <div className="min-h-full bg-slate-50/50 pb-12">
+    <div className="min-h-full bg-app-bg pb-12">
       <PageHeader
         title="Importação & qualidade — EEG"
         description="Avaliação independente do sinal de eletroencefalografia, com métricas por canal, segmentos afetados, percentual válido e critérios explícitos."
         context={
           <>
             <ToneBadge tone={verdict.tone}>{verdict.label}</ToneBadge>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><Activity size={12} /> {r.device}</span>
-            <span className="text-[11px] text-slate-500">{r.channelCount} canais · {r.samplingRateHz} Hz · {r.montage}</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-text-muted"><Activity size={12} /> {r.device}</span>
+            <span className="text-[11px] text-text-muted">{r.channelCount} canais · {r.samplingRateHz} Hz · {r.montage}</span>
           </>
         }
         actions={
           <div className="flex items-center gap-3">
-            <Link to={`/app/sessions/${sessionId}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+            <Link to={`/app/sessions/${sessionId}`} className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary">
               <ArrowLeft size={15} /> Sessão
             </Link>
             {eegId && (
@@ -100,7 +100,7 @@ export function EEGQualityPage() {
                 <button
                   onClick={() => parseEEG.mutate({ sync: true })}
                   disabled={parseEEG.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary hover:bg-app-bg disabled:opacity-50"
                   title="Extrai metadados e qualidade do arquivo (EDF/BrainVision/FIF/CSV)"
                 >
                   <RefreshCw size={14} className={parseEEG.isPending ? 'animate-spin' : ''} /> Reprocessar arquivo
@@ -108,7 +108,7 @@ export function EEGQualityPage() {
                 <button
                   onClick={() => qualityCheck.mutate()}
                   disabled={qualityCheck.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary hover:bg-app-bg disabled:opacity-50"
                 >
                   <RefreshCw size={14} className={qualityCheck.isPending ? 'animate-spin' : ''} /> Reavaliar qualidade
                 </button>
@@ -126,8 +126,8 @@ export function EEGQualityPage() {
 
         {/* Metadata + summary */}
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 lg:col-span-2">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">Metadados do registro</h3>
+          <div className="rounded-xl border border-border bg-surface p-4 lg:col-span-2">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">Metadados do registro</h3>
             <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-3 text-[12px]">
               <Meta label="Formato" value={r.format} />
               <Meta label="Fabricante" value={r.manufacturer} />
@@ -141,30 +141,30 @@ export function EEGQualityPage() {
               <Meta label="Impedância" value={r.hasImpedance ? 'Disponível' : '—'} />
               <Meta label="Eletrodos" value={r.hasElectrodeFile ? 'Arquivo presente' : '—'} />
             </dl>
-            <div className="mt-3 pt-3 border-t border-slate-100">
-              <p className="text-[11px] text-slate-400 mb-1">Formatos suportados conceitualmente</p>
+            <div className="mt-3 pt-3 border-t border-border">
+              <p className="text-[11px] text-text-muted mb-1">Formatos suportados conceitualmente</p>
               <div className="flex flex-wrap gap-1.5">
                 {EEG_FORMATS.map((f) => (
-                  <span key={f} className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${f === r.format ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>{f}</span>
+                  <span key={f} className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${f === r.format ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-app-bg border-border text-text-muted'}`}>{f}</span>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">Percentual válido</h3>
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">Percentual válido</h3>
             <div className="flex items-end gap-2">
-              <span className="text-4xl font-bold text-slate-900 tabular-nums">{Math.round(r.validRatio * 100)}</span>
-              <span className="text-slate-400 mb-1.5">% do registro</span>
+              <span className="text-4xl font-bold text-text-primary tabular-nums">{Math.round(r.validRatio * 100)}</span>
+              <span className="text-text-muted mb-1.5">% do registro</span>
             </div>
-            <div className="mt-3 h-2 rounded-full bg-slate-100 overflow-hidden">
+            <div className="mt-3 h-2 rounded-full bg-surface-muted overflow-hidden">
               <div className="h-full bg-emerald-500" style={{ width: `${r.validRatio * 100}%` }} />
             </div>
             <div className="mt-4">
-              <p className="text-[11px] text-slate-400 mb-1.5">Critérios utilizados</p>
+              <p className="text-[11px] text-text-muted mb-1.5">Critérios utilizados</p>
               <ul className="space-y-1">
                 {r.criteria.map((c) => (
-                  <li key={c} className="text-[11px] text-slate-600 font-mono leading-tight">• {c}</li>
+                  <li key={c} className="text-[11px] text-text-secondary font-mono leading-tight">• {c}</li>
                 ))}
               </ul>
             </div>
@@ -172,39 +172,39 @@ export function EEGQualityPage() {
         </div>
 
         {/* Per-channel quality */}
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-800">Qualidade por canal</h3>
-            <p className="text-[11px] text-slate-500">A qualidade não é reduzida a um único score — cada canal é avaliado separadamente.</p>
+        <div className="rounded-xl border border-border bg-surface overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold text-text-primary">Qualidade por canal</h3>
+            <p className="text-[11px] text-text-muted">A qualidade não é reduzida a um único score — cada canal é avaliado separadamente.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
               <thead>
-                <tr className="text-left text-slate-400 border-b border-slate-100">
-                  <th className="px-4 py-2 font-medium">Canal</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 font-medium">Impedância</th>
-                  <th className="px-4 py-2 font-medium">Válido</th>
-                  <th className="px-4 py-2 font-medium">Observações</th>
+                <tr className="text-left text-text-muted border-b border-border">
+                  <th scope="col" className="px-4 py-2 font-medium">Canal</th>
+                  <th scope="col" className="px-4 py-2 font-medium">Status</th>
+                  <th scope="col" className="px-4 py-2 font-medium">Impedância</th>
+                  <th scope="col" className="px-4 py-2 font-medium">Válido</th>
+                  <th scope="col" className="px-4 py-2 font-medium">Observações</th>
                 </tr>
               </thead>
               <tbody>
                 {r.channelQuality.map((ch) => {
                   const t = CHANNEL_TONE[ch.status];
                   return (
-                    <tr key={ch.name} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-                      <td className="px-4 py-2 font-mono font-semibold text-slate-700">{ch.name}</td>
+                    <tr key={ch.name} className="border-b border-border last:border-0 hover:bg-app-bg">
+                      <td className="px-4 py-2 font-mono font-semibold text-text-secondary">{ch.name}</td>
                       <td className="px-4 py-2"><ToneBadge tone={t.tone}>{t.label}</ToneBadge></td>
-                      <td className="px-4 py-2 tabular-nums text-slate-600">{ch.impedanceKOhm != null ? `${ch.impedanceKOhm.toFixed(1)} kΩ` : '—'}</td>
+                      <td className="px-4 py-2 tabular-nums text-text-secondary">{ch.impedanceKOhm != null ? `${ch.impedanceKOhm.toFixed(1)} kΩ` : '—'}</td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="w-16 h-1.5 rounded-full bg-surface-muted overflow-hidden">
                             <div className={`h-full ${ch.validRatio > 0.85 ? 'bg-emerald-500' : ch.validRatio > 0.5 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${ch.validRatio * 100}%` }} />
                           </div>
-                          <span className="tabular-nums text-slate-500">{Math.round(ch.validRatio * 100)}%</span>
+                          <span className="tabular-nums text-text-muted">{Math.round(ch.validRatio * 100)}%</span>
                         </div>
                       </td>
-                      <td className="px-4 py-2 text-slate-500">{ch.notes ?? '—'}</td>
+                      <td className="px-4 py-2 text-text-muted">{ch.notes ?? '—'}</td>
                     </tr>
                   );
                 })}
@@ -215,15 +215,15 @@ export function EEGQualityPage() {
 
         {/* Findings */}
         <div>
-          <h3 className="text-sm font-semibold text-slate-800 mb-3">Problemas identificados & decisões</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-3">Problemas identificados & decisões</h3>
           <QualityFindings findings={r.findings} />
         </div>
 
         {/* Reviewer decision — only when connected to a real EEG asset */}
         {eeg && (
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-slate-800">Decisão do pesquisador</h3>
-            <p className="text-[12px] text-slate-500 mt-0.5 mb-3">
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <h3 className="text-sm font-semibold text-text-primary">Decisão do pesquisador</h3>
+            <p className="text-[12px] text-text-muted mt-0.5 mb-3">
               O veredito de qualidade é uma decisão do pesquisador, registrada com os critérios utilizados — não um score automático.
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -231,7 +231,7 @@ export function EEGQualityPage() {
                 <button
                   key={v}
                   onClick={() => setReviewVerdict(v)}
-                  className={`rounded-md border px-3 py-1.5 text-[12px] font-medium transition-colors ${reviewVerdict === v ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  className={`rounded-md border px-3 py-1.5 text-[12px] font-medium transition-colors ${reviewVerdict === v ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-border text-text-secondary hover:bg-app-bg'}`}
                 >
                   {VERDICTS[v].label}
                 </button>
@@ -255,8 +255,8 @@ export function EEGQualityPage() {
 function Meta({ label, value }: { label: string; value?: string | number }) {
   return (
     <div>
-      <dt className="text-slate-400">{label}</dt>
-      <dd className="font-medium text-slate-700 mt-0.5">{value ?? '—'}</dd>
+      <dt className="text-text-muted">{label}</dt>
+      <dd className="font-medium text-text-secondary mt-0.5">{value ?? '—'}</dd>
     </div>
   );
 }

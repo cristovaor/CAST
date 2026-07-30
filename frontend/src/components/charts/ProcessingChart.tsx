@@ -12,7 +12,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-slate-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg">
-      <div className="text-slate-400 mb-0.5">{label}</div>
+      <div className="text-text-muted mb-0.5">{label}</div>
       <div className="font-semibold">{payload[0].value} vídeos processados</div>
     </div>
   );

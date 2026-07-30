@@ -43,7 +43,7 @@ function ChartFrame({
   if (variant === 'embedded') {
     return (
       <div className="w-full">
-        {title && <div className="text-xs font-medium text-slate-400 py-1">{title}</div>}
+        {title && <div className="text-xs font-medium text-text-muted py-1">{title}</div>}
         <div className="h-48">{children}</div>
       </div>
     );
@@ -103,7 +103,7 @@ export const EEGChart: React.FC<EEGChartProps> = ({ eegId, events, variant = 'ca
         <div
           className={cn(
             'h-full min-h-32 flex flex-col items-center justify-center gap-2 text-sm',
-            variant === 'embedded' ? 'text-slate-500' : 'text-muted-foreground',
+            variant === 'embedded' ? 'text-text-muted' : 'text-muted-foreground',
           )}
         >
           <BrainCircuit className="w-6 h-6 opacity-50" />
@@ -141,7 +141,7 @@ export const EEGChart: React.FC<EEGChartProps> = ({ eegId, events, variant = 'ca
     <ChartFrame variant={variant} title="Atividade Cerebral × Expressões Faciais">
       {activeActions.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-1 text-[10px]">
-          <span className={cn(variant === 'embedded' ? 'text-slate-500' : 'text-muted-foreground')}>
+          <span className={cn(variant === 'embedded' ? 'text-text-muted' : 'text-muted-foreground')}>
             Microações na janela:
           </span>
           {activeActions.map((action) => {
@@ -149,7 +149,7 @@ export const EEGChart: React.FC<EEGChartProps> = ({ eegId, events, variant = 'ca
             return (
               <span key={action} className="inline-flex items-center gap-1 font-medium">
                 <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: cfg.color }} />
-                <span className={cn(variant === 'embedded' ? 'text-slate-300' : 'text-slate-600')}>{cfg.label}</span>
+                <span className={cn(variant === 'embedded' ? 'text-text-disabled' : 'text-text-secondary')}>{cfg.label}</span>
               </span>
             );
           })}

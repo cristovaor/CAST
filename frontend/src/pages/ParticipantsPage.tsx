@@ -225,13 +225,13 @@ export function ParticipantsPage() {
                   <table className="min-w-[920px] w-full text-left text-sm text-text-secondary">
                     <thead className="border-b border-border bg-surface-muted font-medium text-text-secondary">
                       <tr>
-                        <th className="px-6 py-3">Código</th>
-                        {!routeStudyId && <th className="px-6 py-3">Estudo</th>}
-                        <th className="px-6 py-3">Grupo demográfico</th>
-                        <th className="px-6 py-3">Situação</th>
-                        <th className="px-6 py-3">Consentimento</th>
-                        <th className="px-6 py-3">Data de cadastro</th>
-                        <th className="px-6 py-3 text-right">Ações</th>
+                        <th scope="col" className="px-6 py-3">Código</th>
+                        {!routeStudyId && <th scope="col" className="px-6 py-3">Estudo</th>}
+                        <th scope="col" className="px-6 py-3">Grupo demográfico</th>
+                        <th scope="col" className="px-6 py-3">Situação</th>
+                        <th scope="col" className="px-6 py-3">Consentimento</th>
+                        <th scope="col" className="px-6 py-3">Data de cadastro</th>
+                        <th scope="col" className="px-6 py-3 text-right">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -324,7 +324,7 @@ function ParticipantStatusBadge({ active }: { active: boolean }) {
       'inline-flex shrink-0 rounded-full px-2 py-1 text-xs font-medium',
       active
         ? 'bg-blue-100 text-blue-700'
-        : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+        : 'bg-surface-muted text-text-secondary dark:bg-slate-800 dark:text-text-disabled',
     )}>
       {active ? 'Ativo' : 'Inativo'}
     </span>

@@ -92,10 +92,10 @@ function Field({ label, value, onChange, placeholder, required, mono }: {
 }) {
   return (
     <div className="space-y-1">
-      <label className="text-xs font-medium text-slate-600">{label}</label>
+      <label className="text-xs font-medium text-text-secondary">{label}</label>
       <input
         required={required} value={value} onChange={onChange} placeholder={placeholder}
-        className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none ${mono ? 'font-mono' : ''}`}
+        className={`w-full px-3 py-2 border border-border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none ${mono ? 'font-mono' : ''}`}
       />
     </div>
   );
@@ -107,8 +107,8 @@ function Select({ label, value, onChange, options }: {
 }) {
   return (
     <div className="space-y-1">
-      <label className="text-xs font-medium text-slate-600">{label}</label>
-      <select value={value} onChange={onChange} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      <label className="text-xs font-medium text-text-secondary">{label}</label>
+      <select value={value} onChange={onChange} className="w-full px-3 py-2 border border-border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     </div>

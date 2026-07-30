@@ -123,13 +123,78 @@ class User(Base):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
+    # Nullable since federated (Google) accounts are created by consuming an
+    # invitation and never hold a local password. A NULL hash must therefore be
+    # treated as "password login disabled", never as an empty password.
+    password_hash = Column(String, nullable=True)
     name = Column(String, nullable=False)
     role = Column(SQLEnum(UserRole), default=UserRole.researcher)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"))
+    is_active = Column(Boolean, nullable=False, server_default=text("true"))
     created_at = Column(DateTime, default=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="users")
+    identities = relationship(
+        "UserIdentity", back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class UserIdentity(Base):
+    """A federated login bound to a local user.
+
+    The provider subject ("sub") is the stable join key, not the e-mail: an
+    address can be reassigned by a workspace admin, while the subject cannot.
+    """
+
+    __tablename__ = "user_identities"
+    __table_args__ = (
+        UniqueConstraint("provider", "subject", name="uq_user_identities_provider_subject"),
+        Index("ix_user_identities_user_id", "user_id"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    provider = Column(String, nullable=False)
+    subject = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login_at = Column(DateTime)
+
+    user = relationship("User", back_populates="identities")
+
+
+class Invitation(Base):
+    """A single-use authorization to create an account.
+
+    Access is invite-only: a valid Google token alone never creates a user. The
+    token is stored only as a SHA-256 hash so a database leak cannot be replayed
+    to gain access; the plaintext is shown once at creation time.
+    """
+
+    __tablename__ = "invitations"
+    __table_args__ = (
+        Index(
+            "ix_invitations_email_pending",
+            "email",
+            "expires_at",
+            postgresql_where=text("consumed_at IS NULL AND revoked_at IS NULL"),
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String, nullable=False, index=True)
+    token_hash = Column(String, nullable=False, unique=True)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.researcher)
+    name = Column(String)
+    expires_at = Column(DateTime, nullable=False)
+    invited_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    consumed_at = Column(DateTime)
+    consumed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    revoked_at = Column(DateTime)
 
 class Project(Base):
     __tablename__ = "projects"

@@ -34,7 +34,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
       aria-label={`Projeto: ${project.name}`}
     >
       {/* Header */}
-      <div className="p-5 border-b border-slate-100">
+      <div className="p-5 border-b border-border">
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -43,7 +43,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
                 <QualityBadge level={qualityLevel} score={project.average_quality} size="sm" />
               )}
             </div>
-            <h3 className="font-semibold text-slate-900 leading-snug text-[15px] group-hover:text-blue-600 transition-colors line-clamp-1">
+            <h3 className="font-semibold text-text-primary leading-snug text-[15px] group-hover:text-blue-600 transition-colors line-clamp-1">
               {project.name}
             </h3>
           </div>
@@ -54,17 +54,17 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
               aria-label="Ações do projeto"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
-              className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-muted transition-colors"
             >
               <MoreHorizontal size={16} />
             </button>
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 z-20 w-44 py-1 bg-white rounded-xl border border-slate-200 shadow-dropdown animate-scale-in">
+                <div className="absolute right-0 z-20 w-44 py-1 bg-surface rounded-xl border border-border shadow-dropdown animate-scale-in">
                   <button
                     onClick={() => { navigate(`/app/projects/${project.id}`); setMenuOpen(false); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-text-secondary hover:bg-app-bg transition-colors"
                   >
                     <ArrowUpRight size={13} />
                     Abrir projeto
@@ -72,7 +72,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
                   {onEdit && (
                     <button
                       onClick={() => { onEdit(project.id); setMenuOpen(false); }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-text-secondary hover:bg-app-bg transition-colors"
                     >
                       Editar
                     </button>
@@ -80,7 +80,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
                   {onArchive && (
                     <button
                       onClick={() => { onArchive(project.id); setMenuOpen(false); }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-text-secondary hover:bg-app-bg transition-colors"
                     >
                       Arquivar
                     </button>
@@ -101,14 +101,14 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
 
         {/* Description */}
         {project.description && (
-          <p className="text-[12px] text-slate-400 line-clamp-2 leading-relaxed">
+          <p className="text-[12px] text-text-muted line-clamp-2 leading-relaxed">
             {project.description}
           </p>
         )}
       </div>
 
       {/* Stats */}
-      <div className="px-5 py-3.5 grid grid-cols-3 gap-3 border-b border-slate-100">
+      <div className="px-5 py-3.5 grid grid-cols-3 gap-3 border-b border-border">
         <Stat icon={FlaskConical} label="Estudos"  value={project.study_count   ?? 0} />
         <Stat icon={Users}        label="Sessões"  value={project.session_count ?? 0} />
         <Stat icon={Video}        label="Vídeos"   value={project.video_count   ?? 0} />
@@ -116,9 +116,9 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
 
       {/* Quality bar */}
       {hasData && (
-        <div className="px-5 py-3 border-b border-slate-100">
+        <div className="px-5 py-3 border-b border-border">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
               Qualidade média
             </span>
             <span className={cn(
@@ -128,7 +128,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
               {qualityPct.toFixed(0)}%
             </span>
           </div>
-          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-surface-muted rounded-full overflow-hidden">
             <div
               className={cn(
                 'h-full rounded-full transition-all duration-500',
@@ -160,8 +160,8 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
             </div>
           ))}
           {(project.responsible?.length ?? 0) > 3 && (
-            <div className="w-6 h-6 rounded-full ring-2 ring-white bg-slate-100 flex items-center justify-center">
-              <span className="text-[8px] font-semibold text-slate-500">
+            <div className="w-6 h-6 rounded-full ring-2 ring-white bg-surface-muted flex items-center justify-center">
+              <span className="text-[8px] font-semibold text-text-muted">
                 +{(project.responsible?.length ?? 0) - 3}
               </span>
             </div>
@@ -170,7 +170,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
 
         {/* Last activity */}
         {project.last_activity && (
-          <div className="flex items-center gap-1 text-[10px] text-slate-400">
+          <div className="flex items-center gap-1 text-[10px] text-text-muted">
             <Calendar size={10} />
             {formatRelativeTime(project.last_activity)}
           </div>
@@ -179,7 +179,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
 
       {/* No-data overlay */}
       {!hasData && project.status === 'draft' && (
-        <div className="absolute inset-x-0 bottom-0 h-1 bg-slate-200 rounded-b-xl" />
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-surface-muted rounded-b-xl" />
       )}
     </div>
   );
@@ -196,8 +196,8 @@ function Stat({
 }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <div className="text-[13px] font-bold text-slate-800">{value}</div>
-      <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
+      <div className="text-[13px] font-bold text-text-primary">{value}</div>
+      <div className="flex items-center gap-1 text-[10px] text-text-muted font-medium">
         <Icon size={9} />
         {label}
       </div>

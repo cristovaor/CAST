@@ -8,9 +8,13 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
+# "*" with allow_credentials is rejected by browsers anyway, and would let any
+# site drive the API with a logged-in user's token. In production the allowed
+# origins must be listed explicitly via CORS_ORIGINS; local development keeps
+# the permissive default so the Vite dev server works untouched.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS_LIST,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -21,7 +25,7 @@ def root():
     return {"message": "Welcome to CAST Platform API"}
 
 from app.api.v1 import routes_projects, routes_studies, routes_participants, routes_videos, routes_assessments, routes_reports, routes_jobs, routes_exports, routes_auth, routes_annotations, routes_dashboard, routes_settings, routes_users, routes_inference, routes_models_v2, routes_model_testing, routes_health, routes_eeg, routes_sessions, routes_audit
-from app.api.v1 import routes_sync, routes_datasets, routes_variables, routes_governance, routes_study_groups
+from app.api.v1 import routes_sync, routes_datasets, routes_variables, routes_governance, routes_study_groups, routes_invitations
 # Authentication and health checks are the only public API surfaces. Applying
 # the dependency at router registration makes new endpoints secure by default;
 # route-level dependencies still provide the user object where ownership or
@@ -50,6 +54,7 @@ protected_routers = (
     routes_dashboard.router,
     routes_settings.router,
     routes_users.router,
+    routes_invitations.router,
     routes_inference.router,
     routes_models_v2.router,
     routes_model_testing.router,

@@ -9,6 +9,8 @@ import {
   useVideoTimeline,
   useVideoPlaybackUrl,
 } from '@/features/videos/useVideos';
+import { LoadingState } from '@/components/feedback/LoadingState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { getMicroActionConfig } from '@/lib/utils';
 import type { MicroAction } from '@/types/domain';
 import type { TimelineEventDTO } from '@/features/videos/types';
@@ -26,9 +28,12 @@ function formatClock(ms: number): string {
 
 export function TimelinePage() {
   const { videoId } = useParams<{ videoId: string }>();
-  const { data: videoAsset } = useVideoDetails(videoId!);
-  const { data: timelineData } = useVideoTimeline(videoId!);
-  const { data: playback } = useVideoPlaybackUrl(videoId!);
+  const videoQuery = useVideoDetails(videoId!);
+  const timelineQuery = useVideoTimeline(videoId!);
+  const playbackQuery = useVideoPlaybackUrl(videoId!);
+  const { data: videoAsset } = videoQuery;
+  const { data: timelineData } = timelineQuery;
+  const { data: playback } = playbackQuery;
   const requestSeek = usePlaybackStore((s) => s.requestSeek);
   const currentTimeMs = usePlaybackStore((s) => s.currentTimeMs);
 
@@ -75,6 +80,38 @@ export function TimelinePage() {
     });
   };
 
+  if (videoQuery.isLoading || timelineQuery.isLoading) {
+    return (
+      <div className="min-h-full flex flex-col">
+        <PageHeader
+          title="Timeline de Microações"
+          description="Microações faciais sincronizadas com o vídeo e o EEG."
+        />
+        <LoadingState message="Carregando timeline do vídeo..." />
+      </div>
+    );
+  }
+
+  if (videoQuery.isError || timelineQuery.isError) {
+    return (
+      <div className="min-h-full flex flex-col">
+        <PageHeader
+          title="Timeline de Microações"
+          description="Microações faciais sincronizadas com o vídeo e o EEG."
+        />
+        <ErrorState
+          title="Não foi possível carregar a timeline"
+          message={
+            (videoQuery.error ?? timelineQuery.error) instanceof Error
+              ? (videoQuery.error ?? timelineQuery.error)!.message
+              : 'Verifique se o vídeo existe e se a inferência já foi executada.'
+          }
+          onRetry={() => { void videoQuery.refetch(); void timelineQuery.refetch(); }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-full flex flex-col">
       <PageHeader
@@ -95,7 +132,7 @@ export function TimelinePage() {
 
             <div className="card p-4">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                <h3 className="text-sm font-semibold text-slate-800">Trilhas sincronizadas</h3>
+                <h3 className="text-sm font-semibold text-text-primary">Trilhas sincronizadas</h3>
 
                 {/* Action filters */}
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -125,7 +162,7 @@ export function TimelinePage() {
               </div>
 
               {/* Confidence filter */}
-              <div className="flex items-center gap-3 mb-4 text-xs text-slate-500">
+              <div className="flex items-center gap-3 mb-4 text-xs text-text-muted">
                 <span className="shrink-0">Confiança mínima</span>
                 <input
                   type="range"
@@ -136,7 +173,7 @@ export function TimelinePage() {
                   onChange={(e) => setMinConfidence(Number(e.target.value))}
                   className="flex-1 h-1.5 accent-blue-500 cursor-pointer"
                 />
-                <span className="tabular-nums font-medium text-slate-600 w-10 text-right">
+                <span className="tabular-nums font-medium text-text-secondary w-10 text-right">
                   {(minConfidence * 100).toFixed(0)}%
                 </span>
               </div>
@@ -147,15 +184,15 @@ export function TimelinePage() {
 
           {/* Event list with jump-to-event */}
           <div className="card overflow-hidden self-start">
-            <div className="px-4 py-3 border-b border-slate-100">
-              <h3 className="text-sm font-semibold text-slate-800">
+            <div className="px-4 py-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-text-primary">
                 Eventos ({filteredEvents.length})
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">Clique para saltar no vídeo</p>
+              <p className="text-xs text-text-muted mt-0.5">Clique para saltar no vídeo</p>
             </div>
-            <div className="max-h-[32rem] overflow-y-auto divide-y divide-slate-50">
+            <div className="max-h-[32rem] overflow-y-auto divide-y divide-border">
               {filteredEvents.length === 0 && (
-                <p className="px-4 py-8 text-center text-sm text-slate-400">
+                <p className="px-4 py-8 text-center text-sm text-text-muted">
                   Nenhum evento com os filtros atuais.
                 </p>
               )}
@@ -170,7 +207,7 @@ export function TimelinePage() {
                     <button
                       key={ev.event_id}
                       onClick={() => requestSeek(startMs)}
-                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors ${
+                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-app-bg transition-colors ${
                         active ? 'bg-blue-50/60' : ''
                       }`}
                     >
@@ -179,14 +216,14 @@ export function TimelinePage() {
                         style={{ backgroundColor: cfg.color }}
                       />
                       <span className="flex-1 min-w-0">
-                        <span className="block text-xs font-medium text-slate-700 truncate">
+                        <span className="block text-xs font-medium text-text-secondary truncate">
                           {cfg.label}
                         </span>
-                        <span className="block text-[11px] text-slate-400 font-mono">
+                        <span className="block text-[11px] text-text-muted font-mono">
                           {formatClock(startMs)} – {formatClock(ev.end_time * 1000)}
                         </span>
                       </span>
-                      <span className="text-[11px] font-semibold text-slate-500 tabular-nums">
+                      <span className="text-[11px] font-semibold text-text-muted tabular-nums">
                         {(ev.confidence_mean * 100).toFixed(0)}%
                       </span>
                       {active && <Crosshair size={13} className="text-blue-500 shrink-0" />}

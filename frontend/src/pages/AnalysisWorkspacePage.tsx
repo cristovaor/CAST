@@ -192,7 +192,7 @@ export function AnalysisWorkspacePage() {
                 landmarkChunkSizeFrames={landmarkArtifact?.chunkSizeFrames}
               />
             ) : (
-              <div className="flex aspect-video items-center justify-center rounded-xl border border-border bg-black/90 px-6 text-center text-sm text-slate-400">
+              <div className="flex aspect-video items-center justify-center rounded-xl border border-border bg-black/90 px-6 text-center text-sm text-text-muted">
                 {session.video_asset_id
                   ? 'O vídeo existe, mas ainda não possui URL de reprodução.'
                   : 'Nenhum vídeo foi coletado nesta sessão.'}
@@ -411,12 +411,12 @@ function EventTable({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-border text-[11px] uppercase tracking-wide text-text-muted">
-            <th className="px-3 py-2 font-semibold">Microação</th>
-            <th className="px-3 py-2 font-semibold">Origem</th>
-            <th className="px-3 py-2 font-semibold">Início</th>
-            <th className="px-3 py-2 font-semibold">Fim</th>
-            <th className="px-3 py-2 font-semibold">Confiança</th>
-            <th className="px-3 py-2 text-right font-semibold">Ação</th>
+            <th scope="col" className="px-3 py-2 font-semibold">Microação</th>
+            <th scope="col" className="px-3 py-2 font-semibold">Origem</th>
+            <th scope="col" className="px-3 py-2 font-semibold">Início</th>
+            <th scope="col" className="px-3 py-2 font-semibold">Fim</th>
+            <th scope="col" className="px-3 py-2 font-semibold">Confiança</th>
+            <th scope="col" className="px-3 py-2 text-right font-semibold">Ação</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">

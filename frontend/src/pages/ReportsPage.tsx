@@ -273,7 +273,7 @@ export function ReportsPage() {
             variant="empty"
             title="Selecione um estudo"
             description="Os modelos e a elegibilidade serão calculados a partir dos dados persistidos."
-            icon={<BarChart3 size={40} className="text-slate-300" />}
+            icon={<BarChart3 size={40} className="text-text-disabled" />}
           />
         ) : (
           <>
@@ -797,11 +797,11 @@ function ResultsTab({ preview }: { preview: ReportPreview }) {
       <table className="w-full text-left text-xs">
         <thead className="bg-[var(--surface-muted)] text-[var(--text-muted)]">
           <tr>
-            <th className="px-3 py-2">Desfecho</th>
-            <th className="px-3 py-2">n participantes</th>
-            <th className="px-3 py-2">Média (DP)</th>
-            <th className="px-3 py-2">Mediana [Q1; Q3]</th>
-            <th className="px-3 py-2">IC da média</th>
+            <th scope="col" className="px-3 py-2">Desfecho</th>
+            <th scope="col" className="px-3 py-2">n participantes</th>
+            <th scope="col" className="px-3 py-2">Média (DP)</th>
+            <th scope="col" className="px-3 py-2">Mediana [Q1; Q3]</th>
+            <th scope="col" className="px-3 py-2">IC da média</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)] text-[var(--text-secondary)]">
@@ -953,7 +953,7 @@ function GroupManager({
             comparações.
           </p>
         </div>
-        <Plus size={18} className="text-slate-400" />
+        <Plus size={18} className="text-text-muted" />
       </summary>
       <div className="border-t border-[var(--border)] p-5">
         <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
@@ -1071,7 +1071,7 @@ function JobProgress({
             </p>
           </div>
         </div>
-        <Clock3 size={17} className="text-slate-400" />
+        <Clock3 size={17} className="text-text-muted" />
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--surface)]">
         <div

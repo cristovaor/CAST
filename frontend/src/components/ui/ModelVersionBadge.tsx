@@ -21,14 +21,14 @@ export function ModelVersionBadge({
       className={cn(
         'inline-flex items-center gap-1.5 text-xs font-medium',
         'px-2 py-0.5 rounded-md border',
-        'bg-slate-50 text-slate-600 border-slate-200',
+        'bg-app-bg text-text-secondary border-border',
         className,
       )}
       aria-label={`Modelo: ${name ?? ''} v${version} (${framework})${active ? ', ativo' : ''}`}
     >
       <Cpu size={10} className="text-violet-500 shrink-0" />
-      {name && <span className="text-slate-700 font-semibold">{name}</span>}
-      <span className="font-mono text-slate-500">v{version}</span>
+      {name && <span className="text-text-secondary font-semibold">{name}</span>}
+      <span className="font-mono text-text-muted">v{version}</span>
       {active !== undefined && (
         <span
           className={cn(

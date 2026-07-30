@@ -107,7 +107,7 @@ export function GlobalSessionsPage() {
             variant="empty"
             title="Nenhuma sessão cadastrada"
             description="Comece registrando uma nova sessão vinculada a um estudo ativo."
-            icon={<Users size={40} className="text-slate-300" />}
+            icon={<Users size={40} className="text-text-disabled" />}
           />
         ) : (
           <>
@@ -182,7 +182,7 @@ export function GlobalSessionsPage() {
                 variant="empty"
                 title="Nenhuma sessão corresponde aos filtros"
                 description="Ajuste a busca ou limpe os filtros para ver outras sessões."
-                icon={<Users size={40} className="text-slate-300" />}
+                icon={<Users size={40} className="text-text-disabled" />}
               />
             ) : (
               <>
@@ -201,13 +201,13 @@ export function GlobalSessionsPage() {
                   <table className="min-w-[1040px] w-full divide-y divide-border">
                     <thead className="bg-surface-muted">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Sessão</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Estudo</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Participante</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Estado</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Data de criação</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Dados</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">Ação recomendada</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Sessão</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Estudo</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Participante</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Estado</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Data de criação</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Dados</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">Ação recomendada</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border bg-surface">

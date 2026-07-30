@@ -55,7 +55,7 @@ export function TestModelDialog({ versionId, children, onStarted }: TestModelDia
           <DialogTitle>Testar modelo contra vídeo(s)</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-muted">
             Roda esta versão do modelo (independentemente do status) contra os vídeos
             selecionados. Por padrão o resultado não altera a timeline oficial do vídeo —
             marque a opção abaixo se quiser salvá-lo como predição visível.
@@ -68,46 +68,46 @@ export function TestModelDialog({ versionId, children, onStarted }: TestModelDia
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-text-secondary">
               Vídeos ({selectedVideoIds.length} selecionado{selectedVideoIds.length === 1 ? '' : 's'})
             </label>
-            <div className="max-h-56 overflow-y-auto border border-slate-200 rounded-md divide-y divide-slate-100">
-              {videosLoading && <div className="p-3 text-xs text-slate-400">Carregando vídeos...</div>}
+            <div className="max-h-56 overflow-y-auto border border-border rounded-md divide-y divide-border">
+              {videosLoading && <div className="p-3 text-xs text-text-muted">Carregando vídeos...</div>}
               {!videosLoading && (videos?.length ?? 0) === 0 && (
-                <div className="p-3 text-xs text-slate-400">Nenhum vídeo encontrado.</div>
+                <div className="p-3 text-xs text-text-muted">Nenhum vídeo encontrado.</div>
               )}
               {videos?.map(video => (
-                <label key={video.id} className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">
+                <label key={video.id} className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-app-bg cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedVideoIds.includes(video.id)}
                     onChange={() => toggleVideo(video.id)}
-                    className="rounded border-slate-300"
+                    className="rounded border-border-strong"
                   />
                   <span className="truncate">{video.filename}</span>
-                  <span className="ml-auto text-xs text-slate-400">{video.status}</span>
+                  <span className="ml-auto text-xs text-text-muted">{video.status}</span>
                 </label>
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Threshold override (opcional)</label>
+            <label className="text-sm font-medium text-text-secondary">Threshold override (opcional)</label>
             <input
               type="number" min={0} max={1} step={0.01}
               value={thresholdOverride}
               onChange={e => setThresholdOverride(e.target.value)}
               placeholder="usa o threshold do manifesto"
-              className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none"
+              className="w-full px-3 py-2 border border-border rounded-md outline-none"
             />
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-text-secondary">
             <input
               type="checkbox"
               checked={persistAsPrediction}
               onChange={e => setPersistAsPrediction(e.target.checked)}
-              className="rounded border-slate-300"
+              className="rounded border-border-strong"
             />
             Salvar como predição oficial (aparece na timeline do vídeo)
           </label>

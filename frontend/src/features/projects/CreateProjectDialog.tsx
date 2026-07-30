@@ -73,8 +73,13 @@ export function CreateProjectDialog({
             <ActionButton variant="ghost" onClick={() => setOpen(false)} type="button">
               Cancelar
             </ActionButton>
-            <ActionButton variant="primary" type="submit" disabled={createProject.isPending}>
-              {createProject.isPending ? 'Criando...' : 'Criar Projeto'}
+            <ActionButton
+              variant="primary"
+              type="submit"
+              isLoading={createProject.isPending}
+              loadingText="Criando..."
+            >
+              Criar Projeto
             </ActionButton>
           </DialogFooter>
         </form>

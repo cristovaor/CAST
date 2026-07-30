@@ -45,6 +45,7 @@ export function SmartIntervalProposal({
         <button
           type="button"
           onClick={onCancel}
+          aria-label="Cancelar anotação"
           className="rounded p-1 text-text-muted hover:bg-surface-hover"
           title="Cancelar anotação"
         >

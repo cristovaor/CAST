@@ -44,7 +44,7 @@ type Anchor = { label: string; video_time_ms: number; eeg_time_ms: number };
 type Parameters = Record<string, string | number | boolean>;
 
 const INPUT =
-  'w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
+  'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
 const NO_EVIDENCE: SyncEvidenceDTO[] = [];
 const NO_RUNS: SyncRunDTO[] = [];
 
@@ -203,19 +203,19 @@ export function SyncPage() {
   }
 
   return (
-    <div className="min-h-full bg-slate-50/60 pb-14">
+    <div className="min-h-full bg-app-bg pb-14">
       <PageHeader
         title="Sincronização vídeo & EEG"
         description="Processamento assíncrono, rastreável e sujeito a revisão humana."
         context={
           <>
             <ToneBadge tone={state.tone}>{state.label}</ToneBadge>
-            <span className="text-[11px] text-slate-500">Mapeamento {sync.mapping_version}</span>
+            <span className="text-[11px] text-text-muted">Mapeamento {sync.mapping_version}</span>
             {sync.quality_grade && <QualityBadge grade={sync.quality_grade} />}
           </>
         }
         actions={
-          <Link to={`/app/sessions/${sessionId}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+          <Link to={`/app/sessions/${sessionId}`} className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary">
             <ArrowLeft size={15} /> Sessão
           </Link>
         }
@@ -228,10 +228,10 @@ export function SyncPage() {
 
         <ol className="grid grid-cols-2 gap-2 lg:grid-cols-4" aria-label="Etapas da sincronização">
           {['Método', 'Evidências e parâmetros', 'Processamento', 'Revisão'].map((label, index) => (
-            <li key={label} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700">
+            <li key={label} className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-text-secondary">
               <span className="grid h-6 w-6 place-items-center rounded-full bg-blue-50 text-blue-700">{index + 1}</span>
               {label}
-              {index < 3 && <ChevronRight className="ml-auto hidden text-slate-300 lg:block" size={14} />}
+              {index < 3 && <ChevronRight className="ml-auto hidden text-text-disabled lg:block" size={14} />}
             </li>
           ))}
         </ol>
@@ -239,8 +239,8 @@ export function SyncPage() {
         <section aria-labelledby="methods-heading">
           <div className="mb-3 flex items-end justify-between">
             <div>
-              <h2 id="methods-heading" className="text-sm font-semibold text-slate-900">1. Escolha o método</h2>
-              <p className="text-xs text-slate-500">Cada cartão informa exatamente o que já está disponível e o que ainda falta.</p>
+              <h2 id="methods-heading" className="text-sm font-semibold text-text-primary">1. Escolha o método</h2>
+              <p className="text-xs text-text-muted">Cada cartão informa exatamente o que já está disponível e o que ainda falta.</p>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -256,11 +256,11 @@ export function SyncPage() {
                   className={`min-h-40 rounded-xl border p-3 text-left transition ${
                     selected
                       ? 'border-blue-500 bg-blue-50/60 ring-2 ring-blue-100'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      : 'border-border bg-surface hover:border-border-strong'
                   }`}
                 >
-                  <p className="text-sm font-semibold text-slate-900">{item.label}</p>
-                  <p className="mt-1.5 text-[11px] leading-4 text-slate-500">{METHOD_SHORT[item.value]}</p>
+                  <p className="text-sm font-semibold text-text-primary">{item.label}</p>
+                  <p className="mt-1.5 text-[11px] leading-4 text-text-muted">{METHOD_SHORT[item.value]}</p>
                   <CapabilityStatus status={itemCapability?.status} />
                   {!!itemCapability?.missing_inputs.length && (
                     <ul className="mt-2 space-y-0.5 text-[10px] text-amber-700">
@@ -275,19 +275,19 @@ export function SyncPage() {
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-6">
-            <section className="rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="inputs-heading">
+            <section className="rounded-xl border border-border bg-surface p-4" aria-labelledby="inputs-heading">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 id="inputs-heading" className="text-sm font-semibold text-slate-900">2. Evidências e parâmetros</h2>
-                  <p className="mt-0.5 text-xs text-slate-500">{capability?.description ?? METHOD_SHORT[method]}</p>
+                  <h2 id="inputs-heading" className="text-sm font-semibold text-text-primary">2. Evidências e parâmetros</h2>
+                  <p className="mt-0.5 text-xs text-text-muted">{capability?.description ?? METHOD_SHORT[method]}</p>
                 </div>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600">
+                <span className="rounded-full bg-surface-muted px-2 py-1 text-[10px] font-medium text-text-secondary">
                   {evidence.length} evidência(s) versionada(s)
                 </span>
               </div>
 
               {['manual', 'reference_frame', 'semi_automatic'].includes(method) && (
-                <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-950">
+                <div className="mt-4 overflow-hidden rounded-xl border border-border bg-slate-950">
                   {playbackQuery.data?.url ? (
                     <MultimodalPlayer
                       videoUrl={playbackQuery.data.url}
@@ -297,7 +297,7 @@ export function SyncPage() {
                       videoId={session?.video_asset_id ?? undefined}
                     />
                   ) : (
-                    <div className="grid min-h-40 place-items-center px-6 text-center text-xs text-slate-400">
+                    <div className="grid min-h-40 place-items-center px-6 text-center text-xs text-text-muted">
                       O capturador interativo aparecerá quando a sessão possuir vídeo reproduzível. As âncoras também podem ser digitadas abaixo.
                     </div>
                   )}
@@ -317,14 +317,14 @@ export function SyncPage() {
                 }}
               />
 
-              <div className="mt-5 border-t border-slate-100 pt-4">
-                <h3 className="text-xs font-semibold text-slate-800">Adicionar evidência</h3>
+              <div className="mt-5 border-t border-border pt-4">
+                <h3 className="text-xs font-semibold text-text-primary">Adicionar evidência</h3>
                 <div className="mt-2 grid gap-2 md:grid-cols-[180px_minmax(0,1fr)_auto]">
                   <label>
                     <span className="sr-only">Tipo da evidência</span>
                     <input value={evidenceKind} onChange={(event) => setEvidenceKind(event.target.value)} className={INPUT} placeholder="tipo_da_evidência" />
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border-strong px-3 py-2 text-sm text-text-secondary hover:bg-app-bg">
                     <FileUp size={16} />
                     <span className="truncate">{evidenceFile?.name ?? 'Selecionar CSV, JSON, WAV ou log'}</span>
                     <input
@@ -344,7 +344,7 @@ export function SyncPage() {
                   </button>
                 </div>
                 {evidenceFile && (
-                  <p className="mt-1 text-[11px] text-slate-500">
+                  <p className="mt-1 text-[11px] text-text-muted">
                     {formatBytes(evidenceFile.size)} · checksum SHA-256 calculado no backend antes do processamento
                   </p>
                 )}
@@ -352,16 +352,16 @@ export function SyncPage() {
 
                 <ul className="mt-3 grid gap-2 md:grid-cols-2">
                   {evidence.map((item) => (
-                    <li key={item.id} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                      <FileUp className="shrink-0 text-slate-400" size={15} />
+                    <li key={item.id} className="flex items-center gap-3 rounded-lg border border-border bg-app-bg px-3 py-2">
+                      <FileUp className="shrink-0 text-text-muted" size={15} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-slate-700">{item.filename ?? item.kind}</p>
-                        <p className="truncate font-mono text-[9px] text-slate-400">{item.kind} · {item.checksum_sha256.slice(0, 16)}…</p>
+                        <p className="truncate text-xs font-medium text-text-secondary">{item.filename ?? item.kind}</p>
+                        <p className="truncate font-mono text-[9px] text-text-muted">{item.kind} · {item.checksum_sha256.slice(0, 16)}…</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => deleteEvidence.mutate(item.id)}
-                        className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        className="rounded p-1 text-text-muted hover:bg-red-50 hover:text-red-600"
                         aria-label={`Excluir evidência ${item.filename ?? item.kind}`}
                       >
                         <Trash2 size={14} />
@@ -371,8 +371,8 @@ export function SyncPage() {
                 </ul>
               </div>
 
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                <p className="max-w-xl text-[11px] text-slate-500">
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                <p className="max-w-xl text-[11px] text-text-muted">
                   O job recebe um manifesto imutável com parâmetros, âncoras e hashes das evidências. Repetir a mesma entrada reutiliza o mesmo run.
                 </p>
                 <button
@@ -520,7 +520,7 @@ function MethodFields({
   }
 
   return (
-    <div className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+    <div className="mt-4 rounded-lg bg-app-bg p-3 text-xs text-text-secondary">
       Use os uploads abaixo para fornecer os dois lados do pareamento. CSV/JSON são analisados no worker; sinais constantes, degenerados ou ambíguos terminam como <code>insufficient_evidence</code>.
     </div>
   );
@@ -561,16 +561,16 @@ function AnchorEditor({
     <div className="mt-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xs font-semibold text-slate-800">Âncoras temporais</h3>
-          <p className="text-[11px] text-slate-500">{frameMode ? 'Informe tempos já convertidos de frame/amostra.' : 'Capture ou edite pares no mesmo evento observável.'}</p>
+          <h3 className="text-xs font-semibold text-text-primary">Âncoras temporais</h3>
+          <p className="text-[11px] text-text-muted">{frameMode ? 'Informe tempos já convertidos de frame/amostra.' : 'Capture ou edite pares no mesmo evento observável.'}</p>
         </div>
-        <button type="button" onClick={add} className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"><Plus size={13} /> Âncora</button>
+        <button type="button" onClick={add} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs font-medium text-text-secondary hover:bg-app-bg"><Plus size={13} /> Âncora</button>
       </div>
       <div className="mt-3 grid gap-2 rounded-lg border border-blue-100 bg-blue-50/50 p-3 sm:grid-cols-[1fr_1fr_auto]">
-        <button type="button" onClick={() => setCapturedVideoMs(cursorMs)} className="rounded-md border border-blue-200 bg-white px-3 py-2 text-xs font-medium text-blue-800">
+        <button type="button" onClick={() => setCapturedVideoMs(cursorMs)} className="rounded-md border border-blue-200 bg-surface px-3 py-2 text-xs font-medium text-blue-800">
           Capturar cursor do vídeo · {capturedVideoMs == null ? '—' : `${formatNumber(capturedVideoMs)} ms`}
         </button>
-        <button type="button" onClick={() => setCapturedEegMs(toEegMs(cursorMs))} className="rounded-md border border-cyan-200 bg-white px-3 py-2 text-xs font-medium text-cyan-800">
+        <button type="button" onClick={() => setCapturedEegMs(toEegMs(cursorMs))} className="rounded-md border border-cyan-200 bg-surface px-3 py-2 text-xs font-medium text-cyan-800">
           Capturar cursor do EEG · {capturedEegMs == null ? '—' : `${formatNumber(capturedEegMs)} ms`}
         </button>
         <button type="button" onClick={addCaptured} disabled={capturedVideoMs == null || capturedEegMs == null} className="rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">
@@ -579,14 +579,14 @@ function AnchorEditor({
       </div>
       <div className="mt-2 space-y-2">
         {anchors.map((anchor, index) => (
-          <div key={`${anchor.label}-${index}`} className="grid gap-2 rounded-lg bg-slate-50 p-2 sm:grid-cols-[1fr_150px_150px_auto]">
+          <div key={`${anchor.label}-${index}`} className="grid gap-2 rounded-lg bg-app-bg p-2 sm:grid-cols-[1fr_150px_150px_auto]">
             <input aria-label={`Rótulo da âncora ${index + 1}`} className={INPUT} value={anchor.label} onChange={(e) => update(index, { label: e.target.value })} />
             <input aria-label={`Tempo de vídeo da âncora ${index + 1}`} type="number" step="any" className={INPUT} value={anchor.video_time_ms} onChange={(e) => update(index, { video_time_ms: Number(e.target.value) })} />
             <input aria-label={`Tempo de EEG da âncora ${index + 1}`} type="number" step="any" className={INPUT} value={anchor.eeg_time_ms} onChange={(e) => update(index, { eeg_time_ms: Number(e.target.value) })} />
-            <button type="button" onClick={() => setAnchors(anchors.filter((_, itemIndex) => itemIndex !== index))} className="rounded p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Remover âncora ${index + 1}`}><Trash2 size={15} /></button>
+            <button type="button" onClick={() => setAnchors(anchors.filter((_, itemIndex) => itemIndex !== index))} className="rounded p-2 text-text-muted hover:bg-red-50 hover:text-red-600" aria-label={`Remover âncora ${index + 1}`}><Trash2 size={15} /></button>
           </div>
         ))}
-        {!anchors.length && <p className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">Adicione ao menos uma âncora; duas ou mais permitem estimar drift.</p>}
+        {!anchors.length && <p className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-text-muted">Adicione ao menos uma âncora; duas ou mais permitem estimar drift.</p>}
       </div>
     </div>
   );
@@ -601,27 +601,27 @@ function Timeline({ durationMs, official, proposal }: { durationMs: number; offi
   const left = Math.max(0, Math.min(100, eegStartVideoMs / durationMs * 100));
   const anchors = Array.isArray(source?.anchors) ? source.anchors as Array<Record<string, unknown>> : [];
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="timeline-heading">
+    <section className="rounded-xl border border-border bg-surface p-4" aria-labelledby="timeline-heading">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 id="timeline-heading" className="text-sm font-semibold text-slate-900">Comparação temporal antes/depois</h2>
-          <p className="text-xs text-slate-500">Convenção: EEG = vídeo × (1 + drift/60000) − offset.</p>
+          <h2 id="timeline-heading" className="text-sm font-semibold text-text-primary">Comparação temporal antes/depois</h2>
+          <p className="text-xs text-text-muted">Convenção: EEG = vídeo × (1 + drift/60000) − offset.</p>
         </div>
-        <span className="font-mono text-[11px] text-slate-500">0:00 — {formatDuration(durationMs)}</span>
+        <span className="font-mono text-[11px] text-text-muted">0:00 — {formatDuration(durationMs)}</span>
       </div>
       <div className="mt-5 space-y-3">
         <Lane icon={<Video size={14} />} label="Vídeo" color="bg-blue-500" startPct={0} />
         <Lane icon={<Activity size={14} />} label="EEG bruto" color="bg-cyan-500" startPct={0} />
         <Lane icon={<Activity size={14} />} label="EEG alinhado" color="bg-emerald-500" startPct={left} />
       </div>
-      <div className="relative ml-24 mt-2 h-9 border-t border-slate-100">
+      <div className="relative ml-24 mt-2 h-9 border-t border-border">
         {anchors.map((anchor, index) => {
           const time = Number(anchor.video_time_ms ?? 0);
           const pct = Math.max(0, Math.min(100, time / durationMs * 100));
           return (
             <div key={index} className="absolute top-0 -translate-x-1/2" style={{ left: `${pct}%` }}>
               <div className={`h-3 w-px ${anchor.accepted === false ? 'bg-red-400' : 'bg-violet-500'}`} />
-              <span className="block max-w-20 truncate text-[9px] text-slate-400">{String(anchor.label ?? index + 1)}</span>
+              <span className="block max-w-20 truncate text-[9px] text-text-muted">{String(anchor.label ?? index + 1)}</span>
             </div>
           );
         })}
@@ -641,8 +641,8 @@ function Timeline({ durationMs, official, proposal }: { durationMs: number; offi
 function Lane({ icon, label, color, startPct }: { icon: ReactNode; label: string; color: string; startPct: number }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex w-20 items-center gap-1.5 text-[11px] font-medium text-slate-600">{icon}{label}</div>
-      <div className="relative h-8 flex-1 overflow-hidden rounded bg-slate-50">
+      <div className="flex w-20 items-center gap-1.5 text-[11px] font-medium text-text-secondary">{icon}{label}</div>
+      <div className="relative h-8 flex-1 overflow-hidden rounded bg-app-bg">
         <div className={`absolute inset-y-2 rounded-sm opacity-35 ${color}`} style={{ left: `${startPct}%`, right: 0 }} />
         {startPct > 0 && <div className="absolute inset-y-0 left-0 bg-amber-100/60" style={{ width: `${startPct}%` }} title="Região sem sobreposição" />}
       </div>
@@ -666,27 +666,27 @@ function JobPanel({
   retryPending: boolean;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="processing-heading">
-      <h2 id="processing-heading" className="text-sm font-semibold text-slate-900">3. Processamento</h2>
-      {!job && !run && <p className="mt-3 text-xs text-slate-500">Nenhum processamento iniciado nesta sessão.</p>}
+    <section className="rounded-xl border border-border bg-surface p-4" aria-labelledby="processing-heading">
+      <h2 id="processing-heading" className="text-sm font-semibold text-text-primary">3. Processamento</h2>
+      {!job && !run && <p className="mt-3 text-xs text-text-muted">Nenhum processamento iniciado nesta sessão.</p>}
       {(job || run) && (
         <>
           <div className="mt-3 flex items-center gap-2">
-            {job && ['queued', 'running'].includes(job.status) ? <Loader2 className="animate-spin text-blue-600" size={16} /> : <Clock3 className="text-slate-400" size={16} />}
-            <p className="text-xs font-medium text-slate-700">{job?.step ?? statusLabel(run?.status)}</p>
-            <span className="ml-auto font-mono text-xs text-slate-500">{Math.round(job?.progress ?? (run?.status === 'succeeded' ? 100 : 0))}%</span>
+            {job && ['queued', 'running'].includes(job.status) ? <Loader2 className="animate-spin text-blue-600" size={16} /> : <Clock3 className="text-text-muted" size={16} />}
+            <p className="text-xs font-medium text-text-secondary">{job?.step ?? statusLabel(run?.status)}</p>
+            <span className="ml-auto font-mono text-xs text-text-muted">{Math.round(job?.progress ?? (run?.status === 'succeeded' ? 100 : 0))}%</span>
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-muted">
             <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${job?.progress ?? (run?.status === 'succeeded' ? 100 : 0)}%` }} />
           </div>
-          <p className="mt-2 break-words text-[11px] text-slate-500">Run {run?.id ?? '—'} · {run?.algorithm_version ?? 'aguardando versão'}</p>
+          <p className="mt-2 break-words text-[11px] text-text-muted">Run {run?.id ?? '—'} · {run?.algorithm_version ?? 'aguardando versão'}</p>
           {(job?.error || run?.error_message) && <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700">{job?.error ?? run?.error_message}</p>}
           <div className="mt-3 flex gap-2">
             {job && ['queued', 'running'].includes(job.status) && (
               <button type="button" onClick={onCancel} disabled={cancelPending} className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-700"><X size={13} /> Cancelar</button>
             )}
             {job && ['failed', 'canceled'].includes(job.status) && (
-              <button type="button" onClick={onRetry} disabled={retryPending} className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700"><RotateCcw size={13} /> Repetir</button>
+              <button type="button" onClick={onRetry} disabled={retryPending} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-text-secondary"><RotateCcw size={13} /> Repetir</button>
             )}
           </div>
         </>
@@ -727,14 +727,14 @@ function ReviewPanel({
   );
   const result = run?.result ?? {};
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="review-heading">
-      <h2 id="review-heading" className="text-sm font-semibold text-slate-900">4. Revisão humana</h2>
+    <section className="rounded-xl border border-border bg-surface p-4" aria-labelledby="review-heading">
+      <h2 id="review-heading" className="text-sm font-semibold text-text-primary">4. Revisão humana</h2>
       {!!runs.length && (
         <select className={`${INPUT} mt-3`} value={reviewRunId ?? ''} onChange={(e) => setReviewRunId(e.target.value)}>
           {runs.map((item) => <option key={item.id} value={item.id}>{labelForMethod(item.method)} · {formatDate(item.created_at)}</option>)}
         </select>
       )}
-      {!run && <p className="mt-3 text-xs text-slate-500">Execute um método para produzir uma proposta revisável.</p>}
+      {!run && <p className="mt-3 text-xs text-text-muted">Execute um método para produzir uma proposta revisável.</p>}
       {run && (
         <>
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -761,7 +761,7 @@ function ReviewPanel({
             </p>
           )}
           <label className="mt-3 block">
-            <span className="text-xs font-medium text-slate-700">Justificativa da decisão</span>
+            <span className="text-xs font-medium text-text-secondary">Justificativa da decisão</span>
             <textarea className={`${INPUT} mt-1`} rows={3} value={justification} onChange={(e) => setJustification(e.target.value)} placeholder="Obrigatória para aprovar ou rejeitar" />
           </label>
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -782,24 +782,24 @@ function ReviewPanel({
 
 function RunHistory({ runs, selected, onSelect }: { runs: SyncRunDTO[]; selected?: string; onSelect: (id: string) => void }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="history-heading">
+    <section className="rounded-xl border border-border bg-surface p-4" aria-labelledby="history-heading">
       <div>
-        <h2 id="history-heading" className="text-sm font-semibold text-slate-900">Histórico versionado de runs</h2>
-        <p className="text-xs text-slate-500">Resultados pendentes ou rejeitados nunca substituem a sincronização oficial.</p>
+        <h2 id="history-heading" className="text-sm font-semibold text-text-primary">Histórico versionado de runs</h2>
+        <p className="text-xs text-text-muted">Resultados pendentes ou rejeitados nunca substituem a sincronização oficial.</p>
       </div>
       {!runs.length ? (
-        <p className="mt-4 text-xs text-slate-400">Nenhum run registrado.</p>
+        <p className="mt-4 text-xs text-text-muted">Nenhum run registrado.</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-xs">
-            <thead className="border-b border-slate-100 text-[10px] uppercase tracking-wide text-slate-400">
-              <tr><th className="pb-2">Criado</th><th className="pb-2">Método</th><th className="pb-2">Status</th><th className="pb-2">Offset</th><th className="pb-2">Drift</th><th className="pb-2">Incerteza</th><th className="pb-2">Decisão</th></tr>
+            <thead className="border-b border-border text-[10px] uppercase tracking-wide text-text-muted">
+              <tr><th scope="col" className="pb-2">Criado</th><th scope="col" className="pb-2">Método</th><th scope="col" className="pb-2">Status</th><th scope="col" className="pb-2">Offset</th><th scope="col" className="pb-2">Drift</th><th scope="col" className="pb-2">Incerteza</th><th scope="col" className="pb-2">Decisão</th></tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {runs.map((run) => (
-                <tr key={run.id} onClick={() => onSelect(run.id)} className={`cursor-pointer hover:bg-slate-50 ${selected === run.id ? 'bg-blue-50/50' : ''}`}>
-                  <td className="py-3 pr-4 text-slate-500">{formatDate(run.created_at)}</td>
-                  <td className="py-3 pr-4 font-medium text-slate-700">{labelForMethod(run.method)}</td>
+                <tr key={run.id} onClick={() => onSelect(run.id)} className={`cursor-pointer hover:bg-app-bg ${selected === run.id ? 'bg-blue-50/50' : ''}`}>
+                  <td className="py-3 pr-4 text-text-muted">{formatDate(run.created_at)}</td>
+                  <td className="py-3 pr-4 font-medium text-text-secondary">{labelForMethod(run.method)}</td>
                   <td className="py-3 pr-4">{run.outcome ?? run.status}</td>
                   <td className="py-3 pr-4 font-mono">{run.result.offset_ms == null ? '—' : `${formatNumber(Number(run.result.offset_ms))} ms`}</td>
                   <td className="py-3 pr-4 font-mono">{run.result.drift_ms_per_min == null ? '—' : formatNumber(Number(run.result.drift_ms_per_min))}</td>
@@ -833,11 +833,11 @@ function MetricList({ metrics }: { metrics: Record<string, unknown> }) {
   const entries = Object.entries(metrics).filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value)).slice(0, 8);
   if (!entries.length) return null;
   return (
-    <dl className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-100 px-3">
+    <dl className="mt-3 divide-y divide-border rounded-lg border border-border px-3">
       {entries.map(([key, value]) => (
         <div key={key} className="flex items-center justify-between gap-3 py-1.5 text-[11px]">
-          <dt className="truncate text-slate-500">{key.replaceAll('_', ' ')}</dt>
-          <dd className="font-mono text-slate-700">{typeof value === 'number' ? formatNumber(value) : String(value)}</dd>
+          <dt className="truncate text-text-muted">{key.replaceAll('_', ' ')}</dt>
+          <dd className="font-mono text-text-secondary">{typeof value === 'number' ? formatNumber(value) : String(value)}</dd>
         </div>
       ))}
     </dl>
@@ -846,15 +846,15 @@ function MetricList({ metrics }: { metrics: Record<string, unknown> }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-slate-50 px-3 py-2">
-      <p className="text-[9px] uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-0.5 truncate text-xs font-semibold text-slate-800">{value}</p>
+    <div className="rounded-lg bg-app-bg px-3 py-2">
+      <p className="text-[9px] uppercase tracking-wide text-text-muted">{label}</p>
+      <p className="mt-0.5 truncate text-xs font-semibold text-text-primary">{value}</p>
     </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="block"><span className="mb-1 block text-[11px] font-medium text-slate-600">{label}</span>{children}</label>;
+  return <label className="block"><span className="mb-1 block text-[11px] font-medium text-text-secondary">{label}</span>{children}</label>;
 }
 
 function MutationError({ error }: { error: Error | null }) {
@@ -863,7 +863,7 @@ function MutationError({ error }: { error: Error | null }) {
 }
 
 function LoadingState() {
-  return <div className="grid min-h-[40vh] place-items-center text-sm text-slate-500"><span className="inline-flex items-center gap-2"><Loader2 className="animate-spin" size={17} /> Carregando sincronização…</span></div>;
+  return <div className="grid min-h-[40vh] place-items-center text-sm text-text-muted"><span className="inline-flex items-center gap-2"><Loader2 className="animate-spin" size={17} /> Carregando sincronização…</span></div>;
 }
 
 function formatDuration(ms: number) {

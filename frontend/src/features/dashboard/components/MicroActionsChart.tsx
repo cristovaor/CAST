@@ -44,20 +44,37 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   );
 }
 
+const ALL_STUDIES = 'Todos os estudos';
+
 export function MicroActionsChart({ data, isLoading }: MicroActionsChartProps) {
-  const [filter] = useState('Todos os estudos');
+  const [filter, setFilter] = useState(ALL_STUDIES);
+
+  // Study options come from the data itself, so the filter always matches
+  // what is actually plotted.
+  const studies = useMemo(
+    () => [ALL_STUDIES, ...Array.from(new Set((data ?? []).map((d) => String(d.name))))],
+    [data],
+  );
+
+  // Reset to "all" if the selected study disappears from a refreshed dataset.
+  const activeFilter = studies.includes(filter) ? filter : ALL_STUDIES;
+
+  const visibleData = useMemo(
+    () => (activeFilter === ALL_STUDIES ? (data ?? []) : (data ?? []).filter((d) => String(d.name) === activeFilter)),
+    [data, activeFilter],
+  );
 
   const totals = useMemo(() => {
     const t = {} as Record<string, number>;
     ACTIONS.forEach(a => t[a] = 0);
-    if (!data) return t;
-    data.forEach(d => {
+    if (!visibleData) return t;
+    visibleData.forEach(d => {
       ACTIONS.forEach(a => {
         t[a] += Number(d[a] || 0);
       });
     });
     return t;
-  }, [data]);
+  }, [visibleData]);
 
   if (isLoading) {
     return (
@@ -77,18 +94,33 @@ export function MicroActionsChart({ data, isLoading }: MicroActionsChartProps) {
           <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">Distribuição de microações</h2>
           <p className="text-[13px] text-text-secondary mt-1">Eventos detectados por estudo e tipo de ação facial</p>
         </div>
-        <div className="shrink-0">
-          <button className="flex items-center gap-1.5 text-xs font-medium text-text-secondary bg-surface-muted border border-border px-2.5 py-1.5 rounded-md hover:bg-surface-hover transition-colors">
-            <Filter size={12} />
-            {filter}
-          </button>
+        <div className="shrink-0 relative">
+          <Filter
+            size={12}
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
+            aria-hidden="true"
+          />
+          <select
+            value={activeFilter}
+            onChange={(e) => setFilter(e.target.value)}
+            aria-label="Filtrar por estudo"
+            className={
+              'appearance-none text-xs font-medium text-text-secondary bg-surface-muted border border-border ' +
+              'pl-7 pr-2.5 py-1.5 rounded-md hover:bg-surface-hover transition-colors cursor-pointer ' +
+              'focus:outline-none focus:ring-2 focus:ring-blue-500/30'
+            }
+          >
+            {studies.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
         </div>
       </div>
 
       {/* Chart */}
       <div className="flex-1 min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, bottom: 0, left: -25 }} barSize={12} barGap={3}>
+          <BarChart data={visibleData} margin={{ top: 10, right: 10, bottom: 0, left: -25 }} barSize={12} barGap={3}>
             <CartesianGrid strokeDasharray="4 4" stroke="#F1F5F9" vertical={false} />
             <XAxis
               dataKey="name"

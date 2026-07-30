@@ -20,8 +20,8 @@ function SectionShell({ title, subtitle, children }: { title: string; subtitle?:
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-        {subtitle && <p className="text-sm text-slate-500">{subtitle}</p>}
+        <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+        {subtitle && <p className="text-sm text-text-muted">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -30,7 +30,7 @@ function SectionShell({ title, subtitle, children }: { title: string; subtitle?:
 
 function NotConfigured({ what }: { what: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-[13px] text-slate-500">
+    <div className="rounded-lg border border-dashed border-border-strong bg-app-bg p-4 text-[13px] text-text-muted">
       {what} não foi configurado para este estudo. Defina no{' '}
       <Link to="/app/studies/new" className="text-blue-600 hover:text-blue-700">assistente de estudo</Link>.
     </div>
@@ -45,7 +45,7 @@ export function StudyProtocolPage() {
   return (
     <SectionShell title="Protocolo" subtitle="Definição operacional do estudo: desenho, modalidades e grupos.">
       {cfg?.design || cfg?.modalities?.length ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 text-[13px]">
+        <div className="rounded-xl border border-border bg-surface p-4 space-y-2 text-[13px]">
           <Row k="Desenho" v={cfg?.design ? DESIGN_LABEL[cfg.design] ?? cfg.design : '—'} />
           <Row k="Modalidades" v={(cfg?.modalities ?? []).map((m) => MODALITY_LABEL[m] ?? m).join(' + ') || '—'} />
           {cfg?.groups && <Row k="Grupos / condições" v={cfg.groups} />}
@@ -69,11 +69,11 @@ export function StudyHypothesesPage() {
         <>
           <div className="space-y-2">
             {hypotheses.map((h) => (
-              <div key={h.code} className="rounded-lg border border-slate-200 bg-white p-3">
+              <div key={h.code} className="rounded-lg border border-border bg-surface p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-mono text-xs font-semibold text-blue-600">{h.code}</span>
                 </div>
-                <p className="text-[13px] text-slate-700">{h.statement}</p>
+                <p className="text-[13px] text-text-secondary">{h.statement}</p>
               </div>
             ))}
           </div>
@@ -94,8 +94,8 @@ export function StudyConditionsPage() {
   return (
     <SectionShell title="Condições experimentais" subtitle="Grupos, condições, estímulos e tarefas.">
       {groups ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-[13px] text-slate-700 whitespace-pre-line">{groups}</p>
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="text-[13px] text-text-secondary whitespace-pre-line">{groups}</p>
         </div>
       ) : (
         <NotConfigured what="As condições experimentais" />
@@ -117,7 +117,7 @@ export function StudyQualityPage() {
       {isLoading && (
         <div className="flex justify-center py-10">
           <div
-            className="h-7 w-7 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"
+            className="h-7 w-7 animate-spin rounded-full border-4 border-border border-t-blue-600"
             role="status"
             aria-label="Carregando qualidade"
           />
@@ -130,7 +130,7 @@ export function StudyQualityPage() {
       )}
       {quality && (
         <>
-          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          <div className="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-text-secondary">
             {quality.sessions_count} {quality.sessions_count === 1 ? 'sessão vinculada' : 'sessões vinculadas'} ao estudo.
             As médias abaixo consideram somente ativos com métricas persistidas.
           </div>
@@ -150,7 +150,7 @@ export function StudyQualityPage() {
             />
           </div>
           {quality.video.total_assets === 0 && quality.eeg.total_assets === 0 && (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-[13px] text-slate-500">
+            <div className="rounded-lg border border-dashed border-border-strong bg-app-bg p-4 text-[13px] text-text-muted">
               Ainda não há ativos de vídeo ou EEG vinculados às sessões deste estudo.
             </div>
           )}
@@ -180,33 +180,33 @@ function QualitySummaryCard({
     + (summary.verdicts.rejected ?? 0);
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className="rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <Icon size={16} className="text-slate-400" />
+        <p className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary">
+          <Icon size={16} className="text-text-muted" />
           {title}
         </p>
-        <span className="text-[11px] text-slate-400">
+        <span className="text-[11px] text-text-muted">
           {summary.assessed_assets} de {summary.total_assets} avaliados
         </span>
       </div>
-      <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">
+      <p className="mt-2 text-3xl font-bold tabular-nums text-text-primary">
         {formatQualityRatio(summary.average_valid_ratio)}
       </p>
-      <p className="text-[11px] text-slate-400">{metricLabel} (média dos ativos medidos)</p>
+      <p className="text-[11px] text-text-muted">{metricLabel} (média dos ativos medidos)</p>
       {secondaryMetricLabel && (
-        <p className="mt-2 text-xs text-slate-500">
-          {secondaryMetricLabel}: <span className="font-semibold text-slate-700">{formatQualityRatio(summary.average_face_detection_rate)}</span>
+        <p className="mt-2 text-xs text-text-muted">
+          {secondaryMetricLabel}: <span className="font-semibold text-text-secondary">{formatQualityRatio(summary.average_face_detection_rate)}</span>
         </p>
       )}
-      <div className="mt-4 flex flex-wrap gap-3 border-t border-slate-100 pt-3 text-[11px]">
+      <div className="mt-4 flex flex-wrap gap-3 border-t border-border pt-3 text-[11px]">
         <span className="inline-flex items-center gap-1 text-emerald-700">
           <CheckCircle2 size={13} /> {approved} aprovados
         </span>
         <span className="inline-flex items-center gap-1 text-amber-700">
           <AlertTriangle size={13} /> {needsAttention} requerem atenção
         </span>
-        <span className="text-slate-500">{summary.findings_count} achados</span>
+        <span className="text-text-muted">{summary.findings_count} achados</span>
       </div>
     </div>
   );
@@ -221,9 +221,9 @@ function formatQualityRatio(value: number | null) {
 export function StudyDatasetsPage() {
   return (
     <SectionShell title="Datasets do estudo" subtitle="Versões reprodutíveis geradas a partir das sessões.">
-      <Link to="/app/datasets" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-blue-300">
-        <Database size={16} className="text-slate-400" />
-        <span className="text-sm font-medium text-slate-700">Abrir gestão de datasets</span>
+      <Link to="/app/datasets" className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-3 hover:border-blue-300">
+        <Database size={16} className="text-text-muted" />
+        <span className="text-sm font-medium text-text-secondary">Abrir gestão de datasets</span>
       </Link>
     </SectionShell>
   );
@@ -265,8 +265,8 @@ export function StudySettingsPage() {
 function Row({ k, v }: { k: string; v?: string }) {
   return (
     <div className="grid grid-cols-[160px_1fr] gap-2">
-      <span className="text-slate-400">{k}</span>
-      <span className="text-slate-700 font-medium">{v ?? '—'}</span>
+      <span className="text-text-muted">{k}</span>
+      <span className="text-text-secondary font-medium">{v ?? '—'}</span>
     </div>
   );
 }

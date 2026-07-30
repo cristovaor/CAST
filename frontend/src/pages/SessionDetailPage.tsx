@@ -12,6 +12,8 @@ import {
 } from '@/types/research';
 import { useSessionDetail, useEEGAsset, useSync } from '@/features/multimodal/useMultimodal';
 import { useVideoQualityReport } from '@/features/videos/useVideos';
+import { LoadingState } from '@/components/feedback/LoadingState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 
 // The session is the hub that gathers every modality from one experimental
 // period (docs §8). Modalities are complementary and never all required.
@@ -25,18 +27,18 @@ function ModalityCard({
   children: React.ReactNode; to?: string; tone?: React.ReactNode;
 }) {
   const body = (
-    <div className={`rounded-xl border bg-white p-4 transition-colors ${present ? 'border-slate-200 hover:border-blue-300' : 'border-dashed border-slate-200'}`}>
+    <div className={`rounded-xl border bg-surface p-4 transition-colors ${present ? 'border-border hover:border-blue-300' : 'border-dashed border-border'}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${present ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+          <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${present ? 'bg-blue-50 text-blue-600' : 'bg-surface-muted text-text-muted'}`}>
             <Icon size={16} />
           </div>
-          <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+          <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
         </div>
         {tone}
       </div>
-      <div className="text-[12px] text-slate-500 leading-relaxed">{children}</div>
-      {!present && <p className="mt-2 text-[11px] text-slate-400 italic">Modalidade opcional — não coletada nesta sessão.</p>}
+      <div className="text-[12px] text-text-muted leading-relaxed">{children}</div>
+      {!present && <p className="mt-2 text-[11px] text-text-muted italic">Modalidade opcional — não coletada nesta sessão.</p>}
     </div>
   );
   return to ? <Link to={to}>{body}</Link> : body;
@@ -45,7 +47,8 @@ function ModalityCard({
 export function SessionDetailPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const { data: session } = useSessionDetail(sessionId);
+  const sessionQuery = useSessionDetail(sessionId);
+  const { data: session } = sessionQuery;
 
   const hasVideo = !!session?.video_asset_id;
   const hasEeg = !!session?.eeg_asset_id;
@@ -79,22 +82,49 @@ export function SessionDetailPage() {
       ? `Offset ${liveSync.offset_ms} ms${liveSync.drift_ms_per_min != null ? ` · drift ${liveSync.drift_ms_per_min} ms/min` : ''}${liveSync.confidence != null ? ` · confiança ${Math.round(liveSync.confidence * 100)}%` : ''}`
       : 'Sincronização ainda não iniciada.';
 
+  // Placed after every hook call so hook order stays stable across renders.
+  if (sessionQuery.isLoading) {
+    return (
+      <div className="min-h-full bg-app-bg pb-12">
+        <PageHeader title="Sessão" description="Carregando dados da sessão..." />
+        <LoadingState message="Carregando sessão..." />
+      </div>
+    );
+  }
+
+  if (sessionQuery.isError || !session) {
+    return (
+      <div className="min-h-full bg-app-bg pb-12">
+        <PageHeader title="Sessão" description="Dados multimodais do período experimental." />
+        <ErrorState
+          title="Não foi possível carregar a sessão"
+          message={
+            sessionQuery.error instanceof Error
+              ? sessionQuery.error.message
+              : 'A sessão pode ter sido removida ou você não tem acesso a ela.'
+          }
+          onRetry={() => { void sessionQuery.refetch(); }}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-full bg-slate-50/50 pb-12">
+    <div className="min-h-full bg-app-bg pb-12">
       <PageHeader
         title={`Sessão ${sessionId ? sessionId.slice(0, 8) : '—'}`}
         description="Reúne todos os dados do mesmo período experimental. As modalidades são complementares; testes e questionários são opcionais."
         context={
           <>
             <ToneBadge tone={st.tone}>{st.label}</ToneBadge>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><User size={12} /> {session?.participant_id.slice(0, 8) ?? '—'} (pseudonimizado)</span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><FlaskConical size={12} /> {session?.protocol ?? 'Sem protocolo'}</span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"><Clock size={12} /> {session?.recorded_at ? new Date(session.recorded_at).toLocaleString('pt-BR') : 'Sem data de coleta'}</span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">Condição: {session?.condition ?? 'Não informada'}</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-text-muted"><User size={12} /> {session?.participant_id.slice(0, 8) ?? '—'} (pseudonimizado)</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-text-muted"><FlaskConical size={12} /> {session?.protocol ?? 'Sem protocolo'}</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-text-muted"><Clock size={12} /> {session?.recorded_at ? new Date(session.recorded_at).toLocaleString('pt-BR') : 'Sem data de coleta'}</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-text-muted">Condição: {session?.condition ?? 'Não informada'}</span>
           </>
         }
         actions={
-          <Link to="/app/sessions" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+          <Link to="/app/sessions" className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary">
             <ArrowLeft size={15} /> Sessões
           </Link>
         }
@@ -104,7 +134,7 @@ export function SessionDetailPage() {
         <ScientificCaveat variant="privacy" compact />
 
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">Modalidades</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">Modalidades</h2>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <ModalityCard
               icon={Video} title="Vídeo" present={hasVideo}
@@ -145,32 +175,32 @@ export function SessionDetailPage() {
         <section className="grid gap-4 lg:grid-cols-3">
           <button
             onClick={() => navigate(`/app/sessions/${sessionId}/sync`)}
-            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-300 transition-colors"
+            className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left hover:border-blue-300 transition-colors"
           >
             <div className="h-9 w-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><Waypoints size={17} /></div>
             <div>
-              <p className="text-sm font-semibold text-slate-800">Sincronizar vídeo & EEG</p>
-              <p className="text-[11px] text-slate-500">Alinhar fontes no mesmo eixo temporal.</p>
+              <p className="text-sm font-semibold text-text-primary">Sincronizar vídeo & EEG</p>
+              <p className="text-[11px] text-text-muted">Alinhar fontes no mesmo eixo temporal.</p>
             </div>
           </button>
           <button
             onClick={() => navigate(`/app/sessions/${sessionId}/analysis`)}
-            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-300 transition-colors"
+            className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left hover:border-blue-300 transition-colors"
           >
             <div className="h-9 w-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><Cpu size={17} /></div>
             <div>
-              <p className="text-sm font-semibold text-slate-800">Workspace de análise</p>
-              <p className="text-[11px] text-slate-500">Explorar séries sincronizadas.</p>
+              <p className="text-sm font-semibold text-text-primary">Workspace de análise</p>
+              <p className="text-[11px] text-text-muted">Explorar séries sincronizadas.</p>
             </div>
           </button>
           <button
             onClick={() => navigate('/app/governance')}
-            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-300 transition-colors"
+            className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left hover:border-blue-300 transition-colors"
           >
             <div className="h-9 w-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><ShieldCheck size={17} /></div>
             <div>
-              <p className="text-sm font-semibold text-slate-800">Consentimento & auditoria</p>
-              <p className="text-[11px] text-slate-500">Verificar finalidade e retenção.</p>
+              <p className="text-sm font-semibold text-text-primary">Consentimento & auditoria</p>
+              <p className="text-[11px] text-text-muted">Verificar finalidade e retenção.</p>
             </div>
           </button>
         </section>

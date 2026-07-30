@@ -1,12 +1,17 @@
 import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes } from 'react';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'tertiary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   icon?: React.ComponentType<{ size?: number; className?: string }>;
   fullWidth?: boolean;
+  /** Shows a spinner and blocks interaction while an async action runs. */
+  isLoading?: boolean;
+  /** Replaces the label while loading (falls back to children). */
+  loadingText?: string;
 }
 
 export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
@@ -19,6 +24,9 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
       fullWidth,
       children,
       disabled,
+      isLoading = false,
+      loadingText,
+      type = 'button',
       ...props
     },
     ref
@@ -30,6 +38,7 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
       secondary: 'bg-surface text-text-secondary border border-border shadow-sm hover:bg-surface-hover hover:border-border-strong',
       tertiary: 'bg-surface-muted text-text-secondary border border-transparent hover:bg-surface-hover',
       ghost: 'bg-transparent text-text-secondary hover:bg-surface-muted',
+      danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-md',
     };
 
     const sizes = {
@@ -38,10 +47,15 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
       lg: 'px-4 py-2.5 text-sm',
     };
 
+    const iconSize = size === 'sm' ? 14 : 16;
+    const onSolid = variant === 'primary' || variant === 'danger';
+
     return (
       <button
         ref={ref}
-        disabled={disabled}
+        type={type}
+        disabled={disabled || isLoading}
+        aria-busy={isLoading || undefined}
         className={cn(
           baseStyles,
           variants[variant],
@@ -51,8 +65,16 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
         )}
         {...props}
       >
-        {Icon && <Icon size={size === 'sm' ? 14 : 16} className={cn(variant === 'primary' ? 'text-white/80' : 'text-text-secondary')} />}
-        {children}
+        {isLoading ? (
+          <Loader2
+            size={iconSize}
+            className={cn('animate-spin', onSolid ? 'text-white/90' : 'text-text-secondary')}
+            aria-hidden="true"
+          />
+        ) : (
+          Icon && <Icon size={iconSize} className={cn(onSolid ? 'text-white/80' : 'text-text-secondary')} />
+        )}
+        {isLoading ? (loadingText ?? children) : children}
       </button>
     );
   }

@@ -122,11 +122,11 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
     <div className="max-w-4xl mx-auto">
       <div className="mb-8"><Stepper steps={STEPS} currentStep={step} /></div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+      <div className="rounded-xl border border-border bg-surface p-6 md:p-8 shadow-sm">
         {step === 0 && (
           <Section title="Informações gerais">
             <div className="space-y-1.5">
-              <label htmlFor="study-project" className="text-sm font-medium text-slate-700">
+              <label htmlFor="study-project" className="text-sm font-medium text-text-secondary">
                 Projeto <span className="text-red-500" aria-hidden="true">*</span>
               </label>
               <select
@@ -139,7 +139,7 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
                   setValidationError(null);
                   createStudy.reset();
                 }}
-                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-600"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-app-bg disabled:text-text-secondary"
               >
                 <option value="">
                   {projectsQuery.isLoading ? 'Carregando projetos…' : 'Selecione um projeto'}
@@ -149,7 +149,7 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
                 ))}
               </select>
               {projectId && selectedProject && (
-                <p className="text-xs text-slate-500">Projeto definido pela página de origem.</p>
+                <p className="text-xs text-text-muted">Projeto definido pela página de origem.</p>
               )}
               {projectsQuery.isError && (
                 <p className="text-xs text-red-600" role="alert">
@@ -184,8 +184,8 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
             <Text label="Questão de pesquisa" placeholder="O que se investiga?" value={form.researchQuestion} onChange={set('researchQuestion')} />
             <Textarea label="Objetivo geral" placeholder="Objetivo amplo do estudo…" value={form.generalObjective} onChange={set('generalObjective')} />
             <Textarea label="Objetivos específicos" placeholder="Um por linha…" value={form.specificObjectives} onChange={set('specificObjectives')} />
-            <div className="rounded-lg border border-slate-200 p-3">
-              <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">Hipóteses (opcionais)</label>
+            <div className="rounded-lg border border-border p-3">
+              <label className="text-xs font-semibold uppercase tracking-wide text-text-muted">Hipóteses (opcionais)</label>
               <div className="mt-2 space-y-2">
                 <Text label="H1" placeholder="Direcional, não-direcional, nula ou exploratória" value={form.hypothesis1} onChange={set('hypothesis1')} />
               </div>
@@ -196,19 +196,19 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
 
         {step === 2 && (
           <Section title="Desenho experimental">
-            <p className="text-[13px] text-slate-500 -mt-1">O desenho não se limita a pré-teste e pós-teste. Escolha o mais adequado à sua pergunta.</p>
+            <p className="text-[13px] text-text-muted -mt-1">O desenho não se limita a pré-teste e pós-teste. Escolha o mais adequado à sua pergunta.</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {EXPERIMENTAL_DESIGNS.map((d) => (
                 <button
                   key={d.value}
                   onClick={() => setDesign(d.value)}
-                  className={`text-left rounded-lg border p-3 transition-colors ${design === d.value ? 'border-blue-400 bg-blue-50/60' : 'border-slate-200 hover:border-slate-300'}`}
+                  className={`text-left rounded-lg border p-3 transition-colors ${design === d.value ? 'border-blue-400 bg-blue-50/60' : 'border-border hover:border-border-strong'}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-800">{d.label}</span>
+                    <span className="text-sm font-medium text-text-primary">{d.label}</span>
                     {design === d.value && <Check size={15} className="text-blue-600" />}
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{d.hint}</p>
+                  <p className="text-[11px] text-text-muted mt-0.5">{d.hint}</p>
                 </button>
               ))}
             </div>
@@ -221,7 +221,7 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
 
         {step === 3 && (
           <Section title="Modalidades coletadas">
-            <p className="text-[13px] text-slate-500 -mt-1">Vídeo e EEG são o núcleo metodológico. Testes e questionários são complementares e opcionais.</p>
+            <p className="text-[13px] text-text-muted -mt-1">Vídeo e EEG são o núcleo metodológico. Testes e questionários são complementares e opcionais.</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {MODALITIES.map((m) => {
                 const on = modalities.includes(m.value);
@@ -229,18 +229,18 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
                   <button
                     key={m.value}
                     onClick={() => toggle(m.value)}
-                    className={`text-left rounded-lg border p-3 transition-colors ${on ? 'border-blue-400 bg-blue-50/60' : 'border-slate-200 hover:border-slate-300'}`}
+                    className={`text-left rounded-lg border p-3 transition-colors ${on ? 'border-blue-400 bg-blue-50/60' : 'border-border hover:border-border-strong'}`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-slate-800">
+                      <span className="text-sm font-medium text-text-primary">
                         {m.label}
                         {m.core && <span className="ml-2 text-[9px] uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-200 rounded px-1 py-0.5">núcleo</span>}
                       </span>
-                      <span className={`w-4 h-4 rounded border flex items-center justify-center ${on ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>
+                      <span className={`w-4 h-4 rounded border flex items-center justify-center ${on ? 'bg-blue-600 border-blue-600' : 'border-border-strong'}`}>
                         {on && <Check size={11} className="text-white" />}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{m.description}</p>
+                    <p className="text-[11px] text-text-muted mt-0.5">{m.description}</p>
                   </button>
                 );
               })}
@@ -261,7 +261,7 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
 
         {step === 5 && (
           <Section title="Revisão & ativação">
-            <div className="rounded-lg border border-slate-200 p-4 space-y-2 text-[13px]">
+            <div className="rounded-lg border border-border p-4 space-y-2 text-[13px]">
               <Line k="Nome" v={form.name || '—'} />
               <Line k="Projeto" v={selectedProject?.name || 'Projeto indisponível'} />
               <Line k="Questão" v={form.researchQuestion || '—'} />
@@ -281,11 +281,11 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
           </div>
         )}
 
-        <div className="mt-8 flex justify-between border-t border-slate-100 pt-5">
+        <div className="mt-8 flex justify-between border-t border-border pt-5">
           <button
             onClick={back}
             disabled={step === 0}
-            className="px-4 py-2 rounded-md border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="px-4 py-2 rounded-md border border-border text-sm font-medium text-text-secondary hover:bg-app-bg disabled:opacity-40"
           >
             Voltar
           </button>
@@ -315,7 +315,7 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+      <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
       {children}
     </div>
   );
@@ -323,24 +323,24 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Text({ label, placeholder, value, onChange }: { label: string; placeholder?: string; value?: string; onChange?: React.ChangeEventHandler<HTMLInputElement> }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-slate-700">{label}</label>
-      <input value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+      <label className="text-sm font-medium text-text-secondary">{label}</label>
+      <input value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded-md border border-border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
     </div>
   );
 }
 function Textarea({ label, placeholder, value, onChange }: { label: string; placeholder?: string; value?: string; onChange?: React.ChangeEventHandler<HTMLTextAreaElement> }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-slate-700">{label}</label>
-      <textarea rows={2} value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+      <label className="text-sm font-medium text-text-secondary">{label}</label>
+      <textarea rows={2} value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded-md border border-border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
     </div>
   );
 }
 function Line({ k, v }: { k: string; v?: string }) {
   return (
     <div className="grid grid-cols-[120px_1fr] gap-2">
-      <span className="text-slate-400">{k}</span>
-      <span className="text-slate-700 font-medium">{v ?? '—'}</span>
+      <span className="text-text-muted">{k}</span>
+      <span className="text-text-secondary font-medium">{v ?? '—'}</span>
     </div>
   );
 }

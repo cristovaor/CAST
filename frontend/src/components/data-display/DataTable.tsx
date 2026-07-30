@@ -80,7 +80,7 @@ export function DataTable<T extends { id: string }>({
           <thead>
             <tr>
               {columns.map((col) => (
-                <th
+                <th scope="col"
                   key={col.key}
                   style={{ width: col.width }}
                   className={cn(
@@ -105,7 +105,7 @@ export function DataTable<T extends { id: string }>({
                   </div>
                 </th>
               ))}
-              {rowActions && <th className="w-10" />}
+              {rowActions && <th scope="col" className="w-10" />}
             </tr>
           </thead>
 
@@ -265,7 +265,7 @@ function DataTableSkeleton<T>({
         <thead>
           <tr>
             {columns.map((col) => (
-              <th key={col.key}>{col.header}</th>
+              <th scope="col" key={col.key}>{col.header}</th>
             ))}
           </tr>
         </thead>

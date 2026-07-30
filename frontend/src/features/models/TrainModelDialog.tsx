@@ -57,7 +57,7 @@ export function TrainModelDialog({ children }: { children: React.ReactNode }) {
           <DialogTitle>Treinar novo modelo</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-muted">
             O treino usa os vídeos já anotados no sistema (landmarks extraídos + eventos
             de anotação) para {trainAllActions ? 'todas as ações' : 'esta ação'}. Não é
             necessário fornecer um artefato — ele é gerado e registrado automaticamente
@@ -72,21 +72,21 @@ export function TrainModelDialog({ children }: { children: React.ReactNode }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Model ID</label>
-              <input required value={modelId} onChange={e => setModelId(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
+              <label className="text-sm font-medium text-text-secondary">Model ID</label>
+              <input required value={modelId} onChange={e => setModelId(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Versão (ex: 1.0)</label>
-              <input required value={version} onChange={e => setVersion(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
+              <label className="text-sm font-medium text-text-secondary">Versão (ex: 1.0)</label>
+              <input required value={version} onChange={e => setVersion(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Ação</label>
+              <label className="text-sm font-medium text-text-secondary">Ação</label>
               <select
                 required={!trainAllActions}
                 disabled={trainAllActions}
                 value={action}
                 onChange={e => setAction(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none bg-white disabled:bg-slate-50 disabled:text-slate-400"
+                className="w-full px-3 py-2 border border-border rounded-md outline-none bg-surface disabled:bg-app-bg disabled:text-text-muted"
               >
                 {ACTIONS.map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
@@ -95,24 +95,24 @@ export function TrainModelDialog({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-text-secondary">
             <input
               type="checkbox"
               checked={trainAllActions}
               onChange={e => setTrainAllActions(e.target.checked)}
-              className="rounded border-slate-300"
+              className="rounded border-border-strong"
             />
             Treinar para todas as ações ({ACTIONS.length})
           </label>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Épocas</label>
-              <input type="number" min={1} value={epochs} onChange={e => setEpochs(Number(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none" />
+              <label className="text-sm font-medium text-text-secondary">Épocas</label>
+              <input type="number" min={1} value={epochs} onChange={e => setEpochs(Number(e.target.value))} className="w-full px-3 py-2 border border-border rounded-md outline-none" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Batch size</label>
-              <input type="number" min={1} value={batchSize} onChange={e => setBatchSize(Number(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none" />
+              <label className="text-sm font-medium text-text-secondary">Batch size</label>
+              <input type="number" min={1} value={batchSize} onChange={e => setBatchSize(Number(e.target.value))} className="w-full px-3 py-2 border border-border rounded-md outline-none" />
             </div>
           </div>
 

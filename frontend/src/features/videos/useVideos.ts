@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiClient, API_BASE_URL } from '@/lib/api';
+import { toast } from '@/app/stores/useToastStore';
 import type { VideoInitResponse, VideoProcessResponse } from '@/types/api';
 import type { TimelineEventDTO } from './types';
 import type { VideoQualityReport } from '@/components/status/VideoQualityPanel';
@@ -42,7 +43,10 @@ export function useProxyVideoUpload() {
         if (!res.ok) throw new Error("Upload failed");
         return res.json() as Promise<{ video_asset_id: string; session_id: string }>;
       });
-    }
+    },
+    onSuccess: (_, variables) => {
+      toast.success('Vídeo enviado', variables.file.name);
+    },
   });
 }
 
@@ -56,6 +60,9 @@ export function useConfirmVideoUpload() {
 export function useProcessVideo() {
   return useMutation({
     mutationFn: (videoId: string) => apiClient.post<VideoProcessResponse>(`/videos/${videoId}/process`),
+    onSuccess: () => {
+      toast.success('Processamento iniciado', 'Acompanhe o progresso na fila de processamento.');
+    },
   });
 }
 

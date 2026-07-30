@@ -151,11 +151,11 @@ export function ProcessingVolumeChart({ data, isLoading }: ProcessingVolumeChart
       <div className="flex items-center justify-center gap-6 mt-4">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded bg-blue-600/80" />
-          <span className="text-[11px] font-medium text-slate-600">Vídeos processados</span>
+          <span className="text-[11px] font-medium text-text-secondary">Vídeos processados</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-0.5 bg-slate-400" />
-          <span className="text-[11px] font-medium text-slate-600">Média móvel</span>
+          <span className="text-[11px] font-medium text-text-secondary">Média móvel</span>
         </div>
       </div>
     </div>

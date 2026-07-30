@@ -2,6 +2,7 @@ import { ShieldCheck, Lock, FileCheck2, UserCheck, History, AlertTriangle } from
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ToneBadge } from '@/components/ui/ToneBadge';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuditLog, useGovernanceSummary } from '@/features/multimodal/useMultimodal';
 
 // Governance, ethics & privacy for sensitive data (docs §21). Video + EEG are
@@ -25,8 +26,13 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
 };
 
 export function GovernancePage() {
-  const { data: liveAudit } = useAuditLog();
-  const { data: summary } = useGovernanceSummary();
+  const auditQuery = useAuditLog();
+  const summaryQuery = useGovernanceSummary();
+  const { data: liveAudit } = auditQuery;
+  const { data: summary } = summaryQuery;
+
+  const isLoading = auditQuery.isLoading || summaryQuery.isLoading;
+  const isError = auditQuery.isError || summaryQuery.isError;
 
   const auditRows = (liveAudit ?? []).map((a) => ({
         at: a.created_at.slice(0, 16).replace('T', ' '),
@@ -43,13 +49,33 @@ export function GovernancePage() {
       ? { tone: 'warning', label: `${summary.pending_consents} pendência(s)` }
       : { tone: 'success', label: 'Ativos' };
 
+  // Compliance status must reflect real data: never claim "Conforme" while the
+  // governance summary is unknown or failed to load.
+  const complianceBadge = isError
+    ? <ToneBadge tone="danger"><ShieldCheck size={12} /> Status indisponível</ToneBadge>
+    : isLoading
+      ? <ToneBadge tone="info"><ShieldCheck size={12} /> Verificando…</ToneBadge>
+      : alerts.length
+        ? <ToneBadge tone="warning"><ShieldCheck size={12} /> Pendências</ToneBadge>
+        : <ToneBadge tone="success"><ShieldCheck size={12} /> Conforme</ToneBadge>;
+
   return (
-    <div className="min-h-full bg-slate-50/50 pb-12">
+    <div className="min-h-full bg-app-bg pb-12">
       <PageHeader
         title="Governança, ética & privacidade"
         description="Vídeo facial e EEG são dados pessoais sensíveis. O acesso é segregado por estudo, registrado e limitado à finalidade consentida."
-        actions={<ToneBadge tone="success"><ShieldCheck size={12} /> Conforme</ToneBadge>}
+        actions={complianceBadge}
       />
+
+      {isError && (
+        <div className="px-6 pt-6">
+          <ErrorState
+            title="Não foi possível carregar a governança"
+            message="Os indicadores de consentimento e a trilha de auditoria não puderam ser obtidos. Os dados abaixo podem estar incompletos."
+            onRetry={() => { void auditQuery.refetch(); void summaryQuery.refetch(); }}
+          />
+        </div>
+      )}
 
       <div className="px-6 pt-6 space-y-6">
         <ScientificCaveat variant="privacy" />
@@ -61,48 +87,64 @@ export function GovernancePage() {
             const tone = isConsent ? consentStatus.tone : c.tone;
             const statusLabel = isConsent ? consentStatus.label : c.status;
             return (
-            <div key={c.title} className="rounded-xl border border-slate-200 bg-white p-4">
+            <div key={c.title} className="rounded-xl border border-border bg-surface p-4">
               <div className="flex items-center justify-between mb-2">
-                <div className="h-8 w-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><c.icon size={16} /></div>
+                <div className="h-8 w-8 rounded-lg bg-surface-muted text-text-secondary flex items-center justify-center"><c.icon size={16} /></div>
                 <ToneBadge tone={tone}>{statusLabel}</ToneBadge>
               </div>
-              <h3 className="text-sm font-semibold text-slate-800">{c.title}</h3>
-              <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">{c.desc}</p>
+              <h3 className="text-sm font-semibold text-text-primary">{c.title}</h3>
+              <p className="text-[12px] text-text-muted mt-1 leading-relaxed">{c.desc}</p>
             </div>
             );
           })}
         </section>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <section className="rounded-xl border border-border bg-surface p-4">
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle size={16} className="text-amber-500" />
-              <h3 className="text-sm font-semibold text-slate-800">Alertas de proteção</h3>
+              <h3 className="text-sm font-semibold text-text-primary">Alertas de proteção</h3>
             </div>
             <ul className="space-y-2">
               {alerts.map((a, i) => (
                 <li key={i} className={`rounded-lg border px-3 py-2 text-[12px] leading-relaxed ${ALERT_TONE[a.level]}`}>{a.text}</li>
               ))}
-              {!alerts.length && <li className="text-[12px] text-slate-500">Nenhum alerta de consentimento no momento.</li>}
+              {!alerts.length && (
+                <li className="text-[12px] text-text-muted">
+                  {summaryQuery.isLoading
+                    ? 'Carregando indicadores de consentimento…'
+                    : summaryQuery.isError
+                      ? 'Indicadores indisponíveis — não é possível confirmar a ausência de alertas.'
+                      : 'Nenhum alerta de consentimento no momento.'}
+                </li>
+              )}
             </ul>
-            <p className="mt-3 text-[11px] text-slate-400">O sistema alerta ou impede: análise sem consentimento válido, reutilização fora da finalidade, mistura de participantes entre estudos, compartilhamento de vídeo bruto ou EEG identificável, e uso clínico não autorizado.</p>
+            <p className="mt-3 text-[11px] text-text-muted">O sistema alerta ou impede: análise sem consentimento válido, reutilização fora da finalidade, mistura de participantes entre estudos, compartilhamento de vídeo bruto ou EEG identificável, e uso clínico não autorizado.</p>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <section className="rounded-xl border border-border bg-surface p-4">
             <div className="flex items-center gap-2 mb-3">
-              <History size={16} className="text-slate-400" />
-              <h3 className="text-sm font-semibold text-slate-800">Trilha de auditoria</h3>
+              <History size={16} className="text-text-muted" />
+              <h3 className="text-sm font-semibold text-text-primary">Trilha de auditoria</h3>
             </div>
             <ol className="space-y-3">
               {auditRows.map((a, i) => (
                 <li key={i} className="relative pl-4 text-[12px]">
                   <span className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  <p className="text-slate-700">{a.action}</p>
-                  <p className="text-[11px] text-slate-400">{a.who} · {a.at}</p>
+                  <p className="text-text-secondary">{a.action}</p>
+                  <p className="text-[11px] text-text-muted">{a.who} · {a.at}</p>
                 </li>
               ))}
             </ol>
-            {!auditRows.length && <p className="text-[12px] text-slate-500">Nenhum evento registrado.</p>}
+            {!auditRows.length && (
+              <p className="text-[12px] text-text-muted">
+                {auditQuery.isLoading
+                  ? 'Carregando trilha de auditoria…'
+                  : auditQuery.isError
+                    ? 'Trilha de auditoria indisponível no momento.'
+                    : 'Nenhum evento registrado.'}
+              </p>
+            )}
           </section>
         </div>
       </div>

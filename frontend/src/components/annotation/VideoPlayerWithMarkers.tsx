@@ -116,13 +116,13 @@ export function VideoPlayerWithMarkers({ src, fps, onFrameChange, markers, curre
       </div>
 
       <div className="flex items-center justify-center gap-4 bg-muted/50 p-2 rounded-lg border">
-        <button onClick={() => stepFrame(false)} className="p-2 hover:bg-muted rounded-md transition-colors" title="Frame Anterior (←)">
+        <button type="button" onClick={() => stepFrame(false)} aria-label="Frame anterior" className="p-2 hover:bg-muted rounded-md transition-colors" title="Frame Anterior (←)">
           <SkipBack className="h-5 w-5" />
         </button>
-        <button onClick={togglePlay} className="p-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full transition-colors shadow-sm" title="Play/Pause (Espaço)">
+        <button type="button" onClick={togglePlay} aria-label={isPlaying ? 'Pausar' : 'Reproduzir'} className="p-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full transition-colors shadow-sm" title="Play/Pause (Espaço)">
           {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}
         </button>
-        <button onClick={() => stepFrame(true)} className="p-2 hover:bg-muted rounded-md transition-colors" title="Próximo Frame (→)">
+        <button type="button" onClick={() => stepFrame(true)} aria-label="Próximo frame" className="p-2 hover:bg-muted rounded-md transition-colors" title="Próximo Frame (→)">
           <SkipForward className="h-5 w-5" />
         </button>
       </div>

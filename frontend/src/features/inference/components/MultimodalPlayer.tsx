@@ -197,7 +197,7 @@ export function MultimodalPlayer({
           onChange={handleSeek}
           className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
         />
-        <div className="flex items-center justify-between text-slate-300">
+        <div className="flex items-center justify-between text-text-disabled">
           <div className="flex items-center gap-4">
             <button
               onClick={() => stepFrame(-1)}
@@ -206,17 +206,18 @@ export function MultimodalPlayer({
             >
               <SkipBack size={18} />
             </button>
-            <button onClick={togglePlay} className="hover:text-white transition-colors">
+            <button type="button" onClick={togglePlay} aria-label={isPlaying ? 'Pausar' : 'Reproduzir'} className="hover:text-white transition-colors">
               {isPlaying ? <Pause size={20} /> : <Play size={20} />}
             </button>
             <button
               onClick={() => stepFrame(1)}
+              aria-label="Próximo frame"
               className="hover:text-white transition-colors"
               title={`Próximo frame (1/${effectiveFps}s)`}
             >
               <SkipForward size={18} />
             </button>
-            <button onClick={toggleMute} className="hover:text-white transition-colors">
+            <button type="button" onClick={toggleMute} aria-label={isMuted ? 'Ativar som' : 'Silenciar'} className="hover:text-white transition-colors">
               {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
             </button>
             <div className="text-sm font-mono opacity-80">
@@ -226,7 +227,7 @@ export function MultimodalPlayer({
           <div className="flex items-center gap-4">
             {canShowLandmarks && (
               <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
-                <Scan size={13} className="ml-1 text-slate-500" />
+                <Scan size={13} className="ml-1 text-text-muted" />
                 {(['off', 'roi', 'mesh'] as const).map((mode) => (
                   <button
                     key={mode}
@@ -235,7 +236,7 @@ export function MultimodalPlayer({
                     className={`rounded px-2 py-1 text-[11px] font-medium transition-colors ${
                       landmarkMode === mode
                         ? 'bg-blue-600 text-white'
-                        : 'text-slate-400 hover:text-slate-200'
+                        : 'text-text-muted hover:text-slate-200'
                     }`}
                     title={mode === 'off' ? 'Landmarks desligados' : mode === 'roi' ? 'Pontos de interesse' : 'Malha completa'}
                   >

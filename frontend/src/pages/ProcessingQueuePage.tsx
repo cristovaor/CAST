@@ -24,19 +24,19 @@ const JOB_COLUMNS: ColumnDef<ProcessingJob>[] = [
   {
     key: 'id',
     header: 'Job ID',
-    render: (_, row) => <span className="font-mono text-xs text-slate-500">{shortId(row.id)}</span>,
+    render: (_, row) => <span className="font-mono text-xs text-text-muted">{shortId(row.id)}</span>,
   },
   {
     key: 'video_filename',
     header: 'Vídeo',
     sortable: true,
-    render: (v) => <span className="text-[13px] font-medium text-slate-700 truncate max-w-[160px] block">{String(v ?? '—')}</span>,
+    render: (v) => <span className="text-[13px] font-medium text-text-secondary truncate max-w-[160px] block">{String(v ?? '—')}</span>,
   },
   {
     key: 'study_name',
     header: 'Estudo',
     sortable: true,
-    render: (v) => <span className="text-xs text-slate-500 truncate max-w-[140px] block">{String(v ?? '—')}</span>,
+    render: (v) => <span className="text-xs text-text-muted truncate max-w-[140px] block">{String(v ?? '—')}</span>,
   },
   {
     key: 'status',
@@ -49,22 +49,22 @@ const JOB_COLUMNS: ColumnDef<ProcessingJob>[] = [
     header: 'Progresso',
     render: (_, row) => (
       <div className="flex items-center gap-2 min-w-[80px]">
-        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className="flex-1 h-1.5 bg-surface-muted rounded-full overflow-hidden">
           <div className="h-full progress-bar" style={{ width: `${row.progress}%` }} />
         </div>
-        <span className="text-[11px] font-mono text-slate-500 w-8 text-right">{row.progress}%</span>
+        <span className="text-[11px] font-mono text-text-muted w-8 text-right">{row.progress}%</span>
       </div>
     ),
   },
   {
     key: 'current_step',
     header: 'Etapa atual',
-    render: (v) => <span className="text-xs text-slate-500 truncate max-w-[160px] block">{String(v ?? '—')}</span>,
+    render: (v) => <span className="text-xs text-text-muted truncate max-w-[160px] block">{String(v ?? '—')}</span>,
   },
   {
     key: 'worker_id',
     header: 'Worker',
-    render: (v) => v ? <span className="font-mono text-xs text-slate-400">{String(v)}</span> : <span className="text-xs text-slate-300">—</span>,
+    render: (v) => v ? <span className="font-mono text-xs text-text-muted">{String(v)}</span> : <span className="text-xs text-text-disabled">—</span>,
   },
   {
     key: 'elapsed_seconds',
@@ -72,7 +72,7 @@ const JOB_COLUMNS: ColumnDef<ProcessingJob>[] = [
     sortable: true,
     render: (v) => {
       const secs = Number(v ?? 0);
-      return <span className="text-xs text-slate-500">{secs > 0 ? formatDuration(secs) : '—'}</span>;
+      return <span className="text-xs text-text-muted">{secs > 0 ? formatDuration(secs) : '—'}</span>;
     },
   },
 ];
@@ -199,7 +199,7 @@ export function ProcessingQueuePage() {
         {/* Jobs table */}
         <div className="card overflow-hidden">
           {/* Tab bar */}
-          <div className="flex items-center border-b border-slate-100 px-4 gap-1">
+          <div className="flex items-center border-b border-border px-4 gap-1">
             {JOB_TABS.map((tab) => {
               const count = tab.key === 'all'
                 ? jobs.length
@@ -212,13 +212,13 @@ export function ProcessingQueuePage() {
                     'flex items-center gap-1.5 px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
                     activeTab === tab.key
                       ? 'text-blue-600 border-blue-600'
-                      : 'text-slate-500 border-transparent hover:text-slate-700',
+                      : 'text-text-muted border-transparent hover:text-text-secondary',
                   )}
                 >
                   {tab.label}
                   <span className={cn(
                     'text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
-                    activeTab === tab.key ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500',
+                    activeTab === tab.key ? 'bg-blue-100 text-blue-700' : 'bg-surface-muted text-text-muted',
                   )}>
                     {count}
                   </span>
@@ -227,7 +227,7 @@ export function ProcessingQueuePage() {
             })}
           </div>
 
-          <div className="border-b border-slate-100 p-3">
+          <div className="border-b border-border p-3">
             <ListFilterBar
               searchValue={search}
               onSearchChange={setSearch}

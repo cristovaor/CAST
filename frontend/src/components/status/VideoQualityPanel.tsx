@@ -21,8 +21,8 @@ export interface VideoQualityReport {
 export function VideoQualityPanel({ quality }: { quality: VideoQualityReport }) {
   if (!quality.assessed) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-500">
-        <Clock size={16} className="shrink-0 text-slate-400" />
+      <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-app-bg p-4 text-sm text-text-muted">
+        <Clock size={16} className="shrink-0 text-text-muted" />
         Qualidade ainda não avaliada — disponível após o processamento do vídeo.
       </div>
     );
@@ -56,7 +56,7 @@ export function VideoQualityPanel({ quality }: { quality: VideoQualityReport }) 
       )}
 
       {quality.criteria.length > 0 && (
-        <p className="text-[11px] text-slate-400">Critérios: {quality.criteria.join(' · ')}</p>
+        <p className="text-[11px] text-text-muted">Critérios: {quality.criteria.join(' · ')}</p>
       )}
     </div>
   );

@@ -30,7 +30,7 @@ export function RecentProcessingList({ jobs }: RecentProcessingListProps) {
           Ver todos <ExternalLink size={14} className="ml-1" />
         </ActionButton>
       </div>
-      <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
+      <div className="divide-y divide-border flex-1 overflow-y-auto">
         {jobs.length === 0 ? (
           <div className="p-8 text-center text-text-secondary text-sm">
             Nenhum processamento recente.
@@ -48,8 +48,8 @@ function RecentJobRow({ job }: { job: ProcessingJob }) {
   const isRejected = job.error_message?.toLowerCase().includes('rejeitado');
   
   // Custom status visual logic
-  let bgIconColor = 'bg-slate-100';
-  let iconColor = 'text-slate-400';
+  let bgIconColor = 'bg-surface-muted';
+  let iconColor = 'text-text-muted';
   let Icon = Clock;
 
   if (job.status === 'succeeded') {
@@ -96,12 +96,12 @@ function RecentJobRow({ job }: { job: ProcessingJob }) {
         </div>
                   <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[12px] text-text-secondary font-medium">
           <div className="flex items-center gap-1.5">
-            <span className="font-mono text-[11px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{shortId(job.id)}</span>
+            <span className="font-mono text-[11px] text-text-muted bg-surface-muted px-1.5 py-0.5 rounded">{shortId(job.id)}</span>
           </div>
           <span>&bull;</span>
-          <span className="truncate max-w-[200px] text-slate-600">{job.study_name}</span>
+          <span className="truncate max-w-[200px] text-text-secondary">{job.study_name}</span>
           <span>&bull;</span>
-          <span className="text-slate-400 truncate max-w-[150px]">Mod: cast-lstm-v1</span>
+          <span className="text-text-muted truncate max-w-[150px]">Mod: cast-lstm-v1</span>
         </div>
         
         {/* Error message discrete alert */}
@@ -117,12 +117,12 @@ function RecentJobRow({ job }: { job: ProcessingJob }) {
         <StatusBadge status={job.status} size="sm" />
         <div className="flex flex-col items-end">
           {job.progress > 0 && job.status === 'running' && (
-            <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden mb-1 ring-1 ring-slate-200 inset-ring">
+            <div className="w-24 h-1.5 bg-surface-muted rounded-full overflow-hidden mb-1 ring-1 ring-border inset-ring">
               <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${job.progress}%` }} />
             </div>
           )}
           {job.elapsed_seconds !== undefined && job.elapsed_seconds > 0 && (
-            <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+            <span className="text-[11px] font-medium text-text-muted flex items-center gap-1">
               <Clock size={10} /> {formatDuration(job.elapsed_seconds)}
             </span>
           )}

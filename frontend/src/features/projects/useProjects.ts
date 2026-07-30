@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL, apiClient } from '@/lib/api';
+import { toast } from '@/app/stores/useToastStore';
 import type { Project, StudyStatus } from '@/types/domain';
 
 export interface ProjectUpdate {
@@ -29,8 +30,9 @@ export function useCreateProject() {
   return useMutation({
     mutationFn: (data: { name: string; description?: string }) => 
       apiClient.post<Project>('/projects', data),
-    onSuccess: () => {
+    onSuccess: (project) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Projeto criado', project.name);
     },
   });
 }
@@ -46,6 +48,7 @@ export function useUpdateProject() {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'project', project.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
+      toast.success('Projeto atualizado', project.name);
     },
   });
 }
@@ -59,6 +62,7 @@ export function useArchiveProject() {
     onSuccess: (project) => {
       queryClient.setQueryData(['projects', project.id], project);
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Projeto arquivado', project.name);
     },
   });
 }
@@ -71,6 +75,7 @@ export function useDeleteProject() {
     onSuccess: (_, id) => {
       queryClient.removeQueries({ queryKey: ['projects', id] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Projeto excluído');
     },
   });
 }
@@ -103,6 +108,9 @@ export function useExportProject() {
       anchor.click();
       anchor.remove();
       window.URL.revokeObjectURL(url);
+    },
+    onSuccess: () => {
+      toast.success('Exportação concluída', 'O download do CSV foi iniciado.');
     },
   });
 }

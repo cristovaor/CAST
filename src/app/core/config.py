@@ -61,6 +61,52 @@ class Settings(BaseSettings):
     # Triton Inference Server
     TRITON_SERVER_URL: str = "http://localhost:8000"
 
+    # Deployment environment. Controls how verbosely auth failures are logged
+    # ("local" | "development" | "test" | "production").
+    ENVIRONMENT: str = "local"
+
+    # Comma-separated list of browser origins allowed to call the API, e.g.
+    # "https://cast.crlabs.com.br". Empty keeps the permissive local default;
+    # it must be set in production, where "*" would let any site drive the API
+    # with a logged-in user's token.
+    CORS_ORIGINS: str = ""
+
+    @property
+    def CORS_ORIGINS_LIST(self) -> list[str]:
+        origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        return origins or ["*"]
+
+    # ── Federated login (Google via Firebase / Identity Platform) ──────────
+    # The Firebase project ID doubles as the expected audience of every ID
+    # token. Empty disables Google login entirely (password login still works).
+    FIREBASE_PROJECT_ID: str = ""
+
+    # ── Invitations ────────────────────────────────────────────────────────
+    INVITATION_EXPIRE_HOURS: int = 24 * 7  # 7 days
+    # Absolute URL the invited person opens. The token is appended as a query
+    # parameter, so this must point at the frontend's accept-invite route.
+    INVITATION_ACCEPT_URL: str = "http://localhost:5173/accept-invite"
+
+    # ── SMTP (invitation delivery) ─────────────────────────────────────────
+    # With SMTP_HOST empty, invitations are still created and the link is
+    # returned to the admin to share manually; nothing silently fails.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "CAST Platform <no-reply@localhost>"
+    SMTP_STARTTLS: bool = True
+    SMTP_SSL: bool = False
+    SMTP_TIMEOUT_SECONDS: int = 10
+
+    @property
+    def EMAIL_ENABLED(self) -> bool:
+        return bool(self.SMTP_HOST)
+
+    @property
+    def GOOGLE_LOGIN_ENABLED(self) -> bool:
+        return bool(self.FIREBASE_PROJECT_ID)
+
     # The repository-level .env is shared by the API, Docker Compose and Vite.
     # Ignore variables owned by the other processes instead of failing API
     # startup when those variables are present.

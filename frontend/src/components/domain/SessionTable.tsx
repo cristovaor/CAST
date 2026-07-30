@@ -57,11 +57,11 @@ export function SessionTable({ sessions }: SessionTableProps) {
       <table className="w-full text-sm text-left">
         <thead className="bg-muted/50 text-muted-foreground border-b">
           <tr>
-            <th className="h-12 px-4 font-medium">Participante</th>
-            <th className="h-12 px-4 font-medium">Aula/Material</th>
-            <th className="h-12 px-4 font-medium">Data</th>
-            <th className="h-12 px-4 font-medium">Processamento</th>
-            <th className="h-12 px-4 font-medium text-right">Ações</th>
+            <th scope="col" className="h-12 px-4 font-medium">Participante</th>
+            <th scope="col" className="h-12 px-4 font-medium">Aula/Material</th>
+            <th scope="col" className="h-12 px-4 font-medium">Data</th>
+            <th scope="col" className="h-12 px-4 font-medium">Processamento</th>
+            <th scope="col" className="h-12 px-4 font-medium text-right">Ações</th>
           </tr>
         </thead>
         <tbody>

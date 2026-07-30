@@ -33,17 +33,17 @@ const EVENT_COLUMNS: ColumnDef<TimelineEvent>[] = [
     key: 'startMs',
     header: 'Início',
     sortable: true,
-    render: (v) => <span className="font-mono text-xs text-slate-600">{formatMs(Number(v))}</span>,
+    render: (v) => <span className="font-mono text-xs text-text-secondary">{formatMs(Number(v))}</span>,
   },
   {
     key: 'endMs',
     header: 'Fim',
-    render: (v) => <span className="font-mono text-xs text-slate-600">{formatMs(Number(v))}</span>,
+    render: (v) => <span className="font-mono text-xs text-text-secondary">{formatMs(Number(v))}</span>,
   },
   {
     key: 'endMs',
     header: 'Duração',
-    render: (_, row) => <span className="font-mono text-xs text-slate-600">{formatMs(row.endMs - row.startMs)}</span>,
+    render: (_, row) => <span className="font-mono text-xs text-text-secondary">{formatMs(row.endMs - row.startMs)}</span>,
   },
   {
     key: 'confidence',
@@ -120,17 +120,17 @@ export function VideoDetailPage() {
   if (loadingVideo || loadingTimeline || loadingQuality) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin" />
+        <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
       </div>
     );
   }
 
   if (isVideoError || isTimelineError || isQualityError || !videoAsset) {
     return (
-      <div className="min-h-full bg-slate-50/50 px-6 py-12">
-        <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center">
-          <h1 className="text-xl font-semibold text-slate-900">Vídeo não encontrado</h1>
-          <p className="mt-2 text-sm text-slate-500">
+      <div className="min-h-full bg-app-bg px-6 py-12">
+        <div className="mx-auto max-w-lg rounded-xl border border-border bg-surface p-8 text-center">
+          <h1 className="text-xl font-semibold text-text-primary">Vídeo não encontrado</h1>
+          <p className="mt-2 text-sm text-text-muted">
             Não foi possível carregar os dados deste vídeo. Ele pode não existir, ainda
             não ter sido processado, ou o processamento pode ter falhado.
           </p>
@@ -138,7 +138,7 @@ export function VideoDetailPage() {
             {videoId && (
               <Link
                 to={`/app/videos/${videoId}/processing`}
-                className="inline-flex rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex rounded-lg border border-border px-4 py-2 text-sm font-semibold text-text-secondary transition hover:bg-app-bg"
               >
                 Ver logs de processamento
               </Link>
@@ -201,7 +201,7 @@ export function VideoDetailPage() {
             <ModelVersionBadge name="FaceMesh" version={timelineData?.model_version || "1.0"} active />
             <button
               onClick={() => downloadDynamicPdf(videoId!)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-app-bg transition-colors"
             >
               <FileDown size={13} />
               Baixar Relatório
@@ -210,21 +210,21 @@ export function VideoDetailPage() {
               <div className="relative group">
                 <button
                   disabled={landmarkDownload.isPending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-app-bg transition-colors disabled:opacity-50"
                 >
                   <Download size={13} />
                   {landmarkDownload.isPending ? 'Gerando link...' : 'Baixar landmarks'}
                 </button>
-                <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden min-w-[160px]">
+                <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10 bg-surface border border-border rounded-lg shadow-lg overflow-hidden min-w-[160px]">
                   <button
                     onClick={() => handleDownloadLandmarks('normalized')}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                    className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-app-bg"
                   >
                     Normalizado (.parquet)
                   </button>
                   <button
                     onClick={() => handleDownloadLandmarks('raw')}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                    className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-app-bg"
                   >
                     Bruto (.parquet)
                   </button>
@@ -233,7 +233,7 @@ export function VideoDetailPage() {
             )}
             <button
               onClick={handleProcess}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-app-bg transition-colors"
             >
               <RotateCcw size={13} />
               Reprocessar
@@ -241,7 +241,7 @@ export function VideoDetailPage() {
             <button
               onClick={handleInference}
               disabled={startInference.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-app-bg transition-colors"
             >
               {startInference.isPending ? 'Rodando...' : 'Inferência'}
             </button>
@@ -276,7 +276,7 @@ export function VideoDetailPage() {
             />
 
             <div className="card p-4">
-              <h3 className="text-sm font-semibold text-slate-800 mb-3">Timeline de microações</h3>
+              <h3 className="text-sm font-semibold text-text-primary mb-3">Timeline de microações</h3>
               <MicroActionTimeline
                 events={events}
                 videoDurationMs={(qualityData?.durationSeconds || 120) * 1000}
@@ -292,9 +292,9 @@ export function VideoDetailPage() {
         </div>
 
         <div className="card overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-800">Eventos detectados</h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+          <div className="px-5 py-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-text-primary">Eventos detectados</h3>
+            <p className="text-xs text-text-muted mt-0.5">
               {events.length} eventos · ordenados por tempo de início
             </p>
           </div>
@@ -304,10 +304,10 @@ export function VideoDetailPage() {
           />
         </div>
 
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
-          <Info size={14} className="text-slate-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-slate-500 leading-relaxed">
-            <strong className="text-slate-600 font-semibold">Interpretação científica:</strong>{' '}
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-app-bg border border-border">
+          <Info size={14} className="text-text-muted shrink-0 mt-0.5" />
+          <p className="text-xs text-text-muted leading-relaxed">
+            <strong className="text-text-secondary font-semibold">Interpretação científica:</strong>{' '}
             Os resultados descrevem padrões temporais de eventos faciais observados no vídeo — não
             constituem diagnóstico nem inferência automática de estados cognitivos. A associação com
             outras modalidades (por exemplo, EEG) não implica causalidade e depende do protocolo, dos

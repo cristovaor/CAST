@@ -53,9 +53,9 @@ export function StudyLayout() {
 
   if (isLoadingStudy) {
     return (
-      <div className="flex min-h-[320px] items-center justify-center bg-slate-50/50">
+      <div className="flex min-h-[320px] items-center justify-center bg-app-bg">
         <div
-          className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"
+          className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-blue-600"
           role="status"
           aria-label="Carregando estudo"
         />
@@ -65,10 +65,10 @@ export function StudyLayout() {
 
   if (isStudyError || !study) {
     return (
-      <div className="min-h-full bg-slate-50/50 px-6 py-12">
-        <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center">
-          <h1 className="text-xl font-semibold text-slate-900">Estudo não encontrado</h1>
-          <p className="mt-2 text-sm text-slate-500">
+      <div className="min-h-full bg-app-bg px-6 py-12">
+        <div className="mx-auto max-w-lg rounded-xl border border-border bg-surface p-8 text-center">
+          <h1 className="text-xl font-semibold text-text-primary">Estudo não encontrado</h1>
+          <p className="mt-2 text-sm text-text-muted">
             O estudo informado não existe ou não está disponível para sua organização.
           </p>
           <Link
@@ -101,18 +101,18 @@ export function StudyLayout() {
     ?? (isLoadingProject ? 'Carregando projeto...' : 'Projeto não encontrado');
 
   return (
-    <div className="min-h-full bg-slate-50/50">
-      <div className="border-b border-slate-200 bg-white px-6 pt-5">
+    <div className="min-h-full bg-app-bg">
+      <div className="border-b border-border bg-surface px-6 pt-5">
         <nav
-          className="mb-3 flex items-center gap-1.5 text-[12px] text-slate-400"
+          className="mb-3 flex items-center gap-1.5 text-[12px] text-text-muted"
           aria-label="Breadcrumb do estudo"
         >
-          <Link to="/app/projects" className="hover:text-slate-700">Projetos</Link>
+          <Link to="/app/projects" className="hover:text-text-secondary">Projetos</Link>
           <ChevronRight size={12} aria-hidden="true" />
           {project ? (
             <Link
               to={`/app/projects/${project.id}`}
-              className="hover:text-slate-700"
+              className="hover:text-text-secondary"
             >
               {project.name}
             </Link>
@@ -120,23 +120,23 @@ export function StudyLayout() {
             <span>{projectLabel}</span>
           )}
           <ChevronRight size={12} aria-hidden="true" />
-          <span className="font-medium text-slate-700">{study.name}</span>
+          <span className="font-medium text-text-secondary">{study.name}</span>
         </nav>
 
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900">
+              <h1 className="truncate text-2xl font-bold tracking-tight text-text-primary">
                 {study.name}
               </h1>
               <StatusBadge status={study.status} />
             </div>
-            <p className="mt-0.5 text-sm text-slate-500">
+            <p className="mt-0.5 text-sm text-text-muted">
               {studySummary} · ID {study.id}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-[12px] text-slate-500 lg:justify-end">
+          <div className="flex flex-wrap items-center gap-2 text-[12px] text-text-muted lg:justify-end">
             <span className="mr-2 inline-flex items-center gap-1">
               <Users size={13} aria-hidden="true" />
               {study.participant_count ?? 0} participantes
@@ -180,7 +180,7 @@ export function StudyLayout() {
                   'whitespace-nowrap border-b-2 pb-3 pt-1 text-[13px] font-medium transition-colors',
                   isActive
                     ? 'border-blue-600 text-blue-700'
-                    : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800',
+                    : 'border-transparent text-text-muted hover:border-border-strong hover:text-text-primary',
                 )
               }
             >

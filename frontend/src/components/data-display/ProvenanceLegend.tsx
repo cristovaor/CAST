@@ -21,7 +21,7 @@ export function ProvenanceLegend({ kinds = DEFAULT_KINDS, className }: Provenanc
       {kinds.map((k) => {
         const m = PROVENANCE_META[k];
         return (
-          <span key={k} className="inline-flex items-center gap-1.5 text-[11px] text-slate-600">
+          <span key={k} className="inline-flex items-center gap-1.5 text-[11px] text-text-secondary">
             <span
               className="w-2.5 h-2.5 rounded-sm shrink-0 border border-black/10"
               style={{ backgroundColor: m.color }}

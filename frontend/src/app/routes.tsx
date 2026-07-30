@@ -1,10 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useLocation } from "react-router-dom";
 import { lazy, Suspense, type ComponentType } from "react";
 import { AppShell } from "../components/layout/AppShell";
 import { ProtectedRoute } from "../components/layout/ProtectedRoute";
 import { LoginPage } from "../features/auth/pages/LoginPage";
 import { StudyLayout } from "../components/layout/StudyLayout";
+import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
+import { NotFoundPage } from "../pages/NotFoundPage";
 
 // Route-level code splitting: each page is its own chunk, loaded on demand.
 // Helper adapts named exports to React.lazy (which expects a default export).
@@ -66,14 +68,25 @@ const StudySettingsPage = page(() => import("../pages/StudySectionPages"), "Stud
 function RouteFallback() {
   return (
     <div className="flex h-full min-h-[50vh] items-center justify-center">
-      <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin" />
+      <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
     </div>
   );
 }
 
-// Wraps a lazy element in Suspense so each navigation shows the spinner.
+// Wraps a lazy element in Suspense so each navigation shows the spinner, and in
+// an ErrorBoundary so a crash is contained to the page instead of blanking the
+// whole shell. The boundary resets on navigation via the pathname key.
+function RouteContainer({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+  return (
+    <ErrorBoundary resetKey={pathname}>
+      <Suspense fallback={<RouteFallback />}>{children}</Suspense>
+    </ErrorBoundary>
+  );
+}
+
 function lazyRoute(element: React.ReactNode) {
-  return <Suspense fallback={<RouteFallback />}>{element}</Suspense>;
+  return <RouteContainer>{element}</RouteContainer>;
 }
 
 export const router = createBrowserRouter([
@@ -83,7 +96,22 @@ export const router = createBrowserRouter([
   },
   {
     path: "/login",
-    element: <LoginPage />,
+    element: (
+      <ErrorBoundary>
+        <LoginPage />
+      </ErrorBoundary>
+    ),
+  },
+  {
+    // Target of the invitation e-mail link. The login page reads the ?token=
+    // query parameter and forwards it when exchanging the Google ID token, so
+    // accepting an invite is just "sign in" with the invite attached.
+    path: "/accept-invite",
+    element: (
+      <ErrorBoundary>
+        <LoginPage />
+      </ErrorBoundary>
+    ),
   },
   {
     path: "/app",
@@ -150,6 +178,10 @@ export const router = createBrowserRouter([
       { path: "governance", element: lazyRoute(<GovernancePage />) },
       { path: "audit", element: lazyRoute(<AuditPage />) },
       { path: "settings", element: lazyRoute(<SettingsPage />) },
+      // Unknown /app/* path: render 404 inside the shell so navigation survives.
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
+  // Unknown top-level path (outside the authenticated shell).
+  { path: "*", element: <NotFoundPage /> },
 ]);

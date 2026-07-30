@@ -400,7 +400,7 @@ function ReadinessDashboard({ sessions }: { sessions: Array<{
             <table className="data-table w-full">
               <thead>
                 <tr>
-                  <th>Sessão</th><th>Condição</th><th>Vídeo</th><th>EEG</th><th>Sincronização</th><th>Estado</th>
+                  <th scope="col">Sessão</th><th scope="col">Condição</th><th scope="col">Vídeo</th><th scope="col">EEG</th><th scope="col">Sincronização</th><th scope="col">Estado</th>
                 </tr>
               </thead>
               <tbody>
@@ -545,8 +545,8 @@ function RecordsTab({
           <table className="data-table w-full">
             <thead>
               <tr>
-                <th>Sessão</th><th>Participante</th><th>Condição</th><th>Modalidades</th>
-                <th>Sync</th><th>Offset</th><th>Confiança</th><th>EEG válido</th><th>Landmarks</th>
+                <th scope="col">Sessão</th><th scope="col">Participante</th><th scope="col">Condição</th><th scope="col">Modalidades</th>
+                <th scope="col">Sync</th><th scope="col">Offset</th><th scope="col">Confiança</th><th scope="col">EEG válido</th><th scope="col">Landmarks</th>
               </tr>
             </thead>
             <tbody>
@@ -690,7 +690,7 @@ function LandmarksTab({ records, loading }: { records: DatasetRecord[]; loading:
         {frame && (
           <div className="max-h-80 overflow-auto rounded-xl border border-border bg-surface shadow-card">
             <table className="data-table w-full">
-              <thead><tr><th>ID</th><th>x</th><th>y</th></tr></thead>
+              <thead><tr><th scope="col">ID</th><th scope="col">x</th><th scope="col">y</th></tr></thead>
               <tbody>
                 {frame.points.slice(0, 80).map(([id, x, y]) => (
                   <tr key={id}>
@@ -742,7 +742,7 @@ function LineageTab({ dataset, manifest }: { dataset: DatasetDTO; manifest: Mani
         </div>
         <div className="overflow-x-auto">
           <table className="data-table w-full">
-            <thead><tr><th>Campo</th><th>Definição</th><th>Origem</th></tr></thead>
+            <thead><tr><th scope="col">Campo</th><th scope="col">Definição</th><th scope="col">Origem</th></tr></thead>
             <tbody>
               {Object.entries(schema).map(([field, definition]) => (
                 <tr key={field}>
@@ -998,7 +998,7 @@ function ExcludedTable({ excluded }: { excluded: { session_id: string; reason: s
       </div>
       <div className="max-h-72 overflow-auto">
         <table className="data-table w-full">
-          <thead><tr><th>Sessão</th><th>Motivo explícito</th></tr></thead>
+          <thead><tr><th scope="col">Sessão</th><th scope="col">Motivo explícito</th></tr></thead>
           <tbody>
             {excluded.map((item) => (
               <tr key={`${item.session_id}-${item.reason}`}>

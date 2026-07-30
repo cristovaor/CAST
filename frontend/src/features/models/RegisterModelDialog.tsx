@@ -57,16 +57,16 @@ export function RegisterModelDialog({ children }: { children: React.ReactNode })
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Model ID (ex: cast-lstm-v6)</label>
-              <input required value={modelId} onChange={e => setModelId(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
+              <label className="text-sm font-medium text-text-secondary">Model ID (ex: cast-lstm-v6)</label>
+              <input required value={modelId} onChange={e => setModelId(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Versão (ex: 1.0)</label>
-              <input required value={version} onChange={e => setVersion(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
+              <label className="text-sm font-medium text-text-secondary">Versão (ex: 1.0)</label>
+              <input required value={version} onChange={e => setVersion(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Ação</label>
-              <select required value={action} onChange={e => setAction(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none bg-white">
+              <label className="text-sm font-medium text-text-secondary">Ação</label>
+              <select required value={action} onChange={e => setAction(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md outline-none bg-surface">
                 <option value="OF">OF (Olhos Fechados)</option>
                 <option value="OC">OC (Olhando Canto)</option>
                 <option value="ML">ML (Mexendo Lábios)</option>
@@ -75,14 +75,14 @@ export function RegisterModelDialog({ children }: { children: React.ReactNode })
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Artifact URI (MinIO path ou Local)</label>
-              <input required value={artifactUri} onChange={e => setArtifactUri(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none" placeholder="s3://models/cast-lstm-v6-OF.keras" />
+              <label className="text-sm font-medium text-text-secondary">Artifact URI (MinIO path ou Local)</label>
+              <input required value={artifactUri} onChange={e => setArtifactUri(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md outline-none" placeholder="s3://models/cast-lstm-v6-OF.keras" />
             </div>
           </div>
           
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Manifesto (JSON)</label>
-            <textarea rows={8} value={manifestStr} onChange={e => setManifestStr(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md font-mono text-xs outline-none" />
+            <label className="text-sm font-medium text-text-secondary">Manifesto (JSON)</label>
+            <textarea rows={8} value={manifestStr} onChange={e => setManifestStr(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md font-mono text-xs outline-none" />
           </div>
           
           <DialogFooter>

@@ -95,7 +95,7 @@ export function StudiesPage() {
             variant="empty"
             title="Nenhum estudo ainda"
             description="Crie um estudo configurável: defina a questão de pesquisa, o desenho experimental e as modalidades coletadas."
-            icon={<FlaskConical size={40} className="text-slate-300" />}
+            icon={<FlaskConical size={40} className="text-text-disabled" />}
           />
         ) : (
           <>
@@ -167,7 +167,7 @@ export function StudiesPage() {
                 variant="empty"
                 title="Nenhum estudo corresponde aos filtros"
                 description="Ajuste a busca ou limpe os filtros para ver outros estudos."
-                icon={<FlaskConical size={40} className="text-slate-300" />}
+                icon={<FlaskConical size={40} className="text-text-disabled" />}
               />
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

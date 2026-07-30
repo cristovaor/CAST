@@ -130,7 +130,7 @@ export function VideoAnnotatorPlayer({
       )}
       {draft && (
         <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full bg-danger px-3 py-1.5 text-sm font-semibold text-white shadow-lg">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+          <span className="h-2 w-2 animate-pulse rounded-full bg-surface" />
           Intervalo: {draft.actionLabel}
         </div>
       )}

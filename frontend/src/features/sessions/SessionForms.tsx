@@ -68,7 +68,7 @@ export function AuxiliaryDataForm({ defaultValues, onNext, onBack }: { defaultVa
       <div className="flex justify-between gap-3">
         <button type="button" onClick={onBack} className="px-4 py-2 hover:bg-muted rounded-md text-sm font-medium border border-input">Voltar</button>
         <div className="flex gap-3">
-          <button type="button" onClick={() => onNext({})} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-sm font-medium">Pular</button>
+          <button type="button" onClick={() => onNext({})} className="px-4 py-2 bg-surface-muted hover:bg-surface-muted text-text-secondary rounded-md text-sm font-medium">Pular</button>
           <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium">Próximo</button>
         </div>
       </div>

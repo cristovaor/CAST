@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,11 @@ export function ConfirmDialog({
   destructive = false,
   isLoading = false,
 }: ConfirmDialogProps) {
+  // Unique per instance: a static id would make aria-labelledby resolve to the
+  // wrong heading when two dialogs are mounted at once.
+  const titleId = useId();
+  const descriptionId = useId();
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -36,6 +41,16 @@ export function ConfirmDialog({
       document.body.style.overflow = 'unset';
     };
   }, [open]);
+
+  // Escape closes the dialog, matching standard modal behaviour.
+  useEffect(() => {
+    if (!open || isLoading) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, isLoading, onClose]);
 
   if (!open) return null;
 
@@ -51,9 +66,10 @@ export function ConfirmDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-title"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
         className={cn(
-          'relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden',
+          'relative bg-surface rounded-xl shadow-2xl w-full max-w-md overflow-hidden',
           'animate-scale-in',
         )}
       >
@@ -68,10 +84,10 @@ export function ConfirmDialog({
               <AlertTriangle size={20} />
             </div>
             <div className="flex-1 min-w-0">
-              <h2 id="dialog-title" className="text-lg font-semibold text-slate-900 mb-1.5 leading-tight">
+              <h2 id={titleId} className="text-lg font-semibold text-text-primary mb-1.5 leading-tight">
                 {title}
               </h2>
-              <div className="text-sm text-slate-500 leading-relaxed">
+              <div id={descriptionId} className="text-sm text-text-muted leading-relaxed">
                 {description}
               </div>
             </div>
@@ -79,17 +95,20 @@ export function ConfirmDialog({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 flex items-center justify-end gap-3 border-t border-slate-100">
+        <div className="px-6 py-4 bg-app-bg flex items-center justify-end gap-3 border-t border-border">
           <button
+            type="button"
             onClick={onClose}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-200/50 rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-muted rounded-lg transition-colors disabled:opacity-50"
           >
             {cancelLabel}
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             disabled={isLoading}
+            aria-busy={isLoading || undefined}
             className={cn(
               'flex items-center justify-center min-w-[100px] px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors shadow-sm disabled:opacity-70',
               destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700',
@@ -108,7 +127,7 @@ export function ConfirmDialog({
           onClick={onClose}
           disabled={isLoading}
           aria-label="Fechar diálogo"
-          className="absolute top-4 right-4 p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors disabled:opacity-50"
+          className="absolute top-4 right-4 p-1 rounded-md text-text-muted hover:bg-surface-muted hover:text-text-secondary transition-colors disabled:opacity-50"
         >
           <X size={16} />
         </button>

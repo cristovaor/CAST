@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { toast } from '@/app/stores/useToastStore';
 import type { ModelVersion } from '@/types/domain';
 
 export function useModelVersions(modelId?: string, action?: string, status?: string) {
@@ -29,8 +30,9 @@ export function usePromoteModel() {
   return useMutation({
     mutationFn: ({ versionId, targetStatus, notes }: { versionId: string, targetStatus: string, notes?: string }) => 
       apiClient.post<ModelVersion>(`/models/${versionId}/promote`, { target_status: targetStatus, notes }),
-    onSuccess: () => {
+    onSuccess: (model, { targetStatus }) => {
       queryClient.invalidateQueries({ queryKey: ['models'] });
+      toast.success('Modelo promovido', `${model.model_id} v${model.version} → ${targetStatus}`);
     },
   });
 }
@@ -42,6 +44,7 @@ export function useDeleteModel() {
     mutationFn: (versionId: string) => apiClient.delete(`/models/${versionId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['models'] });
+      toast.success('Versão de modelo excluída');
     },
   });
 }
@@ -52,8 +55,9 @@ export function useRegisterModel() {
   return useMutation({
     mutationFn: (data: { model_id: string, version: string, action: string, artifact_uri: string, manifest: Record<string, unknown> }) =>
       apiClient.post<ModelVersion>('/models', data),
-    onSuccess: () => {
+    onSuccess: (model) => {
       queryClient.invalidateQueries({ queryKey: ['models'] });
+      toast.success('Modelo registrado', `${model.model_id} v${model.version}`);
     },
   });
 }
@@ -83,6 +87,15 @@ export function useTrainModel() {
   return useMutation({
     mutationFn: (data: TrainModelPayload) =>
       apiClient.post<TrainModelResponse>('/models/train', data),
+    onSuccess: (response) => {
+      const started = response.jobs.length;
+      toast.success(
+        started === 1 ? 'Treino iniciado' : `${started} treinos iniciados`,
+        response.skipped.length
+          ? `Ignorado(s): ${response.skipped.join(', ')}`
+          : response.message,
+      );
+    },
   });
 }
 
@@ -115,6 +128,7 @@ export function useCancelTrainJob() {
     mutationFn: (jobId: string) => apiClient.post(`/models/train-jobs/${jobId}/cancel`),
     onSuccess: (_, jobId) => {
       queryClient.invalidateQueries({ queryKey: ['trainJob', jobId] });
+      toast.info('Treino cancelado');
     },
   });
 }

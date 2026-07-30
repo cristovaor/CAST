@@ -8,14 +8,14 @@ import { RefreshCw } from 'lucide-react';
 
 export function QualityFindings({ findings }: { findings: QualityFinding[] }) {
   if (!findings.length) {
-    return <p className="text-sm text-slate-500">Nenhum problema de qualidade registrado.</p>;
+    return <p className="text-sm text-text-muted">Nenhum problema de qualidade registrado.</p>;
   }
   return (
     <div className="space-y-3">
       {findings.map((f) => (
-        <div key={f.id} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
-          <div className="flex items-center justify-between gap-2 px-3.5 py-2 border-b border-slate-100 bg-slate-50/60">
-            <span className="text-sm font-semibold text-slate-800">{f.issue}</span>
+        <div key={f.id} className="rounded-lg border border-border bg-surface overflow-hidden">
+          <div className="flex items-center justify-between gap-2 px-3.5 py-2 border-b border-border bg-app-bg">
+            <span className="text-sm font-semibold text-text-primary">{f.issue}</span>
             <div className="flex items-center gap-2">
               {f.reprocessable && (
                 <span className="inline-flex items-center gap-1 text-[10px] text-blue-600">
@@ -39,8 +39,8 @@ export function QualityFindings({ findings }: { findings: QualityFinding[] }) {
 function Row({ label, value, full }: { label: string; value: string; full?: boolean }) {
   return (
     <div className={full ? 'sm:col-span-2' : ''}>
-      <dt className="text-slate-400 font-medium">{label}</dt>
-      <dd className="text-slate-700 mt-0.5">{value}</dd>
+      <dt className="text-text-muted font-medium">{label}</dt>
+      <dd className="text-text-secondary mt-0.5">{value}</dd>
     </div>
   );
 }

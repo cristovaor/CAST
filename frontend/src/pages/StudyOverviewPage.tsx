@@ -17,7 +17,7 @@ export function StudyOverviewPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center p-12">
-        <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin" />
+        <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
       </div>
     );
   }
@@ -28,10 +28,10 @@ export function StudyOverviewPage() {
   return (
     <div className="space-y-6">
       {!hasConfig && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-          <FlaskConical className="mx-auto mb-2 text-slate-300" size={32} />
-          <p className="text-sm font-medium text-slate-700">Estudo sem configuração científica</p>
-          <p className="text-[12px] text-slate-500 mt-1">Este estudo foi criado sem o desenho detalhado. Recrie-o pelo assistente para definir questão, hipóteses e modalidades.</p>
+        <div className="rounded-xl border border-dashed border-border-strong bg-app-bg p-6 text-center">
+          <FlaskConical className="mx-auto mb-2 text-text-disabled" size={32} />
+          <p className="text-sm font-medium text-text-secondary">Estudo sem configuração científica</p>
+          <p className="text-[12px] text-text-muted mt-1">Este estudo foi criado sem o desenho detalhado. Recrie-o pelo assistente para definir questão, hipóteses e modalidades.</p>
           <Link to="/app/studies/new" className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
             Abrir assistente de estudo
           </Link>
@@ -43,12 +43,12 @@ export function StudyOverviewPage() {
           {/* Design + modalities strip */}
           <div className="flex flex-wrap items-center gap-2">
             {cfg.design && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-medium text-slate-700">
-                <FlaskConical size={13} className="text-slate-400" /> {DESIGN_LABEL[cfg.design] ?? cfg.design}
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-[12px] font-medium text-text-secondary">
+                <FlaskConical size={13} className="text-text-muted" /> {DESIGN_LABEL[cfg.design] ?? cfg.design}
               </span>
             )}
             {(cfg.modalities ?? []).map((m) => (
-              <span key={m} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-medium text-slate-700">
+              <span key={m} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-[12px] font-medium text-text-secondary">
                 {m === 'video' && <Video size={13} className="text-blue-500" />}
                 {m === 'eeg' && <Activity size={13} className="text-cyan-500" />}
                 {MODALITY_LABEL[m] ?? m}
@@ -59,19 +59,19 @@ export function StudyOverviewPage() {
           <div className="grid gap-4 md:grid-cols-2">
             {cfg.researchQuestion && (
               <Block icon={Target} title="Questão de pesquisa">
-                <p className="text-sm text-slate-700">{cfg.researchQuestion}</p>
+                <p className="text-sm text-text-secondary">{cfg.researchQuestion}</p>
               </Block>
             )}
             {cfg.generalObjective && (
               <Block icon={ListChecks} title="Objetivo geral">
-                <p className="text-sm text-slate-700">{cfg.generalObjective}</p>
+                <p className="text-sm text-text-secondary">{cfg.generalObjective}</p>
               </Block>
             )}
             {cfg.specificObjectives && cfg.specificObjectives.length > 0 && (
               <Block icon={ListChecks} title="Objetivos específicos">
                 <ul className="space-y-1">
                   {cfg.specificObjectives.map((o, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-slate-700"><span className="text-slate-300">•</span>{o}</li>
+                    <li key={i} className="flex gap-2 text-sm text-text-secondary"><span className="text-text-disabled">•</span>{o}</li>
                   ))}
                 </ul>
               </Block>
@@ -80,7 +80,7 @@ export function StudyOverviewPage() {
               <Block icon={FlaskConical} title="Hipóteses">
                 <ul className="space-y-1.5">
                   {cfg.hypotheses.map((h, i) => (
-                    <li key={i} className="text-sm text-slate-700">
+                    <li key={i} className="text-sm text-text-secondary">
                       <span className="font-mono text-xs font-semibold text-blue-600 mr-1.5">{h.code}</span>
                       {h.statement}
                     </li>
@@ -90,19 +90,19 @@ export function StudyOverviewPage() {
             )}
             {cfg.groups && (
               <Block icon={Users} title="Grupos / condições">
-                <p className="text-sm text-slate-700 whitespace-pre-line">{cfg.groups}</p>
+                <p className="text-sm text-text-secondary whitespace-pre-line">{cfg.groups}</p>
               </Block>
             )}
             {cfg.variables && (
               <Block icon={ListChecks} title="Variáveis & desfechos">
-                <p className="text-sm text-slate-700 whitespace-pre-line">{cfg.variables}</p>
+                <p className="text-sm text-text-secondary whitespace-pre-line">{cfg.variables}</p>
               </Block>
             )}
             {(cfg.retentionPolicy || cfg.ethicsApprovalRef || cfg.purpose) && (
               <Block icon={ShieldCheck} title="Governança">
-                {cfg.purpose && <p className="text-sm text-slate-700 mb-1">{cfg.purpose}</p>}
-                {cfg.retentionPolicy && <p className="text-[12px] text-slate-500">Retenção: {cfg.retentionPolicy}</p>}
-                {cfg.ethicsApprovalRef && <p className="text-[12px] text-slate-500">Aprovação ética: {cfg.ethicsApprovalRef}</p>}
+                {cfg.purpose && <p className="text-sm text-text-secondary mb-1">{cfg.purpose}</p>}
+                {cfg.retentionPolicy && <p className="text-[12px] text-text-muted">Retenção: {cfg.retentionPolicy}</p>}
+                {cfg.ethicsApprovalRef && <p className="text-[12px] text-text-muted">Aprovação ética: {cfg.ethicsApprovalRef}</p>}
               </Block>
             )}
           </div>
@@ -116,10 +116,10 @@ export function StudyOverviewPage() {
 
 function Block({ icon: Icon, title, children }: { icon: typeof Target; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-border bg-surface p-4">
       <div className="flex items-center gap-2 mb-2">
-        <Icon size={15} className="text-slate-400" />
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
+        <Icon size={15} className="text-text-muted" />
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">{title}</h3>
       </div>
       {children}
     </div>

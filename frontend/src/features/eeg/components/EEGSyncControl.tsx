@@ -13,18 +13,18 @@ export function EEGSyncControl({ eegId }: EEGSyncControlProps) {
 
   const mapping = data.sync_transform;
   return (
-    <div className="flex items-center gap-2 text-[11px] text-slate-400" title="Ajustes são feitos por um novo run auditável na página de sincronização">
+    <div className="flex items-center gap-2 text-[11px] text-text-muted" title="Ajustes são feitos por um novo run auditável na página de sincronização">
       {mapping.approved ? <CheckCircle2 className="text-emerald-400" size={13} /> : <LockKeyhole size={13} />}
       <span className="uppercase tracking-wide">Sync EEG</span>
       <span className="font-mono tabular-nums text-slate-200">
         {mapping.offset_ms > 0 ? '+' : ''}{mapping.offset_ms} ms
       </span>
       {mapping.drift_ms_per_min !== 0 && (
-        <span className="font-mono tabular-nums text-slate-400">
+        <span className="font-mono tabular-nums text-text-muted">
           {mapping.drift_ms_per_min > 0 ? '+' : ''}{mapping.drift_ms_per_min} ms/min
         </span>
       )}
-      <span className="text-slate-500">{mapping.approved ? 'aprovado' : 'sem aprovação'}</span>
+      <span className="text-text-muted">{mapping.approved ? 'aprovado' : 'sem aprovação'}</span>
     </div>
   );
 }

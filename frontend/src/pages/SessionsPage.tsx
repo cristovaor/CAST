@@ -54,14 +54,14 @@ export function SessionsPage() {
       <div className="space-y-4 p-6">
         {isLoading ? (
           <div className="flex justify-center p-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-blue-600" />
           </div>
         ) : !sessions || sessions.length === 0 ? (
           <EmptyState
             variant="empty"
             title="Nenhuma sessão ainda"
             description="Crie a primeira sessão e anexe vídeo e/ou EEG. O estado evolui automaticamente conforme os dados."
-            icon={<Video size={40} className="text-slate-300" />}
+            icon={<Video size={40} className="text-text-disabled" />}
           />
         ) : (
           <>
@@ -131,20 +131,20 @@ function SessionRow({ session }: { session: SessionListItem }) {
   return (
     <Link
       to={`/app/sessions/${session.id}`}
-      className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 transition-colors hover:border-blue-300"
+      className="flex items-center gap-4 rounded-xl border border-border bg-surface px-4 py-3 transition-colors hover:border-blue-300"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-text-muted">
         <User size={16} />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-slate-800">S-{session.id.slice(0, 8)}</span>
+          <span className="text-sm font-semibold text-text-primary">S-{session.id.slice(0, 8)}</span>
           {session.condition && (
-            <span className="text-[11px] text-slate-500">· {session.condition}</span>
+            <span className="text-[11px] text-text-muted">· {session.condition}</span>
           )}
         </div>
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-text-muted">
           {new Date(session.created_at).toLocaleString('pt-BR')}
         </p>
       </div>
@@ -155,7 +155,7 @@ function SessionRow({ session }: { session: SessionListItem }) {
       </div>
 
       {stateMeta && <ToneBadge tone={stateMeta.tone}>{stateMeta.label}</ToneBadge>}
-      <ChevronRight size={16} className="shrink-0 text-slate-300" />
+      <ChevronRight size={16} className="shrink-0 text-text-disabled" />
     </Link>
   );
 }
@@ -170,7 +170,7 @@ function ModalityChip({ present, icon: Icon, label, tone }: {
     ? (tone === 'blue'
       ? 'border-blue-200 bg-blue-50 text-blue-700'
       : 'border-cyan-200 bg-cyan-50 text-cyan-700')
-    : 'border-slate-200 bg-slate-50 text-slate-300';
+    : 'border-border bg-app-bg text-text-disabled';
 
   return (
     <span

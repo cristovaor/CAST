@@ -61,28 +61,28 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId?: string
         <div className="space-y-4">
           {!datasetId && (
             <div className="grid grid-cols-[1fr_120px] gap-3">
-              <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <label className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                 Nome
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Dataset multimodal"
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-secondary focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </label>
-              <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <label className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                 Versão
                 <input
                   value={version}
                   onChange={(event) => setVersion(event.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-secondary focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </label>
             </div>
           )}
           {/* Modalities */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modalidades obrigatórias</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted">Modalidades obrigatórias</label>
             <div className="mt-2 flex gap-2">
               {MODALITIES.map(([v, l]) => {
                 const on = (criteria.modalities ?? []).includes(v);
@@ -90,7 +90,7 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId?: string
                   <button
                     key={v}
                     onClick={() => toggleModality(v)}
-                    className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] transition-colors ${on ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] transition-colors ${on ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-border text-text-secondary hover:bg-app-bg'}`}
                   >
                     {on && <Check size={13} />} {l}
                   </button>
@@ -112,24 +112,24 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId?: string
               onChange={(v) => setCriteria((c) => ({ ...c, require_sync: v }))}
             />
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-slate-700">EEG válido mínimo</span>
+              <span className="text-[13px] text-text-secondary">EEG válido mínimo</span>
               <div className="flex items-center gap-2">
                 <input
                   type="number" min={0} max={100} step={5}
                   value={criteria.min_eeg_valid_ratio != null ? Math.round(criteria.min_eeg_valid_ratio * 100) : ''}
                   onChange={(e) => setCriteria((c) => ({ ...c, min_eeg_valid_ratio: e.target.value === '' ? null : Number(e.target.value) / 100 }))}
                   placeholder="—"
-                  className="w-16 rounded-md border border-slate-200 px-2 py-1 text-sm text-right focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-16 rounded-md border border-border px-2 py-1 text-sm text-right focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
-                <span className="text-[12px] text-slate-400">%</span>
+                <span className="text-[12px] text-text-muted">%</span>
               </div>
             </div>
           </div>
 
           {/* Preview */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+          <div className="rounded-lg border border-border bg-app-bg p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-medium text-slate-700">Prévia da seleção</span>
+              <span className="text-[13px] font-medium text-text-secondary">Prévia da seleção</span>
               <button
                 onClick={() => preview.mutate(criteria)}
                 disabled={preview.isPending}
@@ -139,15 +139,15 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId?: string
               </button>
             </div>
             {preview.data && (
-              <div className="mt-2 text-[12px] text-slate-600 space-y-1">
-                <p><strong className="text-emerald-700">{preview.data.included}</strong> sessões incluídas · <strong className="text-slate-500">{preview.data.excluded}</strong> excluídas · {preview.data.participant_count} participantes</p>
+              <div className="mt-2 text-[12px] text-text-secondary space-y-1">
+                <p><strong className="text-emerald-700">{preview.data.included}</strong> sessões incluídas · <strong className="text-text-muted">{preview.data.excluded}</strong> excluídas · {preview.data.participant_count} participantes</p>
                 {preview.data.conditions.length > 0 && <p>Condições: {preview.data.conditions.join(', ')}</p>}
                 {preview.data.excluded_sample.length > 0 && (
                   <details className="mt-1">
-                    <summary className="cursor-pointer text-slate-500">Motivos de exclusão</summary>
+                    <summary className="cursor-pointer text-text-muted">Motivos de exclusão</summary>
                     <ul className="mt-1 pl-3 space-y-0.5">
                       {preview.data.excluded_sample.slice(0, 8).map((e, i) => (
-                        <li key={i} className="text-[11px] text-slate-500">{e.session_id.slice(0, 8)}: {e.reason}</li>
+                        <li key={i} className="text-[11px] text-text-muted">{e.session_id.slice(0, 8)}: {e.reason}</li>
                       ))}
                     </ul>
                   </details>
@@ -182,13 +182,13 @@ export function BuildDatasetDialog({ datasetId, children }: { datasetId?: string
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center justify-between cursor-pointer">
-      <span className="text-[13px] text-slate-700">{label}</span>
+      <span className="text-[13px] text-text-secondary">{label}</span>
       <button
         type="button"
         onClick={() => onChange(!checked)}
         className={`relative h-5 w-9 rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-slate-300'}`}
       >
-        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
+        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
       </button>
     </label>
   );

@@ -70,7 +70,7 @@ export function GlobalVideosPage() {
             variant="empty"
             title="Acervo vazio"
             description="Faça upload de vídeos ou conecte o armazenamento S3/MinIO para visualizar a biblioteca."
-            icon={<Video size={40} className="text-slate-300" />}
+            icon={<Video size={40} className="text-text-disabled" />}
           />
         ) : (
           <>
@@ -117,12 +117,12 @@ export function GlobalVideosPage() {
                 <table className="min-w-full divide-y divide-border">
                   <thead className="bg-surface-muted">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">ID do vídeo</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Arquivo</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Estudo</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Participante</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Data</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">ID do vídeo</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Arquivo</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Estudo</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Participante</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Status</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Data</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-surface">
@@ -144,7 +144,7 @@ export function GlobalVideosPage() {
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
                           <div className="flex items-center gap-2">
-                            <Video size={16} className="text-slate-400" />
+                            <Video size={16} className="text-text-muted" />
                             {video.filename}
                           </div>
                         </td>

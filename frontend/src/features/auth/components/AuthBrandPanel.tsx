@@ -21,12 +21,12 @@ export function AuthBrandPanel() {
           <h1 className="text-3xl font-bold tracking-tight">
             Análise científica de microações em estudos cognitivos.
           </h1>
-          <p className="text-slate-300 text-lg leading-relaxed mt-4">
+          <p className="text-text-disabled text-lg leading-relaxed mt-4">
             Organize projetos, processe vídeos faciais, revise anotações humanas e acompanhe a qualidade dos dados em um único ambiente seguro.
           </p>
         </div>
 
-        <ul className="space-y-4 text-sm text-slate-300 mt-8">
+        <ul className="space-y-4 text-sm text-text-disabled mt-8">
           <li className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
               <Activity className="h-4 w-4" />
@@ -49,16 +49,16 @@ export function AuthBrandPanel() {
       </div>
 
       <div className="relative z-20 flex flex-wrap gap-3 mt-10">
-        <Badge variant="secondary" className="bg-slate-800/80 text-slate-300 hover:bg-slate-800 border-slate-700">
+        <Badge variant="secondary" className="bg-slate-800/80 text-text-disabled hover:bg-slate-800 border-slate-700">
           LGPD-ready
         </Badge>
-        <Badge variant="secondary" className="bg-slate-800/80 text-slate-300 hover:bg-slate-800 border-slate-700">
+        <Badge variant="secondary" className="bg-slate-800/80 text-text-disabled hover:bg-slate-800 border-slate-700">
           Audit Trail
         </Badge>
-        <Badge variant="secondary" className="bg-slate-800/80 text-slate-300 hover:bg-slate-800 border-slate-700">
+        <Badge variant="secondary" className="bg-slate-800/80 text-text-disabled hover:bg-slate-800 border-slate-700">
           Model Registry
         </Badge>
-        <Badge variant="secondary" className="bg-slate-800/80 text-slate-300 hover:bg-slate-800 border-slate-700">
+        <Badge variant="secondary" className="bg-slate-800/80 text-text-disabled hover:bg-slate-800 border-slate-700">
           Research-grade
         </Badge>
       </div>

@@ -17,25 +17,25 @@ function MetaItem({ label, value }: { label: string; value?: string | number }) 
   if (value === undefined || value === '') return null;
   return (
     <span className="inline-flex items-center gap-1">
-      <span className="text-slate-400">{label}:</span>
-      <span className="font-medium text-slate-600 tabular-nums">{value}</span>
+      <span className="text-text-muted">{label}:</span>
+      <span className="font-medium text-text-secondary tabular-nums">{value}</span>
     </span>
   );
 }
 
 export function ChartFrame({ meta, children, className, footerExtra }: ChartFrameProps) {
   return (
-    <figure className={cn('rounded-xl border border-slate-200 bg-white', className)}>
-      <figcaption className="px-4 pt-4 pb-2 border-b border-slate-100">
-        <h3 className="text-sm font-semibold text-slate-900 leading-tight">{meta.title}</h3>
+    <figure className={cn('rounded-xl border border-border bg-surface', className)}>
+      <figcaption className="px-4 pt-4 pb-2 border-b border-border">
+        <h3 className="text-sm font-semibold text-text-primary leading-tight">{meta.title}</h3>
         {meta.description && (
-          <p className="mt-0.5 text-xs text-slate-500 leading-relaxed">{meta.description}</p>
+          <p className="mt-0.5 text-xs text-text-muted leading-relaxed">{meta.description}</p>
         )}
       </figcaption>
 
       <div className="p-4">{children}</div>
 
-      <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/60 rounded-b-xl">
+      <div className="px-4 py-2.5 border-t border-border bg-app-bg rounded-b-xl">
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] leading-tight">
           <MetaItem label="Fonte" value={meta.source} />
           <MetaItem label="Unidade" value={meta.unit} />

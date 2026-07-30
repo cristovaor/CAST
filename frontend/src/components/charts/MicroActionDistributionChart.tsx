@@ -15,12 +15,12 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-slate-900 text-white text-xs px-3 py-2.5 rounded-lg shadow-lg min-w-[160px]">
-      <div className="text-slate-400 mb-2 font-medium">{label}</div>
+      <div className="text-text-muted mb-2 font-medium">{label}</div>
       {payload.map((entry) => {
         const cfg = getMicroActionConfig(entry.name as typeof ACTIONS[number]);
         return (
           <div key={entry.name} className="flex items-center justify-between gap-4 mb-1">
-            <span className="text-slate-300">{cfg.shortLabel} {cfg.label}</span>
+            <span className="text-text-disabled">{cfg.shortLabel} {cfg.label}</span>
             <span className="font-semibold">{entry.value}</span>
           </div>
         );
@@ -35,9 +35,9 @@ function CustomLegend() {
       {ACTIONS.map((action) => {
         const cfg = getMicroActionConfig(action);
         return (
-          <div key={action} className="flex items-center gap-1.5 text-[10px] text-slate-500">
+          <div key={action} className="flex items-center gap-1.5 text-[10px] text-text-muted">
             <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: cfg.color }} />
-            <span className="font-mono font-semibold text-slate-600">{cfg.shortLabel}</span>
+            <span className="font-mono font-semibold text-text-secondary">{cfg.shortLabel}</span>
             <span>{cfg.label}</span>
           </div>
         );

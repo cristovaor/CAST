@@ -173,11 +173,11 @@ export function SettingsPage() {
                   <table className="min-w-[720px] w-full text-sm">
                     <thead className="bg-surface-muted text-left">
                       <tr>
-                        <th className="p-3">Nome</th>
-                        <th className="p-3">E-mail</th>
-                        <th className="p-3">Papel</th>
-                        <th className="p-3">Cadastro</th>
-                        <th className="p-3 text-right">Ações</th>
+                        <th scope="col" className="p-3">Nome</th>
+                        <th scope="col" className="p-3">E-mail</th>
+                        <th scope="col" className="p-3">Papel</th>
+                        <th scope="col" className="p-3">Cadastro</th>
+                        <th scope="col" className="p-3 text-right">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">

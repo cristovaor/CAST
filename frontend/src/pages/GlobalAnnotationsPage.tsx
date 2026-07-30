@@ -116,11 +116,11 @@ export function GlobalAnnotationsPage() {
                 <table className="min-w-full divide-y divide-border">
                   <thead className="bg-surface-muted">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">ID da tarefa</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Vídeo asset</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Anotador responsável</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Data de criação</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">ID da tarefa</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Vídeo asset</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Anotador responsável</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Status</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Data de criação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-surface">

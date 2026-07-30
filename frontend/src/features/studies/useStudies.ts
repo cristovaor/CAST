@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { toast } from '@/app/stores/useToastStore';
 import type { Study } from '@/types/api';
 import type { StudyCreate } from '@/types/domain';
 
@@ -49,6 +50,7 @@ export function useCreateStudy() {
     mutationFn: (data: StudyCreate) => apiClient.post<Study>('/studies', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['studies'] });
+      toast.success('Estudo criado');
     },
   });
 }
@@ -64,6 +66,7 @@ export function useUpdateStudy() {
       queryClient.invalidateQueries({ queryKey: ['studies', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'study', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
+      toast.success('Estudo atualizado');
     },
   });
 }
@@ -76,6 +79,7 @@ export function useBatchInfer() {
     onSuccess: (_, studyId) => {
       queryClient.invalidateQueries({ queryKey: ['studies', studyId] });
       queryClient.invalidateQueries({ queryKey: ['videos'] });
+      toast.success('Inferência em lote iniciada', 'Acompanhe o progresso na fila de processamento.');
     },
   });
 }

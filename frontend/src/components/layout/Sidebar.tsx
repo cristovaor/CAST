@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebarStore } from '@/app/stores/useSidebarStore';
+import { useLogout, useMe } from '@/features/auth/useAuth';
 
 // ─── Nav item types ───────────────────────────────────────────
 
@@ -89,9 +90,32 @@ void Waypoints; void Layers;
 
 // ─── Sidebar Component ────────────────────────────────────────
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  researcher: 'Pesquisador',
+  annotator: 'Anotador',
+  viewer: 'Leitor',
+};
+
+function initialsOf(name?: string) {
+  if (!name) return 'U';
+  return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || 'U';
+}
+
 export function Sidebar() {
   const { isCollapsed, toggle } = useSidebarStore();
   const navigate = useNavigate();
+  const { data: user } = useMe();
+  const logout = useLogout();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const userName = user?.name ?? 'Usuário';
+  const userRole = ROLE_LABELS[user?.role ?? 'viewer'] ?? 'Leitor';
+  const initials = initialsOf(user?.name);
 
   return (
     <aside
@@ -160,27 +184,39 @@ export function Sidebar() {
                 <Building2 size={11} className="text-[#64748B]" />
               </div>
               <span className="text-[11px] text-[#64748B] truncate font-medium">
-                UFPE
+                {user?.organization?.name ?? '—'}
               </span>
             </div>
 
-            {/* User */}
-            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#1E293B] cursor-pointer group transition-colors">
+            {/* User — click to sign out */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              title={`Sair (${userName})`}
+              className="flex w-full items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#1E293B] group transition-colors text-left"
+            >
               <div className="w-6 h-6 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center shrink-0">
-                <span className="text-blue-400 font-semibold text-[9px]">MC</span>
+                <span className="text-blue-400 font-semibold text-[9px]">{initials}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[11px] text-[#CBD5E1] font-medium truncate">Me. Cristóvão Costa</div>
-                <div className="text-[9px] text-[#475569] truncate">Pesquisador Assistente</div>
+                <div className="text-[11px] text-[#CBD5E1] font-medium truncate">{userName}</div>
+                <div className="text-[9px] text-[#475569] truncate">{userRole}</div>
               </div>
-              <LogOut size={13} className="text-[#334155] group-hover:text-[#64748B] transition-colors shrink-0" />
-            </div>
+              <LogOut size={13} className="text-[#334155] group-hover:text-[#64748B] transition-colors shrink-0" aria-hidden="true" />
+              <span className="sr-only">Sair</span>
+            </button>
           </div>
         ) : (
           <div className="flex justify-center">
-            <div className="w-7 h-7 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center cursor-pointer hover:bg-blue-600/30 transition-colors">
-              <span className="text-blue-400 font-semibold text-[9px]">MC</span>
-            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label={`Sair (${userName})`}
+              title={`Sair (${userName})`}
+              className="w-7 h-7 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center hover:bg-blue-600/30 transition-colors"
+            >
+              <span className="text-blue-400 font-semibold text-[9px]">{initials}</span>
+            </button>
           </div>
         )}
       </div>

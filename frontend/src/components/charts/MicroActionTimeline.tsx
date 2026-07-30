@@ -46,7 +46,7 @@ export function MicroActionTimeline({ events, videoDurationMs }: MicroActionTime
     <div className="space-y-3">
       <div className="flex justify-between text-xs text-muted-foreground font-medium border-b pb-2">
         <span>00:00</span>
-        <span className="tabular-nums text-slate-600">
+        <span className="tabular-nums text-text-secondary">
           {formatClock(currentTimeMs)} / {formatClock(videoDurationMs)}
         </span>
       </div>

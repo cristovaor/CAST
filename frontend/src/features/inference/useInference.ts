@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { toast } from '@/app/stores/useToastStore';
 import type { InferenceJob, VideoDescriptors } from '@/types/domain';
 
 interface VideoPrediction {
@@ -26,6 +27,7 @@ export function useStartInference() {
       ),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['inferenceJobs', variables.videoId] });
+      toast.success('Inferência iniciada', 'Os resultados aparecerão na timeline ao concluir.');
     },
   });
 }
@@ -71,6 +73,7 @@ export function useCancelJob() {
     onSuccess: (_, jobId) => {
       queryClient.invalidateQueries({ queryKey: ['inferenceJob', jobId] });
       queryClient.invalidateQueries({ queryKey: ['inferenceJobs'] });
+      toast.info('Inferência cancelada');
     },
   });
 }

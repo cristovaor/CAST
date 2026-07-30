@@ -23,7 +23,7 @@ export function ModelsPage() {
     {
       key: 'action',
       header: 'Ação',
-      render: (v) => <span className="text-xs font-semibold bg-slate-100 px-2 py-1 rounded text-slate-700">{String(v)}</span>,
+      render: (v) => <span className="text-xs font-semibold bg-surface-muted px-2 py-1 rounded text-text-secondary">{String(v)}</span>,
     },
     {
       key: 'status',
@@ -35,13 +35,13 @@ export function ModelsPage() {
       header: 'F1 Score',
       render: (_, row) => {
         const f1 = row.metrics?.f1_score || row.metrics?.f1;
-        return <span className="font-mono text-xs text-slate-600">{f1 ? Number(f1).toFixed(3) : '—'}</span>;
+        return <span className="font-mono text-xs text-text-secondary">{f1 ? Number(f1).toFixed(3) : '—'}</span>;
       },
     },
     {
       key: 'created_at',
       header: 'Registrado em',
-      render: (v) => <span className="text-xs text-slate-500">{new Date(String(v)).toLocaleDateString()}</span>,
+      render: (v) => <span className="text-xs text-text-muted">{new Date(String(v)).toLocaleDateString()}</span>,
     },
     {
       key: 'id',
@@ -49,7 +49,7 @@ export function ModelsPage() {
       render: (_, row) => (
         <button
           onClick={() => navigate(`/app/models/${row.model_id}/${row.version}/${row.action}`)}
-          className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+          className="p-1 text-text-muted hover:text-blue-600 transition-colors"
         >
           <Eye size={16} />
         </button>
@@ -67,7 +67,7 @@ export function ModelsPage() {
             <RegisterModelDialog>
               <button
                 title="Importar um artefato .keras já treinado fora do sistema"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-app-bg transition-colors"
               >
                 <UploadCloud size={14} />
                 Registrar artefato existente
@@ -86,7 +86,7 @@ export function ModelsPage() {
         <div className="card overflow-hidden">
           {isLoading ? (
             <div className="flex justify-center p-12">
-              <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin" />
+              <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
             </div>
           ) : (
             <DataTable columns={MODEL_COLUMNS} data={models} />

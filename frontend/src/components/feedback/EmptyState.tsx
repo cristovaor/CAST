@@ -20,12 +20,12 @@ const DEFAULTS: Record<EmptyVariant, { title: string; description: string; icon:
   'empty': {
     title: 'Nenhum item encontrado',
     description: 'Comece criando o primeiro item.',
-    icon: <FolderOpen size={40} className="text-slate-300" />,
+    icon: <FolderOpen size={40} className="text-text-disabled" />,
   },
   'no-results': {
     title: 'Nenhum resultado',
     description: 'Tente ajustar os filtros ou termos de busca.',
-    icon: <SearchX size={40} className="text-slate-300" />,
+    icon: <SearchX size={40} className="text-text-disabled" />,
   },
   'error': {
     title: 'Erro ao carregar',
@@ -35,7 +35,7 @@ const DEFAULTS: Record<EmptyVariant, { title: string; description: string; icon:
   'no-access': {
     title: 'Acesso restrito',
     description: 'Você não tem permissão para visualizar este conteúdo.',
-    icon: <ShieldOff size={40} className="text-slate-300" />,
+    icon: <ShieldOff size={40} className="text-text-disabled" />,
   },
 };
 
@@ -53,10 +53,10 @@ export function EmptyState({
   return (
     <div className={cn('flex flex-col items-center justify-center py-16 px-8 text-center', className)}>
       <div className="mb-4">{icon ?? defaults.icon}</div>
-      <h3 className="text-base font-semibold text-slate-700 mb-1">
+      <h3 className="text-base font-semibold text-text-secondary mb-1">
         {title ?? defaults.title}
       </h3>
-      <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
+      <p className="text-sm text-text-muted max-w-sm leading-relaxed">
         {description ?? defaults.description}
       </p>
 
@@ -73,7 +73,7 @@ export function EmptyState({
           {secondaryAction && (
             <button
               onClick={secondaryAction.onClick}
-              className="px-4 py-2 text-slate-600 text-sm font-medium hover:text-slate-800 transition-colors"
+              className="px-4 py-2 text-text-secondary text-sm font-medium hover:text-text-primary transition-colors"
             >
               {secondaryAction.label}
             </button>

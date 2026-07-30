@@ -163,11 +163,11 @@ export function AuditPage() {
                 <table className="min-w-full divide-y divide-border">
                   <thead className="bg-surface-muted">
                     <tr>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Data</th>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Ação</th>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Entidade</th>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Responsável</th>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Alterações</th>
+                      <th scope="col" className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Data</th>
+                      <th scope="col" className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Ação</th>
+                      <th scope="col" className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Entidade</th>
+                      <th scope="col" className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Responsável</th>
+                      <th scope="col" className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">Alterações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-surface">

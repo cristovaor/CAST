@@ -75,24 +75,24 @@ export function ProcessingPage() {
 
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-slate-800">Status da Extração</h3>
-            <span className="font-mono text-sm text-slate-500">{jobStream.progress.toFixed(1)}%</span>
+            <h3 className="text-base font-semibold text-text-primary">Status da Extração</h3>
+            <span className="font-mono text-sm text-text-muted">{jobStream.progress.toFixed(1)}%</span>
           </div>
           
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-4">
+          <div className="h-2 bg-surface-muted rounded-full overflow-hidden mb-4">
             <div 
               className={`h-full transition-all duration-500 ${jobStream.status === 'failed' ? 'bg-red-500' : jobStream.status === 'succeeded' ? 'bg-emerald-500' : 'bg-blue-500'}`} 
               style={{ width: `${jobStream.progress}%` }} 
             />
           </div>
           
-          <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
+          <div className="flex items-center gap-2 text-sm text-text-secondary bg-app-bg p-3 rounded-lg border border-border">
             {jobStream.status === 'succeeded' ? (
               <CheckCircle2 className="text-emerald-500" size={16} />
             ) : jobStream.status === 'failed' ? (
               <AlertCircle className="text-red-500" size={16} />
             ) : (
-              <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
+              <div className="w-4 h-4 rounded-full border-2 border-border-strong border-t-blue-500 animate-spin" />
             )}
             <span className="font-mono text-xs">{jobStream.currentStep}</span>
           </div>
@@ -100,7 +100,7 @@ export function ProcessingPage() {
 
         <div className="card overflow-hidden">
           <div className="bg-slate-900 px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-slate-400">
+            <div className="flex items-center gap-2 text-text-muted">
               <Terminal size={14} />
               <span className="text-xs font-mono font-medium">Logs de execução {jobId ? `(Job: ${shortId(jobId)})` : ''}</span>
             </div>
@@ -108,12 +108,12 @@ export function ProcessingPage() {
           <div className="bg-[#0F172A] p-4 h-64 overflow-y-auto font-mono text-[11px] space-y-1.5 flex flex-col-reverse">
              {/* Use flex-col-reverse and reverse the array to keep scroll at bottom */}
             {[...jobStream.logs].reverse().map((log, idx) => (
-              <div key={idx} className={log.level === 'error' ? 'text-red-400' : log.level === 'warn' ? 'text-amber-400' : 'text-slate-300'}>
+              <div key={idx} className={log.level === 'error' ? 'text-red-400' : log.level === 'warn' ? 'text-amber-400' : 'text-text-disabled'}>
                 [{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '---'}] {log.message}
               </div>
             ))}
             {jobStream.logs.length === 0 && (
-              <div className="text-slate-500 italic">Aguardando logs...</div>
+              <div className="text-text-muted italic">Aguardando logs...</div>
             )}
           </div>
         </div>

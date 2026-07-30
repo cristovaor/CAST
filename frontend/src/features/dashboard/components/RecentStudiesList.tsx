@@ -30,7 +30,7 @@ export function RecentStudiesList({ studies }: RecentStudiesListProps) {
           Ver todos <ExternalLink size={14} className="ml-1" />
         </ActionButton>
       </div>
-      <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
+      <div className="divide-y divide-border flex-1 overflow-y-auto">
         {studies.length === 0 ? (
           <div className="p-8 text-center text-text-secondary text-sm">
             Nenhum estudo recente.
@@ -59,16 +59,16 @@ function RecentStudyRow({ study }: { study: Study }) {
             {study.name}
           </span>
         </div>
-        <div className="flex items-center flex-wrap gap-x-4 gap-y-1.5 text-[12px] text-slate-500 font-medium">
-          <div className="flex items-center gap-1.5 text-slate-600">
-            <Users size={12} className="text-slate-400" />
+        <div className="flex items-center flex-wrap gap-x-4 gap-y-1.5 text-[12px] text-text-muted font-medium">
+          <div className="flex items-center gap-1.5 text-text-secondary">
+            <Users size={12} className="text-text-muted" />
             {study.participant_count} participantes
           </div>
-          <div className="flex items-center gap-1.5 text-slate-600">
-            <Video size={12} className="text-slate-400" />
+          <div className="flex items-center gap-1.5 text-text-secondary">
+            <Video size={12} className="text-text-muted" />
             {study.video_count} vídeos
           </div>
-          <span className="text-slate-300">|</span>
+          <span className="text-text-disabled">|</span>
           <span>Última sessão: {formatRelativeTime(study.created_at)}</span>
         </div>
       </div>
@@ -77,7 +77,7 @@ function RecentStudyRow({ study }: { study: Study }) {
       <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0 mt-2 sm:mt-0">
         {study.average_quality !== undefined && study.average_quality > 0 && (
           <div className="flex flex-col items-start sm:items-end gap-1">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Qualidade</span>
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Qualidade</span>
             <QualityBadge
               level={scoreToQuality(study.average_quality)}
               score={study.average_quality}

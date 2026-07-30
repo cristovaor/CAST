@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { toast } from '@/app/stores/useToastStore';
 import type { ProcessingJob } from '@/types/domain';
 
 export function useJobs() {
@@ -19,6 +20,8 @@ function useJobMutation(action: 'cancel' | 'retry') {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['jobs', jobId] });
       queryClient.invalidateQueries({ queryKey: ['videos'] });
+      if (action === 'cancel') toast.info('Job cancelado');
+      else toast.success('Job reenfileirado', 'O processamento será retomado em instantes.');
     },
   });
 }
