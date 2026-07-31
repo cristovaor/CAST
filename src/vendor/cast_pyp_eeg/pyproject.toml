@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools==75.8.2", "wheel==0.45.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cast-pyp-eeg"
+version = "2.0.0+cast.4074a2a"
+description = "CAST-maintained, service-safe adaptation of the Pyp-EEG scientific pipeline"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "CC-BY-4.0" }
+authors = [
+  { name = "Paloma Victoria de Sales Alves" },
+  { name = "CAST contributors" },
+]
+dependencies = [
+  "numpy==2.2.6",
+  "pandas==2.2.3",
+  "scipy==1.16.2",
+  "matplotlib==3.8.4",
+  "mne==1.10.1",
+  "mne-icalabel==0.7.0",
+  "openpyxl==3.1.5",
+  "seaborn==0.13.2",
+  "mdmp==0.6.2",
+]
+
+[project.scripts]
+cast-pyp-eeg = "cast_pyp_eeg.cli:main"
+
+[project.urls]
+Upstream = "https://github.com/palomavictoriaalves/pyp-eeg"
+Repository = "https://github.com/cristovaor/CAST"
+
+[tool.setuptools]
+packages = ["cast_pyp_eeg"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+cast_pyp_eeg = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+

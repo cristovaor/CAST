@@ -17,6 +17,9 @@ export interface EEGAssetData {
   sync_offset_ms: number;
   sync_transform: SyncTransform;
   data: EEGTimeSeries[];
+  source?: 'analysis-run' | 'legacy-csv';
+  analysis_run_id?: string | null;
+  units?: Record<string, string>;
 }
 
 export interface SyncTransform {
@@ -64,6 +67,7 @@ export interface EEGBandStat {
   p_value: number | null;
   cohens_d: number | null;
   significant: boolean;
+  q_value?: number;
 }
 
 export interface EEGCoactivationAction {
@@ -82,14 +86,202 @@ export interface EEGCoactivation {
   baseline_sample_count: number;
   alpha: number;
   actions: EEGCoactivationAction[];
+  analysis_run_id?: string | null;
+  source?: 'analysis-run' | 'legacy-csv';
+  roi?: string | null;
+  multiple_comparisons?: string;
+  caveat?: string;
 }
 
-export function useEEGCoactivation(eegId?: string) {
+export function useEEGCoactivation(eegId?: string, runId?: string, roi?: string) {
+  const search = new URLSearchParams();
+  if (runId) search.set('run_id', runId);
+  if (roi) search.set('roi', roi);
   return useQuery<EEGCoactivation>({
-    queryKey: ['eeg', eegId, 'coactivation'],
-    queryFn: () => apiClient.get<EEGCoactivation>(`/eeg/${eegId}/coactivation`),
+    queryKey: ['eeg', eegId, 'coactivation', runId, roi],
+    queryFn: () => apiClient.get<EEGCoactivation>(
+      `/eeg/${eegId}/coactivation${search.size ? `?${search}` : ''}`,
+    ),
     enabled: !!eegId,
   });
+}
+
+export type EEGRunStatus =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'partial'
+  | 'failed'
+  | 'canceled';
+
+export interface EEGAnalysisRun {
+  id: string;
+  eeg_asset_id?: string | null;
+  study_id?: string | null;
+  job_id?: string | null;
+  scope_type: 'session' | 'study';
+  pipeline: 'individual' | 'study' | 'mdmp' | 'multimodal';
+  profile: 'custom' | 'pyp_eeg_v2';
+  parameters: Record<string, unknown>;
+  input_manifest: {
+    file_id: string;
+    eeg_asset_id: string;
+    filename: string;
+    role: string;
+    size_bytes: number;
+    checksum_sha256: string;
+    is_primary: boolean;
+  }[];
+  input_hash: string;
+  package_version?: string | null;
+  upstream_commit?: string | null;
+  mdmp_version?: string | null;
+  mdmp_commit?: string | null;
+  status: EEGRunStatus;
+  step_status: Record<string, { status: string; at?: string; message?: string }>;
+  warnings: string[];
+  error_message?: string | null;
+  created_at: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+  reused?: boolean;
+}
+
+export interface EEGAnalysisArtifact {
+  id: string;
+  kind: string;
+  content_type: string;
+  size_bytes: number;
+  checksum_sha256: string;
+  units?: string | null;
+  metadata_info: Record<string, unknown>;
+  created_at: string;
+  download_url?: string | null;
+}
+
+export interface EEGResultEnvelope {
+  schema: 'eeg-result-v1';
+  units?: Record<string, string>;
+  provenance?: Record<string, unknown>;
+  power?: Record<string, unknown>[];
+  frequencies?: number[];
+  psd?: number[][];
+  channels?: string[];
+  points?: {
+    time_seconds: number;
+    state: string;
+    roi?: string | null;
+    channel?: string | null;
+    band: string;
+    metric: string;
+    value: number;
+  }[];
+  results?: Record<string, unknown>[];
+  topomaps?: Record<string, unknown>[];
+  nodes?: { id: string; label: string }[];
+  edges?: { source: string; target: string; directed: boolean }[];
+  networks?: Record<string, unknown>[];
+  sample_count?: number;
+  warnings?: string[];
+}
+
+export function useEEGAnalysisRuns(eegId?: string) {
+  return useQuery<EEGAnalysisRun[]>({
+    queryKey: ['eeg-analysis-runs', eegId],
+    queryFn: () => apiClient.get<EEGAnalysisRun[]>(`/eeg/${eegId}/analysis-runs`),
+    enabled: !!eegId,
+    refetchInterval: (query) => (
+      query.state.data?.some((run) => ['queued', 'running'].includes(run.status))
+        ? 2000
+        : false
+    ),
+  });
+}
+
+export function useStudyEEGAnalysisRuns(studyId?: string) {
+  return useQuery<EEGAnalysisRun[]>({
+    queryKey: ['study-eeg-analysis-runs', studyId],
+    queryFn: () => apiClient.get<EEGAnalysisRun[]>(
+      `/studies/${studyId}/eeg-analysis-runs`,
+    ),
+    enabled: !!studyId,
+    refetchInterval: (query) => (
+      query.state.data?.some((run) => ['queued', 'running'].includes(run.status))
+        ? 2000
+        : false
+    ),
+  });
+}
+
+export interface EEGAnalysisRunInput {
+  profile: 'custom' | 'pyp_eeg_v2';
+  pipeline?: 'individual' | 'study' | 'mdmp' | 'multimodal';
+  parameters?: Record<string, unknown>;
+  reuse_completed?: boolean;
+}
+
+export function useCreateEEGAnalysisRun(eegId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: EEGAnalysisRunInput) => apiClient.post<EEGAnalysisRun>(`/eeg/${eegId}/analysis-runs`, {
+      pipeline: 'individual',
+      parameters: {},
+      reuse_completed: true,
+      ...payload,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['eeg-analysis-runs', eegId] });
+    },
+  });
+}
+
+export function useCreateStudyEEGAnalysisRun(studyId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: EEGAnalysisRunInput) => apiClient.post<EEGAnalysisRun>(
+      `/studies/${studyId}/eeg-analysis-runs`,
+      {
+        pipeline: 'study',
+        parameters: {},
+        reuse_completed: true,
+        ...payload,
+      },
+    ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['study-eeg-analysis-runs', studyId] });
+    },
+  });
+}
+
+export function useEEGAnalysisArtifacts(runId?: string) {
+  return useQuery<EEGAnalysisArtifact[]>({
+    queryKey: ['eeg-analysis-artifacts', runId],
+    queryFn: () => apiClient.get<EEGAnalysisArtifact[]>(
+      `/eeg/analysis-runs/${runId}/artifacts`,
+    ),
+    enabled: !!runId,
+  });
+}
+
+export function useEEGAnalysisResult(
+  runId: string | undefined,
+  resultType: 'power' | 'timeseries' | 'stats' | 'topomaps' | 'mdmp',
+) {
+  return useQuery<EEGResultEnvelope>({
+    queryKey: ['eeg-analysis-result', runId, resultType],
+    queryFn: () => apiClient.get<EEGResultEnvelope>(
+      `/eeg/analysis-runs/${runId}/results/${resultType}`,
+    ),
+    enabled: !!runId,
+    retry: false,
+  });
+}
+
+export async function downloadEEGArtifact(artifact: EEGAnalysisArtifact) {
+  if (!artifact.download_url) return;
+  const path = artifact.download_url.replace(API_BASE_URL, '');
+  const response = await apiClient.get<{ url: string }>(path);
+  window.open(response.url, '_blank', 'noopener,noreferrer');
 }
 
 export function useUpdateEEGOffset(eegId?: string) {

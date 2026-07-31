@@ -51,4 +51,4 @@ RUN pip install --no-cache-dir -r requirements-scientific.txt
 COPY . .
 
 # Command to run the Celery worker
-CMD ["celery", "-A", "app.workers.celery_app", "worker", "-l", "info"]
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "-l", "info", "-Q", "celery"]

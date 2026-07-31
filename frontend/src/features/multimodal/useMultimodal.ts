@@ -123,6 +123,17 @@ export interface EEGAssetDetailDTO {
   channel_quality: EEGChannelQualityDTO[];
   quality_findings: EEGQualityFindingDTO[];
   quality_criteria: string[];
+  files: {
+    id: string;
+    role: string;
+    filename: string;
+    mime_type: string;
+    size_bytes: number;
+    checksum_sha256: string;
+    is_primary: boolean;
+    verified_at?: string | null;
+    created_at: string;
+  }[];
 }
 
 export function useEEGAsset(eegId?: string) {

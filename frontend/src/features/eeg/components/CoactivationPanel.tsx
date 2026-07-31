@@ -7,6 +7,8 @@ import { BrainCircuit, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface CoactivationPanelProps {
   eegId?: string;
+  runId?: string;
+  roi?: string;
 }
 
 function formatP(p: number): string {
@@ -57,8 +59,8 @@ function DeltaBar({ stat }: { stat: EEGBandStat }) {
   );
 }
 
-export function CoactivationPanel({ eegId }: CoactivationPanelProps) {
-  const { data, isLoading, error } = useEEGCoactivation(eegId);
+export function CoactivationPanel({ eegId, runId, roi }: CoactivationPanelProps) {
+  const { data, isLoading, error } = useEEGCoactivation(eegId, runId, roi);
 
   if (!eegId) return null;
 
@@ -126,11 +128,12 @@ export function CoactivationPanel({ eegId }: CoactivationPanelProps) {
               );
             })}
             <p className="text-[10px] text-text-muted border-t border-border pt-2 leading-relaxed">
-              <span className="text-amber-500">★</span> = diferença significativa (teste de permutação, p&lt;{data.alpha}).
+              <span className="text-amber-500">★</span> = diferença significativa (teste de permutação, q&lt;{data.alpha}, BH-FDR).
               Barras esbatidas = não significativas. Linha de base: {data.baseline_sample_count.toLocaleString('pt-BR')} amostras
               fora de microações; transformação aprovada: offset {data.sync_transform.offset_ms} ms,
               drift {data.sync_transform.drift_ms_per_min} ms/min.
               Tooltip mostra p e o tamanho de efeito (Cohen&apos;s d).
+              {data.analysis_run_id ? ` Run ${data.analysis_run_id.slice(0, 8)}.` : ' Fallback CSV legado.'}
             </p>
           </div>
         )}

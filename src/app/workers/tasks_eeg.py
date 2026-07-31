@@ -10,7 +10,9 @@ Operates directly on the EEGAsset (no ProcessingJob row, which is video-bound).
 from __future__ import annotations
 
 import logging
+import tempfile
 from datetime import datetime
+from pathlib import Path
 
 from celery.utils.log import get_task_logger
 
@@ -18,7 +20,7 @@ from app.workers.celery_app import celery_app
 from app.db.session import SessionLocal
 from app.db.models import EEGAsset, QualityVerdict
 from app.services.storage_service import storage_service
-from app.services.eeg_service import parse_eeg, format_from_filename
+from app.services.eeg_service import parse_eeg, parse_eeg_path, format_from_filename
 
 logger = get_task_logger(__name__)
 
@@ -59,10 +61,25 @@ def parse_eeg_asset(eeg_id: str) -> dict:
         if not eeg.storage_uri:
             return {"error": "EEG asset has no storage_uri"}
 
-        key = storage_service.key_from_uri(eeg.storage_uri)
-        data = storage_service.download_bytes(key)
-
-        report = parse_eeg(data, eeg.filename or "recording.csv")
+        if eeg.files:
+            with tempfile.TemporaryDirectory(prefix=f"cast-eeg-parse-{eeg.id}-") as temp:
+                primary = None
+                for member in eeg.files:
+                    target = Path(temp) / member.filename
+                    target.write_bytes(
+                        storage_service.download_bytes(
+                            storage_service.key_from_uri(member.storage_uri)
+                        )
+                    )
+                    if member.is_primary:
+                        primary = target
+                if primary is None:
+                    raise ValueError("EEG bundle has no primary file")
+                report = parse_eeg_path(primary)
+        else:
+            key = storage_service.key_from_uri(eeg.storage_uri)
+            data = storage_service.download_bytes(key)
+            report = parse_eeg(data, eeg.filename or "recording.csv")
         _apply_report(eeg, report)
         db.commit()
 

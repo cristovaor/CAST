@@ -17,6 +17,8 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useSessions, type SessionListItem } from '@/features/sessions/useSessions';
 import { useStudies } from '@/features/studies/useStudies';
+import { useEEGAnalysisRuns } from '@/features/eeg/useEEG';
+import { EEGAnalysisWorkspace } from '@/features/eeg/components/EEGAnalysisWorkspace';
 
 type AnalysisRequirement = 'session' | 'video' | 'eeg' | 'multimodal';
 
@@ -75,6 +77,8 @@ export function AnalysisIndexPage() {
     [sessions, studyId],
   );
   const selectedSession = sessions.find((session) => session.id === sessionId);
+  const eegRunsQuery = useEEGAnalysisRuns(selectedSession?.eeg_asset_id ?? undefined);
+  const validEEGRun = eegRunsQuery.data?.find((run) => ['succeeded', 'partial'].includes(run.status));
   const isLoading = sessionsQuery.isLoading || studiesQuery.isLoading;
   const isError = sessionsQuery.isError || studiesQuery.isError;
 
@@ -130,7 +134,7 @@ export function AnalysisIndexPage() {
                     A disponibilidade abaixo é calculada a partir das modalidades anexadas à sessão.
                   </p>
                 </div>
-                {selectedSession && <SessionReadiness session={selectedSession} />}
+                {selectedSession && <SessionReadiness session={selectedSession} hasEEGResult={!!validEEGRun} />}
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
@@ -182,6 +186,12 @@ export function AnalysisIndexPage() {
               )}
             </section>
 
+            {studyId && (
+              <section aria-label="Análise EEG do estudo">
+                <EEGAnalysisWorkspace studyId={studyId} />
+              </section>
+            )}
+
             <ScientificCaveat variant="association" />
 
             <section aria-labelledby="analysis-categories-title">
@@ -194,7 +204,7 @@ export function AnalysisIndexPage() {
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {CATEGORIES.map((category) => {
-                  const availability = getCategoryAvailability(category.requirement, selectedSession);
+                  const availability = getCategoryAvailability(category.requirement, selectedSession, !!validEEGRun);
                   const content = (
                     <>
                       <div className="mb-3 flex items-start justify-between gap-3">
@@ -206,7 +216,7 @@ export function AnalysisIndexPage() {
                         </div>
                         {availability.available ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-                            <CheckCircle2 size={13} /> Disponível
+                            <CheckCircle2 size={13} /> {availability.reason || 'Disponível'}
                           </span>
                         ) : (
                           <span className="text-right text-[11px] font-medium text-text-muted">{availability.reason}</span>
@@ -262,11 +272,11 @@ export function AnalysisIndexPage() {
   );
 }
 
-function SessionReadiness({ session }: { session: SessionListItem }) {
+function SessionReadiness({ session, hasEEGResult }: { session: SessionListItem; hasEEGResult: boolean }) {
   return (
     <div className="flex flex-wrap gap-2" aria-label="Modalidades disponíveis">
       <ReadinessChip label="Vídeo" ready={!!session.video_asset_id} />
-      <ReadinessChip label="EEG" ready={!!session.eeg_asset_id} />
+      <ReadinessChip label={hasEEGResult ? 'EEG analisado' : 'EEG bruto'} ready={!!session.eeg_asset_id} />
     </div>
   );
 }
@@ -284,12 +294,20 @@ function ReadinessChip({ label, ready }: { label: string; ready: boolean }) {
   );
 }
 
-function getCategoryAvailability(requirement: AnalysisRequirement, session?: SessionListItem) {
+function getCategoryAvailability(
+  requirement: AnalysisRequirement,
+  session?: SessionListItem,
+  hasEEGResult = false,
+) {
   if (!session) return { available: false, reason: 'Selecione uma sessão' };
   if (requirement === 'video' && !session.video_asset_id) return { available: false, reason: 'Requer vídeo' };
   if (requirement === 'eeg' && !session.eeg_asset_id) return { available: false, reason: 'Requer EEG' };
+  if (requirement === 'eeg' && !hasEEGResult) return { available: true, reason: 'Pronto para executar' };
   if (requirement === 'multimodal' && (!session.video_asset_id || !session.eeg_asset_id)) {
     return { available: false, reason: 'Requer vídeo + EEG' };
+  }
+  if (requirement === 'multimodal' && !hasEEGResult) {
+    return { available: true, reason: 'Requer executar EEG' };
   }
   return { available: true, reason: '' };
 }

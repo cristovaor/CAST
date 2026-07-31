@@ -51,6 +51,7 @@ class JobType(str, enum.Enum):
     quality_check = "quality_check"
     extract_landmarks = "extract_landmarks"
     eeg_quality = "eeg_quality"
+    eeg_analysis = "eeg_analysis"
     sync = "sync"
     infer = "infer"
     report = "report"
@@ -364,11 +365,144 @@ class EEGAsset(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("Session", back_populates="eeg_asset")
+    files = relationship(
+        "EEGAssetFile", back_populates="eeg_asset", cascade="all, delete-orphan"
+    )
+    analysis_runs = relationship(
+        "EEGAnalysisRun", back_populates="eeg_asset", cascade="all, delete-orphan"
+    )
+
+
+class EEGAssetFile(Base):
+    """One physical member of an EEG recording bundle."""
+
+    __tablename__ = "eeg_asset_files"
+    __table_args__ = (
+        UniqueConstraint("eeg_asset_id", "filename", name="uq_eeg_asset_files_filename"),
+        Index("ix_eeg_asset_files_asset_role", "eeg_asset_id", "role"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    eeg_asset_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("eeg_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    role = Column(String, nullable=False, default="primary")
+    filename = Column(String, nullable=False)
+    mime_type = Column(String, nullable=False, default="application/octet-stream")
+    storage_uri = Column(String, nullable=False)
+    size_bytes = Column(BigInteger, nullable=False)
+    checksum_sha256 = Column(String, nullable=False)
+    is_primary = Column(Boolean, nullable=False, default=False)
+    verified_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    eeg_asset = relationship("EEGAsset", back_populates="files")
+
+
+class EEGAnalysisRun(Base):
+    """Reproducible session or study-level EEG analysis execution."""
+
+    __tablename__ = "eeg_analysis_runs"
+    __table_args__ = (
+        CheckConstraint(
+            "scope_type IN ('session', 'study')",
+            name="ck_eeg_analysis_runs_scope",
+        ),
+        CheckConstraint(
+            "status IN ('queued', 'running', 'succeeded', 'partial', 'failed', 'canceled')",
+            name="ck_eeg_analysis_runs_status",
+        ),
+        Index(
+            "ix_eeg_analysis_runs_asset_status_created",
+            "eeg_asset_id",
+            "status",
+            "created_at",
+        ),
+        Index(
+            "ix_eeg_analysis_runs_study_status_created",
+            "study_id",
+            "status",
+            "created_at",
+        ),
+        Index("ix_eeg_analysis_runs_input_hash", "input_hash"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    eeg_asset_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("eeg_assets.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    study_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("studies.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    job_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("processing_jobs.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+    )
+    scope_type = Column(String, nullable=False)
+    pipeline = Column(String, nullable=False, default="individual")
+    profile = Column(String, nullable=False, default="custom")
+    parameters = Column(JSONB, nullable=False, default=dict)
+    input_manifest = Column(JSONB, nullable=False, default=list)
+    input_hash = Column(String, nullable=False)
+    package_version = Column(String)
+    upstream_commit = Column(String)
+    mdmp_version = Column(String)
+    mdmp_commit = Column(String)
+    status = Column(String, nullable=False, default="queued")
+    step_status = Column(JSONB, nullable=False, default=dict)
+    warnings = Column(JSONB, nullable=False, default=list)
+    error_message = Column(Text)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    started_at = Column(DateTime)
+    finished_at = Column(DateTime)
+
+    eeg_asset = relationship("EEGAsset", back_populates="analysis_runs")
+    study = relationship("Study", backref="eeg_analysis_runs")
+    job = relationship("ProcessingJob", foreign_keys=[job_id], post_update=True)
+    artifacts = relationship(
+        "EEGAnalysisArtifact", back_populates="run", cascade="all, delete-orphan"
+    )
+
+
+class EEGAnalysisArtifact(Base):
+    __tablename__ = "eeg_analysis_artifacts"
+    __table_args__ = (
+        Index("ix_eeg_analysis_artifacts_run_kind", "run_id", "kind"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("eeg_analysis_runs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    kind = Column(String, nullable=False)
+    storage_uri = Column(String, nullable=False)
+    content_type = Column(String, nullable=False)
+    size_bytes = Column(BigInteger, nullable=False)
+    checksum_sha256 = Column(String, nullable=False)
+    units = Column(String)
+    metadata_info = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    run = relationship("EEGAnalysisRun", back_populates="artifacts")
 
 class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     video_asset_id = Column(UUID(as_uuid=True), ForeignKey("video_assets.id"), nullable=True)
+    eeg_asset_id = Column(
+        UUID(as_uuid=True), ForeignKey("eeg_assets.id"), nullable=True, index=True
+    )
     study_id = Column(UUID(as_uuid=True), ForeignKey("studies.id"), nullable=True, index=True)
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True, index=True)
     job_type = Column(SQLEnum(JobType))
@@ -382,6 +516,7 @@ class ProcessingJob(Base):
     worker_id = Column(String)
 
     video_asset = relationship("VideoAsset", back_populates="processing_jobs")
+    eeg_asset = relationship("EEGAsset", foreign_keys=[eeg_asset_id], backref="processing_jobs")
     study = relationship("Study", backref="processing_jobs")
     session = relationship("Session", foreign_keys=[session_id], backref="processing_jobs")
 

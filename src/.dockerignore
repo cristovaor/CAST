@@ -7,10 +7,13 @@ env/
 venv/
 .venv/
 .pytest_cache/
+**/.pytest_cache/
 .coverage
 htmlcov/
 dist/
 build/
+**/build/
 *.egg-info/
+**/*.egg-info/
 .idea/
 .vscode/

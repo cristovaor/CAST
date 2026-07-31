@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import csv
 import io
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # Amplitude beyond this (in the recording's units) counts as an artefact sample.
@@ -238,3 +239,61 @@ def parse_eeg(data: bytes, filename: str) -> Dict[str, Any]:
     if result is not None:
         return result
     return _parse_csv(data)
+
+
+def parse_eeg_path(path: str | Path) -> Dict[str, Any]:
+    """Parse a staged EEG while preserving BrainVision/EEGLAB companions."""
+    source = Path(path)
+    suffix = source.suffix.lower()
+    if suffix in {".csv", ".txt"}:
+        return _parse_csv(source.read_bytes())
+    if suffix not in FORMAT_BY_EXT:
+        raise ValueError(f"unsupported EEG format: {suffix or '<none>'}")
+    try:
+        import mne  # type: ignore
+    except Exception as exc:
+        raise RuntimeError("MNE is required to parse this EEG format") from exc
+
+    mne.set_log_level("ERROR")
+    if suffix == ".edf":
+        raw = mne.io.read_raw_edf(source, preload=True)
+    elif suffix == ".bdf":
+        raw = mne.io.read_raw_bdf(source, preload=True)
+    elif suffix == ".vhdr":
+        raw = mne.io.read_raw_brainvision(source, preload=True)
+    elif suffix == ".fif":
+        raw = mne.io.read_raw_fif(source, preload=True)
+    elif suffix == ".set":
+        raw = mne.io.read_raw_eeglab(source, preload=True)
+    else:
+        raise ValueError(f"unsupported EEG format: {suffix}")
+
+    signals_uv = raw.get_data() * 1e6
+    channel_names = list(raw.ch_names)
+    sampling_rate = float(raw.info["sfreq"])
+    channel_quality, findings, valid_ratios = _assess_channels(
+        {
+            name: signals_uv[index].tolist()
+            for index, name in enumerate(channel_names)
+        }
+    )
+    return {
+        "eeg_format": format_from_filename(source.name),
+        "device": None,
+        "channel_count": len(channel_names),
+        "channel_names": channel_names,
+        "sample_rate_hz": sampling_rate,
+        "duration_seconds": float(raw.n_times) / sampling_rate
+        if sampling_rate
+        else None,
+        "units": "µV",
+        "event_count": len(raw.annotations) if raw.annotations else 0,
+        "valid_ratio": round(sum(valid_ratios) / len(valid_ratios), 3)
+        if valid_ratios
+        else 0.0,
+        "channel_quality": channel_quality,
+        "quality_findings": findings,
+        "quality_criteria": QUALITY_CRITERIA,
+        "quality_verdict": _verdict(valid_ratios, findings),
+        "parser": "mne",
+    }

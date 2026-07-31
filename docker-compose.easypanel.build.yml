@@ -98,6 +98,7 @@ services:
       REDIS_URL: ${REDIS_URL:?required}
       SECRET_KEY: ${SECRET_KEY:?required}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-11520}
+      EEG_ANALYSIS_V2_ENABLED: ${EEG_ANALYSIS_V2_ENABLED:-false}
       # Object storage stays local to this stack (see the minio service below).
       MINIO_URL: http://minio:9000
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://cast.crlabs.com.br/storage}
@@ -147,7 +148,7 @@ services:
     build:
       context: ./src
       dockerfile: Dockerfile.worker
-    command: celery -A app.workers.celery_app worker -l info --concurrency=${WORKER_CONCURRENCY:-2}
+    command: celery -A app.workers.celery_app worker -l info -Q celery --concurrency=${WORKER_CONCURRENCY:-2}
     environment:
       <<: *backend_environment
       # TRITON_SERVER_URL is intentionally unset: there is no GPU on this host,
@@ -172,6 +173,34 @@ services:
           # ML inference on CPU is memory-hungry; below ~4G the extraction jobs
           # get OOM-killed mid-video.
           cpus: "3.00"
+          memory: 6G
+    logging: *default-logging
+    restart: unless-stopped
+
+  eeg-worker:
+    <<: *shared_services_networks
+    build:
+      context: ./src
+      dockerfile: Dockerfile.eeg-worker
+    command: celery -A app.workers.celery_app worker -l info -Q eeg --concurrency=1 -n eeg@%h
+    environment:
+      <<: *backend_environment
+      MPLCONFIGDIR: /tmp/matplotlib
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.workers.celery_app", "inspect", "ping", "-d", "eeg@$$HOSTNAME"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
           memory: 6G
     logging: *default-logging
     restart: unless-stopped

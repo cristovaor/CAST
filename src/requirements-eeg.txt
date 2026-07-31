@@ -1,0 +1,25 @@
+-r requirements-api.txt
+
+# Scientific versions reproduced from Pyp-EEG upstream 4074a2a.
+numpy==2.2.6
+pandas==2.2.3
+scipy==1.16.2
+matplotlib==3.8.4
+mne==1.10.1
+mne-icalabel==0.7.0
+openpyxl==3.1.5
+seaborn==0.13.2
+
+# MDMP 0.6.2 runtime (the package itself is installed from the local wheel).
+# pgmpy imports PyTorch. Dockerfile.eeg-worker installs this exact version
+# from PyTorch's CPU-only index before resolving this file.
+torch==2.7.1+cpu
+scikit-learn==1.6.1
+networkx==3.4.2
+# pgmpy is installed with --no-deps in Dockerfile.eeg-worker. Its HC path
+# needs the scientific stack above, PyTorch CPU, statsmodels/joblib from the
+# API/scikit-learn requirements, and opt-einsum; optional LLM/XGBoost
+# integrations are deliberately absent from the EEG worker.
+opt-einsum==3.4.0
+tqdm==4.67.1
+pyedflib==0.1.40

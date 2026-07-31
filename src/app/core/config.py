@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     # Deployment environment. Controls how verbosely auth failures are logged
     # ("local" | "development" | "test" | "production").
     ENVIRONMENT: str = "local"
+    EEG_ANALYSIS_V2_ENABLED: bool = False
+    EEG_UPLOAD_MAX_FILES: int = 256
+    EEG_UPLOAD_MAX_TOTAL_BYTES: int = 50 * 1024 * 1024 * 1024
 
     # Comma-separated list of browser origins allowed to call the API, e.g.
     # "https://cast.crlabs.com.br". Empty keeps the permissive local default;

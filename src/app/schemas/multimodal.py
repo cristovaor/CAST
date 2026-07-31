@@ -97,6 +97,19 @@ class EEGQualityReport(BaseModel):
     quality_criteria: List[str] = Field(default_factory=list)
 
 
+class EEGAssetFileDetail(BaseModel):
+    id: UUID
+    role: str
+    filename: str
+    mime_type: str
+    size_bytes: int
+    checksum_sha256: str
+    is_primary: bool
+    verified_at: Optional[datetime] = None
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
 class EEGAssetDetail(BaseModel):
     id: UUID
     session_id: UUID
@@ -120,6 +133,7 @@ class EEGAssetDetail(BaseModel):
     channel_quality: List[Dict[str, Any]] = Field(default_factory=list)
     quality_findings: List[Dict[str, Any]] = Field(default_factory=list)
     quality_criteria: List[str] = Field(default_factory=list)
+    files: List[EEGAssetFileDetail] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
 
 

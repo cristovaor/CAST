@@ -66,6 +66,13 @@ def _map_status_to_step(status: JobStatus, progress, job_type=None):
     if status == JobStatus.queued: return "Aguardando na fila..."
     if status == JobStatus.running:
         p = float(progress) if progress else 0
+        if job_type == "eeg_analysis" or getattr(job_type, "value", None) == "eeg_analysis":
+            if p < 10: return "Preparando bundle EEG"
+            if p < 30: return "Pré-processando sinal"
+            if p < 50: return "Calculando espectros e bandas"
+            if p < 70: return "Materializando séries temporais"
+            if p < 90: return "Executando análises científicas"
+            return "Persistindo artefatos e proveniência"
         if job_type == "report" or getattr(job_type, "value", None) == "report":
             if p < 15: return "Congelando snapshot"
             if p < 55: return "Executando análises estatísticas"
@@ -118,6 +125,7 @@ def list_jobs(
         {
             "id": job.id,
             "video_asset_id": job.video_asset_id,
+            "eeg_asset_id": job.eeg_asset_id,
             "session_id": job.session_id,
             "job_type": job.job_type.value,
             "status": job.status.value,
@@ -176,6 +184,10 @@ def get_job_status(
         
     return {
         "id": job.id,
+        "video_asset_id": job.video_asset_id,
+        "eeg_asset_id": job.eeg_asset_id,
+        "session_id": job.session_id,
+        "job_type": job.job_type.value,
         "status": job.status.value,
         "step": _map_status_to_step(job.status, job.progress, job.job_type),
         "progress": float(job.progress) if job.progress else 0,
@@ -191,15 +203,27 @@ def cancel_job(
 ):
     job = get_job(db, current_user, job_id)
         
-    # Revoke celery task
+    # EEG cancellation is cooperative so the scientific task can close files
+    # and remove its isolated temporary directory. Other legacy jobs keep the
+    # existing hard-stop behavior.
     from app.workers.celery_app import celery_app
-    celery_app.control.revoke(str(job.id), terminate=True, signal='SIGKILL')
+    if job.job_type.value == "eeg_analysis":
+        celery_app.control.revoke(str(job.id), terminate=False)
+    else:
+        celery_app.control.revoke(str(job.id), terminate=True, signal='SIGKILL')
         
     job.status = JobStatus.canceled
     if job.job_type.value == "sync":
         from app.db.models import SyncRun
 
         run = db.query(SyncRun).filter(SyncRun.job_id == job.id).first()
+        if run and run.status in {"queued", "running"}:
+            run.status = "canceled"
+            run.finished_at = datetime.utcnow()
+    elif job.job_type.value == "eeg_analysis":
+        from app.db.models import EEGAnalysisRun
+
+        run = db.query(EEGAnalysisRun).filter(EEGAnalysisRun.job_id == job.id).first()
         if run and run.status in {"queued", "running"}:
             run.status = "canceled"
             run.finished_at = datetime.utcnow()
@@ -250,6 +274,21 @@ def retry_job(
         run.finished_at = None
         db.commit()
         process_sync_run_task.apply_async(args=[str(run.id)], task_id=str(job.id))
+    elif job.job_type.value == "eeg_analysis":
+        from app.db.models import EEGAnalysisRun
+        from app.workers.tasks_eeg_analysis import process_eeg_analysis_task
+
+        run = db.query(EEGAnalysisRun).filter(EEGAnalysisRun.job_id == job.id).first()
+        if run is None:
+            raise HTTPException(status_code=409, detail="EEG analysis run not found")
+        run.status = "queued"
+        run.error_message = None
+        run.started_at = None
+        run.finished_at = None
+        db.commit()
+        process_eeg_analysis_task.apply_async(
+            args=[str(run.id)], task_id=str(job.id), queue="eeg"
+        )
     else:
         from app.workers.tasks_video import process_video_task
         process_video_task.delay(str(job.id))

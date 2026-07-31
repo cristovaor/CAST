@@ -12,6 +12,7 @@ celery_app = Celery(
         "app.workers.tasks_eeg", "app.workers.tasks_dataset", "app.workers.tasks_sync",
         "app.workers.tasks_train", "app.workers.tasks_model_testing",
         "app.workers.tasks_reports",
+        "app.workers.tasks_eeg_analysis",
     ]
 )
 
@@ -21,4 +22,10 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    task_routes={
+        "app.workers.tasks_eeg.*": {"queue": "eeg"},
+        "app.workers.tasks_eeg_analysis.*": {"queue": "eeg"},
+    },
+    task_track_started=True,
+    worker_prefetch_multiplier=1,
 )

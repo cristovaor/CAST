@@ -1,0 +1,33 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    MPLBACKEND=Agg \
+    MPLCONFIGDIR=/tmp/matplotlib \
+    MNE_DATASETS_SAMPLE_PATH=/tmp/mne-data
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-api.txt requirements-eeg.txt ./
+RUN pip install --no-cache-dir torch==2.7.1+cpu \
+        --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements-eeg.txt \
+    && pip install --no-cache-dir --no-deps pgmpy==0.1.26
+
+# Internal scientific distributions are deployed without Git or an external
+# package registry. Their third-party dependencies were installed above.
+COPY vendor/wheels /opt/cast-wheelhouse
+RUN pip install --no-cache-dir --no-index --no-deps \
+    --find-links=/opt/cast-wheelhouse \
+    mdmp==0.6.2 \
+    cast-pyp-eeg==2.0.0+cast.4074a2a \
+    && python -c "import cast_pyp_eeg, mdmp; assert cast_pyp_eeg.__version__ == '2.0.0+cast.4074a2a'; assert mdmp.__version__ == '0.6.2'"
+
+COPY . .
+
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "-l", "info", "-Q", "eeg", "--concurrency=1", "-n", "eeg@%h"]

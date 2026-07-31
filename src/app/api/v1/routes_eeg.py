@@ -4,8 +4,20 @@ from uuid import UUID
 from pydantic import BaseModel
 import io
 import csv
+import hashlib
+import json
+from datetime import datetime
 
-from app.db.models import EEGAsset as EEGAssetModel, Session as SessionModel, Participant as ParticipantModel, VideoAsset as VideoAssetModel, User
+from app.db.models import (
+    EEGAnalysisArtifact,
+    EEGAnalysisRun,
+    EEGAsset as EEGAssetModel,
+    EEGAssetFile,
+    Session as SessionModel,
+    Participant as ParticipantModel,
+    VideoAsset as VideoAssetModel,
+    User,
+)
 from app.db.session import SessionLocal
 from app.services.storage_service import storage_service
 
@@ -40,6 +52,38 @@ def _read_eeg_rows(eeg_asset):
                 parsed[k] = v
         rows.append(parsed)
     return rows
+
+
+def _latest_timeseries_result(db: Session, eeg_id: UUID, run_id: UUID | None = None):
+    query = (
+        db.query(EEGAnalysisRun)
+        .filter(
+            EEGAnalysisRun.eeg_asset_id == eeg_id,
+            EEGAnalysisRun.status.in_(("succeeded", "partial")),
+        )
+    )
+    if run_id is not None:
+        query = query.filter(EEGAnalysisRun.id == run_id)
+    run = query.order_by(EEGAnalysisRun.finished_at.desc().nullslast()).first()
+    if run is None:
+        return None, None
+    artifact = (
+        db.query(EEGAnalysisArtifact)
+        .filter(
+            EEGAnalysisArtifact.run_id == run.id,
+            EEGAnalysisArtifact.kind == "timeseries-index",
+        )
+        .order_by(EEGAnalysisArtifact.created_at.desc())
+        .first()
+    )
+    if artifact is None:
+        return run, None
+    payload = json.loads(
+        storage_service.download_bytes(
+            storage_service.key_from_uri(artifact.storage_uri)
+        ).decode("utf-8")
+    )
+    return run, payload
 
 @router.post("/upload-proxy")
 async def upload_eeg_proxy(
@@ -92,6 +136,20 @@ async def upload_eeg_proxy(
         storage_uri=f"s3://{storage_service.bucket_name}/{object_name}"
     )
     db.add(eeg_asset)
+    db.flush()
+    db.add(
+        EEGAssetFile(
+            eeg_asset_id=eeg_asset.id,
+            role="primary",
+            filename=file.filename,
+            mime_type=file.content_type or "application/octet-stream",
+            size_bytes=len(contents),
+            checksum_sha256=hashlib.sha256(contents).hexdigest(),
+            storage_uri=eeg_asset.storage_uri,
+            is_primary=True,
+            verified_at=datetime.utcnow(),
+        )
+    )
     db.commit()
     db.refresh(eeg_asset)
 
@@ -299,16 +357,27 @@ def set_eeg_quality(
 @router.get("/{eeg_id}/timeseries")
 def get_eeg_timeseries(
     eeg_id: UUID,
+    run_id: UUID | None = None,
+    limit: int = 5000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Downloads the CSV from MinIO, parses it and returns timeseries data for the UI chart."""
     eeg_asset = get_owned_eeg(db, current_user, eeg_id)
         
-    try:
-        timeseries = _read_eeg_rows(eeg_asset)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read from storage: {e}")
+    run, result = _latest_timeseries_result(db, eeg_id, run_id)
+    if result is not None:
+        timeseries = result.get("preview", [])[: max(1, min(limit, 20000))]
+        source = "analysis-run"
+    else:
+        try:
+            timeseries = _read_eeg_rows(eeg_asset)[: max(1, min(limit, 20000))]
+            source = "legacy-csv"
+        except Exception as e:
+            raise HTTPException(
+                status_code=409,
+                detail="No derived time-series result is available for this binary EEG asset",
+            ) from e
 
     # Audit access to raw EEG (sensitive data, docs §21).
     from app.api.v1.routes_governance import record_access
@@ -328,7 +397,10 @@ def get_eeg_timeseries(
         "filename": eeg_asset.filename,
         "sync_offset_ms": mapping["offset_ms"],
         "sync_transform": mapping,
-        "data": timeseries
+        "data": timeseries,
+        "source": source,
+        "analysis_run_id": run.id if run else None,
+        "units": result.get("units", {}) if result else {},
     }
 
 
@@ -390,6 +462,8 @@ def _permutation_test(during, baseline, n_perm=2000, seed=42):
 @router.get("/{eeg_id}/coactivation")
 def get_eeg_coactivation(
     eeg_id: UUID,
+    run_id: UUID | None = None,
+    roi: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -409,10 +483,40 @@ def get_eeg_coactivation(
     if not video_asset:
         raise HTTPException(status_code=404, detail="No video associated with this EEG session")
 
-    try:
-        rows = _read_eeg_rows(eeg_asset)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read from storage: {e}")
+    analysis_run, derived = _latest_timeseries_result(db, eeg_id, run_id)
+    if derived is not None:
+        long_rows = [
+            row
+            for row in derived.get("preview", [])
+            if (roi is None or row.get("roi") == roi)
+            and row.get("metric") == "absolute_power"
+        ]
+        by_time = {}
+        for row in long_rows:
+            timestamp_ms = float(row["time_seconds"]) * 1000
+            target = by_time.setdefault(timestamp_ms, {"timestamp_ms": timestamp_ms})
+            key = f"__{row['band']}"
+            target.setdefault(key, []).append(float(row["value"]))
+        rows = []
+        for target in by_time.values():
+            rows.append(
+                {
+                    key.removeprefix("__"): sum(values) / len(values)
+                    for key, values in target.items()
+                    if key.startswith("__")
+                }
+                | {"timestamp_ms": target["timestamp_ms"]}
+            )
+        result_source = "analysis-run"
+    else:
+        try:
+            rows = _read_eeg_rows(eeg_asset)
+            result_source = "legacy-csv"
+        except Exception as e:
+            raise HTTPException(
+                status_code=409,
+                detail="Coactivation requires a valid analysis run for binary EEG",
+            ) from e
 
     events, _ = load_timeline_events(video_asset, db)
     from app.services.sync_transform_service import approved_mapping, video_to_eeg_ms
@@ -463,6 +567,7 @@ def get_eeg_coactivation(
     baseline_count = max((len(baseline_samples[b]) for b in present_bands), default=0)
 
     actions_result = []
+    tested = []
     for action, wins in by_action.items():
         total_ms = sum(max(0.0, w["end_ms"] - w["start_ms"]) for w in wins)
         sample_count = max((len(action_samples[action][b]) for b in present_bands), default=0)
@@ -483,6 +588,8 @@ def get_eeg_coactivation(
                 "cohens_d": cohens_d,
                 "significant": (p_value is not None and p_value < 0.05),
             }
+            if p_value is not None:
+                tested.append((bands_out[b], p_value))
 
         actions_result.append({
             "action": action,
@@ -492,6 +599,19 @@ def get_eeg_coactivation(
             "bands": bands_out,
         })
 
+    # Benjamini-Hochberg correction across all action × band hypotheses.
+    ordered = sorted(enumerate(tested), key=lambda item: item[1][1])
+    previous = 1.0
+    adjusted = {}
+    for rank, (original_index, (_, p_value)) in reversed(
+        list(enumerate(ordered, start=1))
+    ):
+        previous = min(previous, p_value * len(ordered) / rank)
+        adjusted[original_index] = previous
+    for original_index, (result, _) in enumerate(tested):
+        result["q_value"] = adjusted[original_index]
+        result["significant"] = adjusted[original_index] < 0.05
+
     return {
         "eeg_asset_id": eeg_id,
         "sync_offset_ms": offset,
@@ -500,4 +620,15 @@ def get_eeg_coactivation(
         "baseline_sample_count": baseline_count,
         "alpha": 0.05,
         "actions": actions_result,
+        "analysis_run_id": analysis_run.id if analysis_run else None,
+        "source": result_source,
+        "roi": roi,
+        "metric": "absolute_power",
+        "multiple_comparisons": "Benjamini-Hochberg FDR",
+        "sample_metadata": {
+            "baseline_samples": baseline_count,
+            "event_count": len(windows),
+            "tested_hypotheses": len(tested),
+        },
+        "caveat": "Temporal association only; this result does not establish causality.",
     }

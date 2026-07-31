@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProvenanceLegend } from '@/components/data-display/ProvenanceLegend';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
 import { CoactivationPanel } from '@/features/eeg/components/CoactivationPanel';
+import { EEGAnalysisWorkspace } from '@/features/eeg/components/EEGAnalysisWorkspace';
 import { eegToVideoMs, useEEGData } from '@/features/eeg/useEEG';
 import { useAnnotationContext } from '@/features/annotations/api/useAnnotationEditor';
 import { useSessionByReference, useSync } from '@/features/multimodal/useMultimodal';
@@ -271,6 +272,8 @@ export function AnalysisWorkspacePage() {
         <Panel title='Eventos detectados ("pontos")' subtitle="Predições do modelo e anotações manuais, sincronizadas com o player acima">
           <EventTable events={timeline?.events ?? []} onSeek={(seconds) => requestSeek(seconds * 1000)} />
         </Panel>
+
+        {session.eeg_asset_id && <EEGAnalysisWorkspace eegId={session.eeg_asset_id} />}
 
         <section className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">

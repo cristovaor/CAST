@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useSessionDetail } from '@/features/multimodal/useMultimodal';
 import { useEEGAsset, useEEGQualityCheck, useSetEEGQuality, useParseEEG } from '@/features/multimodal/useMultimodal';
 import { QUALITY_VERDICT_META as VERDICTS } from '@/types/research';
+import { EEGAnalysisWorkspace } from '@/features/eeg/components/EEGAnalysisWorkspace';
 
 const CHANNEL_TONE: Record<EEGChannelQuality['status'], { tone: 'success' | 'warning' | 'danger' | 'neutral'; label: string }> = {
   good: { tone: 'success', label: 'Bom' },
@@ -171,6 +172,55 @@ export function EEGQualityPage() {
           </div>
         </div>
 
+        {eeg && (
+          <div className="rounded-xl border border-border bg-surface overflow-hidden">
+            <div className="border-b border-border px-4 py-3">
+              <h3 className="text-sm font-semibold text-text-primary">Bundle do registro</h3>
+              <p className="text-[11px] text-text-muted">
+                Arquivos físicos, papéis e checksums verificados na ingestão.
+              </p>
+            </div>
+            {(eeg.files ?? []).length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="border-b border-border text-left text-text-muted">
+                    <tr>
+                      <th className="px-4 py-2">Arquivo</th>
+                      <th className="px-4 py-2">Papel</th>
+                      <th className="px-4 py-2">Tamanho</th>
+                      <th className="px-4 py-2">SHA-256</th>
+                      <th className="px-4 py-2">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(eeg.files ?? []).map((file) => (
+                      <tr key={file.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-2 font-medium">{file.filename}</td>
+                        <td className="px-4 py-2">{file.role}{file.is_primary ? ' · primário' : ''}</td>
+                        <td className="px-4 py-2 tabular-nums">{(file.size_bytes / 1024 / 1024).toFixed(2)} MB</td>
+                        <td className="px-4 py-2 font-mono">{file.checksum_sha256.slice(0, 16)}…</td>
+                        <td className="px-4 py-2">
+                          <ToneBadge tone={!file.verified_at ? 'warning' : 'success'}>
+                            {file.checksum_sha256 === 'legacy-unverified'
+                              ? 'Legado não verificado'
+                              : file.verified_at
+                                ? 'Verificado'
+                                : 'Upload pendente'}
+                          </ToneBadge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="px-4 py-5 text-xs text-text-muted">
+                Ativo legado sem manifesto de bundle; a migração criará o membro primário.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Per-channel quality */}
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
@@ -247,6 +297,8 @@ export function EEGQualityPage() {
             {setQuality.isSuccess && <p className="mt-2 text-[11px] text-emerald-600">Decisão registrada.</p>}
           </div>
         )}
+
+        {eegId && <EEGAnalysisWorkspace eegId={eegId} />}
       </div>
     </div>
   );

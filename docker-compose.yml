@@ -71,6 +71,7 @@ services:
       - MINIO_URL=http://minio:9000
       - MINIO_PUBLIC_URL=http://localhost:9000
       - REDIS_URL=redis://redis:6379/0
+      - EEG_ANALYSIS_V2_ENABLED=true
     volumes:
       - ./models:/app/models  # Model registry volume
     depends_on:
@@ -84,7 +85,7 @@ services:
       context: ./src
       dockerfile: Dockerfile.worker
     container_name: cast_worker
-    command: celery -A app.workers.celery_app worker -l info
+    command: celery -A app.workers.celery_app worker -l info -Q celery
     environment:
       - POSTGRES_SERVER=postgres
       - MINIO_URL=http://minio:9000
@@ -100,6 +101,30 @@ services:
       - redis
       - postgres
       - minio
+    restart: always
+
+  eeg-worker:
+    build:
+      context: ./src
+      dockerfile: Dockerfile.eeg-worker
+    container_name: cast_eeg_worker
+    command: celery -A app.workers.celery_app worker -l info -Q eeg --concurrency=1 -n eeg@%h
+    environment:
+      - POSTGRES_SERVER=postgres
+      - MINIO_URL=http://minio:9000
+      - MINIO_PUBLIC_URL=http://localhost:9000
+      - REDIS_URL=redis://redis:6379/0
+      - EEG_ANALYSIS_V2_ENABLED=true
+      - MPLCONFIGDIR=/tmp/matplotlib
+    depends_on:
+      - redis
+      - postgres
+      - minio
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 6G
     restart: always
 
   frontend:
