@@ -9,14 +9,79 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.db.models import ModelVersion
+from cast.config.taxonomy import CORE_ACTIONS
 from cast.models.manifest import ModelManifest
 
 # Usually you'd import the loaded model from a cache
 # For now we'll simulate loading it or rely on the caller
-from cast.models.manifest import ModelManifest
 
 class ModelNotFoundError(Exception):
     pass
+
+
+def unified_v7_promotion_failures(manifest: ModelManifest) -> list[str]:
+    """Return the reasons a V7 pilot cannot be promoted to active.
+
+    Training registers V7 artifacts as drafts. Activation is allowed only after
+    all five canonical labels have enough validation support, every label meets
+    the minimum recall, and macro recall reaches the pilot target.
+    """
+    if manifest.architecture != "cast-unified-v7":
+        return []
+
+    failures: list[str] = []
+    recalls: list[float] = []
+    for label in CORE_ACTIONS:
+        metrics = manifest.metrics_by_label.get(label)
+        if not metrics:
+            failures.append(f"{label}: métricas ausentes")
+            continue
+        support = int(metrics.get("support", 0))
+        recall = float(metrics.get("recall", 0.0))
+        if support < 20:
+            failures.append(f"{label}: suporte insuficiente ({support} < 20)")
+        if recall < 0.80:
+            failures.append(f"{label}: recall {recall:.3f} < 0.800")
+        recalls.append(recall)
+
+    if len(recalls) == len(CORE_ACTIONS):
+        macro_recall = sum(recalls) / len(recalls)
+        if macro_recall < 0.90:
+            failures.append(f"recall macro {macro_recall:.3f} < 0.900")
+    return failures
+
+
+def multimodal_v8_promotion_failures(manifest: ModelManifest) -> list[str]:
+    """Require observable-label and EEG validation evidence for V8."""
+    if manifest.architecture != "cast-multimodal-v8":
+        return []
+
+    # Apply the same label gate as V7 without mutating the persisted manifest.
+    v7_view = manifest.model_copy(update={"architecture": "cast-unified-v7"})
+    failures = unified_v7_promotion_failures(v7_view)
+    validation = manifest.validation_summary
+    eeg_sessions = int(validation.get("eeg_session_count", 0))
+    eeg_windows = int(validation.get("eeg_validation_windows", 0))
+    if eeg_sessions < 2:
+        failures.append(
+            f"sessões EEG aprovadas insuficientes ({eeg_sessions} < 2)"
+        )
+    if eeg_windows < 20:
+        failures.append(
+            f"janelas de validação com EEG insuficientes ({eeg_windows} < 20)"
+        )
+    if not validation.get("approved_sync_required"):
+        failures.append("validação não exige sincronização aprovada")
+    if not validation.get("participant_disjoint_split"):
+        failures.append("split de validação não é separado por participante")
+    return failures
+
+
+def model_promotion_failures(manifest: ModelManifest) -> list[str]:
+    return [
+        *unified_v7_promotion_failures(manifest),
+        *multimodal_v8_promotion_failures(manifest),
+    ]
 
 
 def register_model_version(
@@ -44,6 +109,8 @@ def register_model_version(
     metrics = {}
     if manifest.avg_metrics:
         metrics = manifest.avg_metrics.model_dump()
+    elif manifest.metrics_by_label:
+        metrics = {"by_label": manifest.metrics_by_label}
 
     mv = ModelVersion(
         model_id=model_id,
@@ -77,6 +144,14 @@ def promote_model_version(
         raise ModelNotFoundError(f"Model version {version_id} not found")
 
     if target_status == "active":
+        manifest = ModelManifest.model_validate(mv.manifest)
+        promotion_failures = model_promotion_failures(manifest)
+        if promotion_failures:
+            raise ValueError(
+                "Modelo CAST não atende ao gate de promoção: "
+                + "; ".join(promotion_failures)
+            )
+
         # Demote current active
         active_others = db.query(ModelVersion).filter(
             ModelVersion.action == mv.action,

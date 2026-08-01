@@ -32,6 +32,7 @@ from app.services.model_service import get_active_model
 from app.services.storage_service import storage_service
 from app.workers.celery_app import celery_app
 from cast.config.actions import ALL_ACTIONS
+from cast.config.taxonomy import MULTI_ACTION_CODE
 
 logger = get_task_logger(__name__)
 
@@ -41,16 +42,37 @@ EXTRACTOR_CONFIG: dict[str, Any] = {
     "min_tracking_confidence": 0.5,
     "normalization": "paper_formula",
     "overlay_chunk_seconds": 1,
+    "enable_head_pose_estimation": True,
+    "head_motion_schema": "head-motion-v1",
+    "optical_flow": "farneback-roi-v1",
 }
 
 
-def _config_hash() -> str:
+def _config_hash(config: dict[str, Any] | None = None) -> str:
     encoded = json.dumps(
-        EXTRACTOR_CONFIG,
+        config or EXTRACTOR_CONFIG,
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _extractor_config_for_video(video: VideoAsset) -> dict[str, Any]:
+    config = dict(EXTRACTOR_CONFIG)
+    try:
+        organization = video.session.participant.study.project.organization
+        settings = organization.pipeline_settings or {}
+    except AttributeError:
+        settings = {}
+    if settings.get("face_detection_threshold") is not None:
+        config["min_detection_confidence"] = float(
+            settings["face_detection_threshold"]
+        )
+    if settings.get("enable_head_pose_estimation") is not None:
+        config["enable_head_pose_estimation"] = bool(
+            settings["enable_head_pose_estimation"]
+        )
+    return config
 
 
 def _mediapipe_version() -> str:
@@ -95,8 +117,13 @@ def _parquet_bytes(dataframe) -> bytes:
     return buffer.getvalue()
 
 
-def _extract_landmarks(video_path: str, video_id: str):
+def _extract_landmarks(
+    video_path: str,
+    video_id: str,
+    config: dict[str, Any] | None = None,
+):
     """Run MediaPipe in its isolated dependency environment when available."""
+    config = config or EXTRACTOR_CONFIG
     legacy_python = os.environ.get(
         "MEDIAPIPE_PYTHON",
         "/opt/mediapipe-legacy/bin/python",
@@ -104,7 +131,15 @@ def _extract_landmarks(video_path: str, video_id: str):
     if not os.path.exists(legacy_python):
         from app.ml.facemesh import FaceMeshAdapter
 
-        return FaceMeshAdapter().extract_from_video(video_path, video_id)
+        return FaceMeshAdapter(
+            refine_landmarks=bool(config.get("refine_landmarks", True)),
+            min_detection_confidence=float(
+                config.get("min_detection_confidence", 0.5)
+            ),
+            min_tracking_confidence=float(
+                config.get("min_tracking_confidence", 0.5)
+            ),
+        ).extract_from_video(video_path, video_id)
 
     import pandas as pd
 
@@ -122,6 +157,10 @@ def _extract_landmarks(video_path: str, video_id: str):
                 video_id,
                 "--output",
                 output_path,
+                "--min-detection-confidence",
+                str(config.get("min_detection_confidence", 0.5)),
+                "--min-tracking-confidence",
+                str(config.get("min_tracking_confidence", 0.5)),
             ],
             check=True,
             cwd="/app",
@@ -233,7 +272,8 @@ def extract_landmarks_task(self, job_id: str):
 
         video_bytes, checksum = _download_video(video)
         video.checksum_sha256 = checksum
-        config_hash = _config_hash()
+        extractor_config = _extractor_config_for_video(video)
+        config_hash = _config_hash(extractor_config)
         existing = (
             db.query(LandmarkArtifact)
             .filter(
@@ -271,7 +311,7 @@ def extract_landmarks_task(self, job_id: str):
                 processing_job_id=job.id,
                 status="processing",
                 extractor_version=_mediapipe_version(),
-                configuration=EXTRACTOR_CONFIG,
+                configuration=extractor_config,
                 video_checksum=checksum,
                 config_hash=config_hash,
                 fps=fps,
@@ -289,11 +329,12 @@ def extract_landmarks_task(self, job_id: str):
         raw = _extract_landmarks(
             tmp_video_path,
             str(video.id),
+            extractor_config,
         )
         _log_progress(db, job, "info", "Normalizando coordenadas", 55.0)
         normalized = preprocess_landmarks(
             raw,
-            mode=EXTRACTOR_CONFIG["normalization"],
+            mode=extractor_config["normalization"],
         )
 
         prefix = f"landmarks/{video.id}/{artifact.id}"
@@ -432,6 +473,125 @@ def infer_landmarks_task(self, job_id: str, artifact_id: str):
 
         import numpy as np
         import pandas as pd
+
+        try:
+            unified_model, unified_manifest = get_active_model(
+                db, MULTI_ACTION_CODE
+            )
+        except ValueError as error:
+            unified_model = None
+            unified_manifest = None
+            _log_progress(
+                db,
+                job,
+                "info",
+                f"Modelo unificado indisponível; usando fallback V6: {error}",
+            )
+
+        if unified_model is not None and unified_manifest is not None:
+            if not artifact.raw_uri:
+                raise ValueError(
+                    "RAW_LANDMARKS_NOT_READY: V7 requires raw 3D landmarks"
+                )
+            raw = pd.read_parquet(
+                io.BytesIO(
+                    storage_service.download_bytes(
+                        storage_service.key_from_uri(artifact.raw_uri)
+                    )
+                ),
+                engine="pyarrow",
+            )
+            from app.ml.unified_inference import run_unified_inference
+
+            eeg_rows = None
+            sync_mapping = None
+            eeg_metadata = None
+            if unified_manifest.architecture == "cast-multimodal-v8":
+                from app.services.eeg_feature_service import (
+                    load_session_eeg_features,
+                )
+
+                session_eeg = load_session_eeg_features(
+                    db,
+                    job.video_asset.session_id,
+                )
+                eeg_rows = session_eeg.rows
+                sync_mapping = session_eeg.mapping
+                eeg_metadata = {
+                    "status": session_eeg.status,
+                    "eeg_asset_id": session_eeg.eeg_asset_id,
+                    "analysis_run_id": session_eeg.analysis_run_id,
+                    "valid_ratio": session_eeg.valid_ratio,
+                }
+            result = run_unified_inference(
+                raw,
+                unified_model,
+                unified_manifest,
+                video_id=str(artifact.video_asset_id),
+                fps=artifact.fps,
+                eeg_rows=eeg_rows,
+                sync_mapping=sync_mapping,
+                eeg_metadata=eeg_metadata,
+                enable_head_pose_estimation=bool(
+                    (artifact.configuration or {}).get(
+                        "enable_head_pose_estimation",
+                        True,
+                    )
+                ),
+            )
+            payload = result.payload(str(artifact.id))
+            key = (
+                f"predictions/{artifact.video_asset_id}/"
+                f"{result.request_id}/predictions.json"
+            )
+            storage_service.s3.put_object(
+                Bucket=storage_service.bucket_name,
+                Key=key,
+                Body=json.dumps(
+                    payload, separators=(",", ":")
+                ).encode("utf-8"),
+                ContentType="application/json",
+            )
+            legacy = result.legacy_summary()
+            prediction = Prediction(
+                video_asset_id=artifact.video_asset_id,
+                prediction_uri=(
+                    f"s3://{storage_service.bucket_name}/{key}"
+                ),
+                threshold=unified_manifest.threshold,
+                summary={
+                    "actions": legacy,
+                    **{
+                        label: values["total_events"]
+                        for label, values in legacy.items()
+                    },
+                    "schema_version": result.schema_version,
+                    "landmark_artifact_id": str(artifact.id),
+                    "detection_rate": artifact.face_detection_rate,
+                    "total_frames": artifact.frame_count,
+                    "request_id": result.request_id,
+                    "latency_ms": result.latency_ms,
+                    "model_version": result.model_version,
+                    "modalities_used": list(result.modalities_used),
+                    "sync_quality": result.sync_quality or {},
+                    "eeg_validation_status": result.eeg_validation_status,
+                },
+            )
+            db.add(prediction)
+            job.status = JobStatus.succeeded
+            job.finished_at = datetime.utcnow()
+            _log_progress(
+                db, job, "info", "Inferência unificada V7 finalizada", 100.0
+            )
+            db.refresh(prediction)
+            return {
+                "prediction_id": str(prediction.id),
+                "schema": (
+                    "v8"
+                    if unified_manifest.architecture == "cast-multimodal-v8"
+                    else "v7"
+                ),
+            }
 
         normalized = pd.read_parquet(
             io.BytesIO(

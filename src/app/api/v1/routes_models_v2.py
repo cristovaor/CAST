@@ -155,6 +155,7 @@ class TrainModelRequest(BaseModel):
     version: str
     action: Optional[str] = None
     actions: Optional[List[str]] = None
+    unified: bool = False
     video_asset_ids: Optional[List[str]] = None
     training_config: Optional[dict[str, Any]] = None
 
@@ -172,12 +173,21 @@ def train_model(
     /api/v1/models/train-jobs/{job_id} (or /stream) for progress on each.
     """
     from cast.config.actions import ALL_ACTIONS
+    from cast.config.taxonomy import MULTI_ACTION_CODE
 
-    requested_actions = req.actions if req.actions else ([req.action] if req.action else None)
+    requested_actions = (
+        [MULTI_ACTION_CODE]
+        if req.unified
+        else req.actions if req.actions else ([req.action] if req.action else None)
+    )
     if not requested_actions:
         raise HTTPException(status_code=400, detail="Either 'action' or 'actions' must be provided")
 
-    unknown = [a for a in requested_actions if a not in ALL_ACTIONS]
+    unknown = [
+        action
+        for action in requested_actions
+        if action not in [*ALL_ACTIONS, MULTI_ACTION_CODE]
+    ]
     if unknown:
         raise HTTPException(status_code=400, detail=f"Unknown action(s): {', '.join(unknown)}")
 

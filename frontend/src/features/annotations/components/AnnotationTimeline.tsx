@@ -3,6 +3,27 @@ import { useAnnotationStore } from '../store/useAnnotationStore';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import type { AnnotationEvent, AnnotationSuggestion } from '@/types/annotation';
 
+const GROUP_LABELS: Record<string, string> = {
+  eyes: 'Olhos',
+  gaze: 'Olhar',
+  head: 'Cabeça',
+  mouth: 'Boca',
+  brows: 'Sobrancelhas',
+  custom: 'Outros',
+};
+const GROUP_ORDER = ['eyes', 'gaze', 'head', 'mouth', 'brows', 'custom'];
+
+function groupFor(actionCode: string) {
+  if (['OF', 'SQUINT'].includes(actionCode)) return 'eyes';
+  if (actionCode === 'OC') return 'gaze';
+  if (actionCode === 'VR') return 'head';
+  if (['ML', 'SMILE', 'MOUTH_OPEN', 'LIP_PRESS', 'LIP_PUCKER'].includes(actionCode)) {
+    return 'mouth';
+  }
+  if (['MSO', 'BROW_RAISE', 'BROW_FURROW'].includes(actionCode)) return 'brows';
+  return 'custom';
+}
+
 interface AnnotationTimelineProps {
   suggestions: AnnotationSuggestion[];
   showSuggestions: boolean;
@@ -36,7 +57,11 @@ export function AnnotationTimeline({
         );
     }
     if (draft) ensure(draft.actionCode);
-    return [...result.entries()];
+    return [...result.entries()].sort(([left], [right]) => {
+      const groupDifference =
+        GROUP_ORDER.indexOf(groupFor(left)) - GROUP_ORDER.indexOf(groupFor(right));
+      return groupDifference || left.localeCompare(right);
+    });
   }, [draft, events, showSuggestions, suggestions]);
 
   const seekFromClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -61,7 +86,12 @@ export function AnnotationTimeline({
       <div className="relative flex-1 space-y-1 overflow-y-auto p-2">
         {tracks.map(([actionCode, track]) => (
           <div key={actionCode} className="group flex h-8 items-center gap-4">
-            <div className="w-28 truncate text-xs text-text-muted">{actionCode}</div>
+            <div className="w-28 truncate text-xs text-text-muted">
+              <span className="block text-[9px] uppercase tracking-wide text-text-disabled">
+                {GROUP_LABELS[groupFor(actionCode)]}
+              </span>
+              {actionCode}
+            </div>
             <div
               ref={timelineRef}
               className="relative h-full flex-1 cursor-pointer rounded-sm bg-surface-muted"
@@ -81,7 +111,11 @@ export function AnnotationTimeline({
                       suggestion.endTime - suggestion.startTime,
                     )})`,
                   }}
-                  title={`Sugestão ${Math.round(suggestion.confidence * 100)}%`}
+                  title={`Sugestão ${Math.round(suggestion.confidence * 100)}%${
+                    suggestion.direction?.horizontal
+                      ? ` · ${suggestion.direction.horizontal}`
+                      : ''
+                  }`}
                 />
               ))}
               {track.events.map((event) =>

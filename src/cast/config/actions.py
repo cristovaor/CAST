@@ -1,5 +1,7 @@
 from typing import Dict, List
 
+from cast.config.taxonomy import CORE_ACTIONS
+
 # Regions used per action for feature extraction
 ACTION_REGIONS: Dict[str, List[str]] = {
     "OF": ["olho_direito", "olho_esquerdo"],
@@ -11,15 +13,21 @@ ACTION_REGIONS: Dict[str, List[str]] = {
 }
 
 # Canonical ordered list of actions in v6 (MSO restored — original v6 notebook micro-action)
-ALL_ACTIONS: List[str] = ["OF", "OC", "ML", "VR", "MSO"]
+ALL_ACTIONS: List[str] = list(CORE_ACTIONS)
 
 # Expected feature count per action (landmarks * 2 coords)
+def action_feature_count(action: str) -> int:
+    """Derive feature count from the canonical landmark list.
+
+    This avoids stale hard-coded counts when an action's region list changes.
+    """
+    from cast.config.landmarks import get_points
+
+    return len(get_points(ACTION_REGIONS[action])) * 2
+
+
 ACTION_FEATURE_COUNT: Dict[str, int] = {
-    "OF": 64,   # 32 landmarks (16 right + 16 left eye) * 2
-    "OC": 16,   # 8 landmarks (4 right + 4 left iris) * 2
-    "ML": 80,   # 40 lip landmarks * 2
-    "VR": 160,  # 80 face landmarks * 2
-    "MSO": 40,  # 20 landmarks (10 right + 10 left eyebrow) * 2
+    action: action_feature_count(action) for action in ALL_ACTIONS
 }
 
 # Default inference thresholds per action (calibrated per specs v6)

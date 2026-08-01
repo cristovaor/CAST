@@ -7,8 +7,8 @@ import pandas as pd
 class FaceMeshAdapter:
     """Adapter for FaceMesh landmark extraction."""
     
-    def __init__(self):
-        self.extractor = FaceMeshExtractor()
+    def __init__(self, **extractor_options):
+        self.extractor = FaceMeshExtractor(**extractor_options)
 
     def extract_from_video(self, video_path: str, video_id: str) -> pd.DataFrame:
         """Extract landmarks from a video file.

@@ -67,6 +67,7 @@ export function RegisterModelDialog({ children }: { children: React.ReactNode })
             <div className="space-y-2">
               <label className="text-sm font-medium text-text-secondary">Ação</label>
               <select required value={action} onChange={e => setAction(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md outline-none bg-surface">
+                <option value="MULTI">MULTI (Modelo unificado V7)</option>
                 <option value="OF">OF (Olhos Fechados)</option>
                 <option value="OC">OC (Olhando Canto)</option>
                 <option value="ML">ML (Mexendo Lábios)</option>

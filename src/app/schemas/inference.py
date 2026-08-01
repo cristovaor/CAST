@@ -76,3 +76,37 @@ class CompactionRequest(BaseModel):
     """Request to re-compact predictions with new parameters."""
     min_run_length: int = Field(default=3, ge=1)
     threshold_overrides: Optional[Dict[str, float]] = None
+
+
+class UnifiedEventDetail(BaseModel):
+    """Observable event emitted by the CAST Unified V7 artifact."""
+    actionCode: str
+    startFrame: int
+    endFrame: int
+    startTimeMs: float
+    endTimeMs: float
+    durationMs: float
+    confidence: float = Field(ge=0, le=1)
+    side: str = "unspecified"
+    direction: Dict[str, str] = Field(default_factory=dict)
+    subtype: Optional[str] = None
+    magnitude: Optional[float] = None
+    quality: Dict[str, Any] = Field(default_factory=dict)
+    signals: Dict[str, float] = Field(default_factory=dict)
+
+
+class UnifiedPredictionResult(BaseModel):
+    schema_version: str = "cast-unified-v7"
+    request_id: str
+    video_id: str
+    landmark_artifact_id: str
+    model_version: str
+    calibration_version: str = "v1"
+    fps: float
+    events: List[UnifiedEventDetail] = Field(default_factory=list)
+    actions: List[Dict[str, Any]] = Field(default_factory=list)
+    frameSignals: List[Dict[str, Any]] = Field(default_factory=list)
+    modalitiesUsed: List[str] = Field(default_factory=lambda: ["head_video"])
+    syncQuality: Dict[str, Any] = Field(default_factory=dict)
+    branchContributions: Dict[str, float] = Field(default_factory=dict)
+    eegValidationStatus: str = "not_available"

@@ -534,6 +534,7 @@ export function AnnotationPage() {
       startFrame: number;
       endFrame: number;
     },
+    reviewDurationMs?: number,
   ) => {
     const predictionId = suggestionsQuery.data?.predictionId;
     if (!predictionId) return;
@@ -542,7 +543,24 @@ export function AnnotationPage() {
         modelEventKey: suggestion.modelEventKey,
         predictionId,
         decision,
-        correction,
+        correction: correction
+          ? {
+              ...correction,
+              side: suggestion.side ?? 'unspecified',
+              spatialMetadata: {
+                direction: suggestion.direction,
+                subtype: suggestion.subtype,
+                magnitude: suggestion.magnitude,
+                signals: suggestion.signals,
+                quality: suggestion.quality,
+                modelVersion: suggestion.modelVersion ?? undefined,
+                calibrationVersion:
+                  suggestion.calibrationVersion ?? undefined,
+                selectionSource: 'model_review_correction',
+              },
+            }
+          : undefined,
+        reviewDurationMs,
       },
       { onError: (error) => setMessage(error.message) },
     );

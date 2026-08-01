@@ -67,6 +67,7 @@ export interface TrainModelPayload {
   version: string;
   action?: string;
   actions?: string[];
+  unified?: boolean;
   video_asset_ids?: string[];
   training_config?: Record<string, unknown>;
 }

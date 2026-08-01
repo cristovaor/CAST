@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.db.session import SessionLocal
@@ -837,24 +837,60 @@ def _load_prediction_events(prediction: Prediction) -> tuple[list[dict], str | N
         )
     )
     events = []
-    for action in payload.get("actions", []):
-        for item in action.get("events", []):
-            events.append(
+    calibration_version = payload.get("calibration_version")
+    unified_events = payload.get("events", [])
+    if unified_events:
+        iterable = [
+            (
+                item["actionCode"],
                 {
-                    "modelEventKey": _model_event_key(
-                        prediction.id,
-                        action["action"],
-                        int(item["start_frame"]),
-                        int(item["end_frame"]),
-                    ),
-                    "actionCode": action["action"],
-                    "startFrame": int(item["start_frame"]),
-                    "endFrame": int(item["end_frame"]),
-                    "startTime": float(item.get("start_ms", 0)) / 1000.0,
-                    "endTime": float(item.get("end_ms", 0)) / 1000.0,
-                    "confidence": float(item.get("avg_confidence", 0)),
-                }
+                    "start_frame": item["startFrame"],
+                    "end_frame": item["endFrame"],
+                    "start_ms": item.get("startTimeMs", 0),
+                    "end_ms": item.get("endTimeMs", 0),
+                    "avg_confidence": item.get("confidence", 0),
+                    "side": item.get("side", "unspecified"),
+                    "direction": item.get("direction", {}),
+                    "subtype": item.get("subtype"),
+                    "magnitude": item.get("magnitude"),
+                    "quality": item.get("quality", {}),
+                    "signals": item.get("signals", {}),
+                },
             )
+            for item in unified_events
+        ]
+    else:
+        iterable = [
+            (action["action"], item)
+            for action in payload.get("actions", [])
+            for item in action.get("events", [])
+        ]
+    for action_code, item in iterable:
+        start_frame = int(item["start_frame"])
+        end_frame = int(item["end_frame"])
+        events.append(
+            {
+                "modelEventKey": _model_event_key(
+                    prediction.id,
+                    action_code,
+                    start_frame,
+                    end_frame,
+                ),
+                "actionCode": action_code,
+                "startFrame": start_frame,
+                "endFrame": end_frame,
+                "startTime": float(item.get("start_ms", 0)) / 1000.0,
+                "endTime": float(item.get("end_ms", 0)) / 1000.0,
+                "confidence": float(item.get("avg_confidence", 0)),
+                "side": item.get("side", "unspecified"),
+                "direction": item.get("direction", {}),
+                "subtype": item.get("subtype"),
+                "magnitude": item.get("magnitude"),
+                "quality": item.get("quality", {}),
+                "signals": item.get("signals", {}),
+                "calibrationVersion": calibration_version,
+            }
+        )
     return events, payload.get("model_version")
 
 
@@ -916,6 +952,7 @@ class SuggestionReviewCreate(BaseModel):
     decision: str
     taskId: Optional[UUID] = None
     correction: Optional[VideoAnnotationCreate] = None
+    reviewDurationMs: Optional[int] = Field(None, ge=0)
 
 
 @annotation_events_router.post(
@@ -1000,7 +1037,7 @@ def review_annotation_suggestion(
         start_frame = correction.startFrame if correction else original["startFrame"]
         end_frame = correction.endFrame if correction else original["endFrame"]
         _validate_frames(kind, start_frame, end_frame)
-        side = correction.side if correction else "unspecified"
+        side = correction.side if correction else original.get("side", "unspecified")
         _validate_spatial_side(side)
         start_time, end_time = _canonical_times(
             video,
@@ -1025,9 +1062,31 @@ def review_annotation_suggestion(
             notes=correction.notes if correction else None,
             region=correction.region if correction else None,
             side=side,
-            spatial_metadata=(
-                correction.spatialMetadata or {} if correction else {}
-            ),
+            spatial_metadata={
+                "direction": original.get("direction", {}),
+                "subtype": original.get("subtype"),
+                "magnitude": original.get("magnitude"),
+                "signals": original.get("signals", {}),
+                "quality": original.get("quality", {}),
+                "modelVersion": prediction.summary.get("model_version")
+                if prediction.summary
+                else None,
+                "calibrationVersion": original.get("calibrationVersion"),
+                "selectionSource": "model_review",
+                **(
+                    {
+                        "originalSuggestion": {
+                            "actionCode": original["actionCode"],
+                            "startFrame": original["startFrame"],
+                            "endFrame": original["endFrame"],
+                            "side": original.get("side", "unspecified"),
+                        }
+                    }
+                    if correction
+                    else {}
+                ),
+                **(correction.spatialMetadata or {} if correction else {}),
+            },
             annotator_id=current_user.id,
         )
         db.add(annotation)
@@ -1063,6 +1122,7 @@ def review_annotation_suggestion(
             "video_id": str(video_id),
             "decision": payload.decision,
             "model_event_key": model_event_key,
+            "review_duration_ms": payload.reviewDurationMs,
         },
     )
     db.commit()

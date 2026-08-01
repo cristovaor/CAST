@@ -27,6 +27,7 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal
 from app.services.storage_service import storage_service
+from cast.config.taxonomy import categories_for_api
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
@@ -312,13 +313,7 @@ def get_video_quality(
         "criteria": report.get("criteria", []),
     }
 
-CANONICAL_ANNOTATION_CATEGORIES = [
-    {"code": "OF", "label": "Olho fechado", "shortcut": 1},
-    {"code": "OC", "label": "Olhando para canto", "shortcut": 2},
-    {"code": "ML", "label": "Mexeu lábios", "shortcut": 3},
-    {"code": "VR", "label": "Virou rosto", "shortcut": 4},
-    {"code": "MSO", "label": "Mexeu sobrancelha", "shortcut": 5},
-]
+CANONICAL_ANNOTATION_CATEGORIES = categories_for_api()
 
 
 def _annotation_categories(video_asset: VideoAssetModel) -> list[dict]:

@@ -17,7 +17,7 @@ export interface AnnotationEvent {
   notes?: string;
   region?: string | null;
   side: AnnotationSide;
-  spatialMetadata: Record<string, unknown>;
+  spatialMetadata: AnnotationSpatialMetadata;
   revision: number;
   createdAt: string;
   updatedAt: string;
@@ -35,7 +35,7 @@ export interface AnnotationDraft {
   startFrame: number;
   region?: string;
   side: AnnotationSide;
-  spatialMetadata?: Record<string, unknown>;
+  spatialMetadata?: AnnotationSpatialMetadata;
 }
 
 export type AnnotationSide =
@@ -63,6 +63,32 @@ export interface AnnotationCategory {
   code: string;
   label: string;
   shortcut?: number;
+  group?: AnnotationGroup;
+  default_side?: AnnotationSide;
+  region?: string;
+  experimental?: boolean;
+}
+
+export type AnnotationGroup = 'eyes' | 'gaze' | 'head' | 'mouth' | 'brows' | 'custom';
+
+export interface AnnotationDirection {
+  horizontal?: 'left' | 'center' | 'right';
+  vertical?: 'up' | 'center' | 'down';
+  tilt?: 'left' | 'center' | 'right';
+}
+
+export interface AnnotationSpatialMetadata extends Record<string, unknown> {
+  direction?: AnnotationDirection;
+  subtype?: 'blink' | 'wink' | 'sustained_closure' | 'gaze_shift' | 'head_movement' | string;
+  magnitude?: number;
+  signals?: Record<string, number>;
+  quality?: {
+    faceDetectionRate?: number;
+    directionAmbiguous?: boolean;
+    [key: string]: unknown;
+  };
+  modelVersion?: string;
+  calibrationVersion?: string;
 }
 
 export interface LandmarkArtifactSummary {
@@ -125,7 +151,18 @@ export interface AnnotationSuggestion {
   startTime: number;
   endTime: number;
   confidence: number;
+  side?: AnnotationSide;
+  direction?: AnnotationDirection;
+  subtype?: string | null;
+  magnitude?: number | null;
+  quality?: {
+    faceDetectionRate?: number;
+    directionAmbiguous?: boolean;
+    [key: string]: unknown;
+  };
+  signals?: Record<string, number>;
   modelVersion: string | null;
+  calibrationVersion?: string | null;
   review: {
     id: string;
     decision: 'accepted' | 'corrected' | 'rejected';

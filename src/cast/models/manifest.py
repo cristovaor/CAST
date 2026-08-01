@@ -48,12 +48,35 @@ class ModelManifest(BaseModel):
     action: str
     framework: str = "tensorflow/keras"
     architecture: str = "cast-lstm-v6"
+    task_type: str = "binary"
 
     # Feature contract
     feature_names: List[str] = Field(default_factory=list)
     feature_count: int = 0
     sequence_length: int = 7
     threshold: float = 0.5
+    target_fps: float = 30.0
+    window_ms: float = 1000.0
+
+    # Unified V7 contract. Empty values keep every V6 manifest valid.
+    labels: List[str] = Field(default_factory=list)
+    output_heads: Dict[str, List[str]] = Field(default_factory=dict)
+    calibration: Dict[str, Dict[str, float]] = Field(default_factory=dict)
+    calibration_version: str = "v1"
+    postprocessing: Dict[str, Dict[str, float]] = Field(default_factory=dict)
+    feature_schema_version: str = "v6"
+    metrics_by_label: Dict[str, Dict[str, float]] = Field(default_factory=dict)
+
+    # Multimodal V8 contract. Defaults preserve legacy V6/V7 manifests.
+    required_modalities: List[str] = Field(default_factory=lambda: ["head_video"])
+    optional_modalities: List[str] = Field(default_factory=list)
+    modality_feature_names: Dict[str, List[str]] = Field(default_factory=dict)
+    feature_schema_versions: Dict[str, str] = Field(default_factory=dict)
+    missing_modality_policy: str = "head_only"
+    modality_dropout_probability: float = 0.0
+    sync_requirements: Dict[str, Any] = Field(default_factory=dict)
+    validation_summary: Dict[str, Any] = Field(default_factory=dict)
+    teacher_model: Optional[Dict[str, Any]] = None
 
     # Hyperparameters
     training_config: TrainingConfig

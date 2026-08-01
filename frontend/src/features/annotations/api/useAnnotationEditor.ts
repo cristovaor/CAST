@@ -208,17 +208,20 @@ export function useReviewSuggestion(videoId: string, taskId?: string) {
       predictionId,
       decision,
       correction,
+      reviewDurationMs,
     }: {
       modelEventKey: string;
       predictionId: string;
       decision: 'accepted' | 'corrected' | 'rejected';
       correction?: AnnotationWrite;
+      reviewDurationMs?: number;
     }) =>
       annotationsApi.reviewSuggestion(videoId, modelEventKey, {
         predictionId,
         decision,
         taskId,
         correction,
+        reviewDurationMs,
       }),
     onSuccess: async () => {
       await Promise.all([

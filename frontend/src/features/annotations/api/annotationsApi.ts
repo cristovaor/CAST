@@ -99,6 +99,7 @@ export const annotationsApi = {
       decision: 'accepted' | 'corrected' | 'rejected';
       taskId?: string;
       correction?: AnnotationWrite;
+      reviewDurationMs?: number;
     },
   ) =>
     apiClient.post<{
