@@ -10,6 +10,20 @@ from app.db.models import (
     PredictionReview, AnalysisReport,
     ConsentTerm, Synchronization, SyncEvidence, SyncRun, ResearchVariable, Dataset, AuditLog,
 )
+from app.domains.acquisition.models import (
+    ResearchBookmark,
+    VideoCapturePart,
+    VideoCaptureRun,
+)
+from app.domains.context.models import (
+    EnvironmentArtifact,
+    ExperimentalEvent,
+    ExperimentalTrial,
+    StimulusAsset,
+)
+from app.domains.lsl.models import LSLRecording, LSLRecordingStream
+from app.domains.gaze.models import GazeArtifact, GazeCalibration, GazeCalibrationSample
+from app.domains.pupil.models import PupilArtifact, PupilRun
 
 __all__ = [
     "Base", "Organization", "User", "Project", "Study", "StudyGroup", "Participant",
@@ -18,4 +32,9 @@ __all__ = [
     "MicroActionModel", "Prediction", "LandmarkArtifact", "LearningAssessment",
     "AnnotationTask", "AnnotationEvent", "PredictionReview", "AnalysisReport",
     "Synchronization", "SyncEvidence", "SyncRun", "ResearchVariable", "Dataset", "AuditLog",
+    "VideoCaptureRun", "VideoCapturePart", "ResearchBookmark",
+    "ExperimentalTrial", "StimulusAsset", "ExperimentalEvent", "EnvironmentArtifact",
+    "LSLRecording", "LSLRecordingStream",
+    "GazeCalibration", "GazeCalibrationSample", "GazeArtifact",
+    "PupilRun", "PupilArtifact",
 ]

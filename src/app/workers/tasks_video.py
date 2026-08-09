@@ -28,6 +28,7 @@ from app.db.models import (
     VideoAsset,
 )
 from app.db.session import SessionLocal
+from app.core.config import settings
 from app.services.model_service import get_active_model
 from app.services.storage_service import storage_service
 from app.workers.celery_app import celery_app
@@ -61,17 +62,30 @@ def _extractor_config_for_video(video: VideoAsset) -> dict[str, Any]:
     config = dict(EXTRACTOR_CONFIG)
     try:
         organization = video.session.participant.study.project.organization
-        settings = organization.pipeline_settings or {}
+        organization_settings = organization.pipeline_settings or {}
     except AttributeError:
-        settings = {}
-    if settings.get("face_detection_threshold") is not None:
+        organization_settings = {}
+    if organization_settings.get("face_detection_threshold") is not None:
         config["min_detection_confidence"] = float(
-            settings["face_detection_threshold"]
+            organization_settings["face_detection_threshold"]
         )
-    if settings.get("enable_head_pose_estimation") is not None:
+    if organization_settings.get("enable_head_pose_estimation") is not None:
         config["enable_head_pose_estimation"] = bool(
-            settings["enable_head_pose_estimation"]
+            organization_settings["enable_head_pose_estimation"]
         )
+    if settings.FACE_LANDMARKER_V2_ENABLED:
+        from app.domains.face.landmarker_v2 import MODEL_SHA256
+
+        config.update({
+            "extractor": "mediapipe_face_landmarker_v2",
+            "running_mode": "VIDEO",
+            "model_path": os.environ.get("FACE_LANDMARKER_MODEL_PATH", "/app/models/face_landmarker_v1.task"),
+            "model_checksum": MODEL_SHA256,
+            "output_face_blendshapes": True,
+            "output_facial_transformation_matrixes": True,
+        })
+    else:
+        config["extractor"] = "mediapipe_facemesh"
     return config
 
 
@@ -124,6 +138,14 @@ def _extract_landmarks(
 ):
     """Run MediaPipe in its isolated dependency environment when available."""
     config = config or EXTRACTOR_CONFIG
+    if config.get("extractor") == "mediapipe_face_landmarker_v2":
+        from app.domains.face.landmarker_v2 import FaceLandmarkerV2
+
+        return FaceLandmarkerV2(
+            str(config["model_path"]),
+            expected_sha256=str(config["model_checksum"]),
+            min_confidence=float(config.get("min_detection_confidence", 0.5)),
+        ).extract_from_video(video_path, video_id)
     legacy_python = os.environ.get(
         "MEDIAPIPE_PYTHON",
         "/opt/mediapipe-legacy/bin/python",
@@ -303,6 +325,7 @@ def extract_landmarks_task(self, job_id: str):
             artifact.status = "processing"
             artifact.error_message = None
             artifact.extractor_version = _mediapipe_version()
+            artifact.extractor = str(extractor_config["extractor"])
             artifact.fps = fps
             artifact.updated_at = datetime.utcnow()
         else:
@@ -310,6 +333,7 @@ def extract_landmarks_task(self, job_id: str):
                 video_asset_id=video.id,
                 processing_job_id=job.id,
                 status="processing",
+                extractor=str(extractor_config["extractor"]),
                 extractor_version=_mediapipe_version(),
                 configuration=extractor_config,
                 video_checksum=checksum,
@@ -326,11 +350,21 @@ def extract_landmarks_task(self, job_id: str):
         from app.ml.preprocessing import preprocess_landmarks
 
         _log_progress(db, job, "info", "Extraindo pontos com MediaPipe", 25.0)
-        raw = _extract_landmarks(
+        extraction = _extract_landmarks(
             tmp_video_path,
             str(video.id),
             extractor_config,
         )
+        from app.domains.face.landmarker_v2 import FaceLandmarkerOutput
+
+        if isinstance(extraction, FaceLandmarkerOutput):
+            raw = extraction.landmarks
+            face_features = extraction.features
+            face_quality = extraction.quality
+        else:
+            raw = extraction
+            face_features = None
+            face_quality = None
         _log_progress(db, job, "info", "Normalizando coordenadas", 55.0)
         normalized = preprocess_landmarks(
             raw,
@@ -349,6 +383,21 @@ def extract_landmarks_task(self, job_id: str):
             Body=raw_bytes,
             ContentType="application/vnd.apache.parquet",
         )
+        features_key = quality_key = None
+        features_bytes = quality_bytes = None
+        if face_features is not None and face_quality is not None:
+            features_key = f"{prefix}/features.parquet"
+            quality_key = f"{prefix}/quality.parquet"
+            features_bytes = _parquet_bytes(face_features)
+            quality_bytes = _parquet_bytes(face_quality)
+            storage_service.s3.put_object(
+                Bucket=storage_service.bucket_name, Key=features_key,
+                Body=features_bytes, ContentType="application/vnd.apache.parquet",
+            )
+            storage_service.s3.put_object(
+                Bucket=storage_service.bucket_name, Key=quality_key,
+                Body=quality_bytes, ContentType="application/vnd.apache.parquet",
+            )
         storage_service.s3.put_object(
             Bucket=storage_service.bucket_name,
             Key=normalized_key,
@@ -384,6 +433,15 @@ def extract_landmarks_task(self, job_id: str):
             normalized_bytes
         ).hexdigest()
         artifact.overlay_checksum = overlay_checksum
+        artifact.capabilities = ["landmarks", "normalized", "mesh", "roi", "quality"]
+        if features_key and quality_key and features_bytes is not None and quality_bytes is not None:
+            artifact.capabilities.extend(["blendshapes-52", "facial-transformation-matrix", "head-pose", "eye-openness"])
+            artifact.features_uri = f"s3://{storage_service.bucket_name}/{features_key}"
+            artifact.features_checksum = hashlib.sha256(features_bytes).hexdigest()
+            artifact.quality_uri = f"s3://{storage_service.bucket_name}/{quality_key}"
+            artifact.quality_checksum = hashlib.sha256(quality_bytes).hexdigest()
+            artifact.model_uri = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+            artifact.model_checksum = str(extractor_config["model_checksum"])
         artifact.chunk_size_frames = chunk_size
         artifact.updated_at = datetime.utcnow()
 

@@ -47,3 +47,31 @@
 ## ADR-010 — GPU opcional no MVP
 
 **Decisão:** pipeline deve rodar em CPU para viabilidade local/staging; GPU entra para escala.
+
+## ADR-011 — Expansão multimodal sem godnodes
+
+**Decisão:** `Session` permanece agregador de identidade e associação. Cada modalidade possui modelos, schemas, serviços, routers, jobs e artefatos próprios; `app/db/models.py` não receberá as novas entidades.
+
+**Razão:** séries heterogêneas e regras científicas têm ciclos de vida diferentes. Centralizá-las tornaria migrações, autorização, retries e validação inseparáveis.
+
+## ADR-012 — Contrato temporal científico comum
+
+**Decisão:** todas as séries usam `source_time_us`, `source_clock_id`, `canonical_time_us`, `uncertainty_us`, `quality_flags` e `valid`. Frame é referência auxiliar.
+
+**Consequência:** conversões de clock são explícitas, versionadas e revisáveis; timestamps de ingestão/processamento pertencem à proveniência do artefato.
+
+## ADR-013 — Brutos imutáveis e derivados em camadas
+
+**Decisão:** WebM/MP4, XDF, CSV e JSONL são imutáveis no MinIO; séries derivadas são Parquet tiled/particionado. `RAW`, `DERIVED`, `FILTERED`, `MODEL_OUTPUT` e `ANNOTATION` não se sobrescrevem.
+
+## ADR-014 — Explorer baseado em descritores
+
+**Decisão:** o Explorer agrega somente `ExplorerTrackDescriptor`; cada modalidade serve suas próprias amostras. Zustand mantém relógio, janela, seleção e velocidade, nunca séries.
+
+## ADR-015 — Gaze e pupila são experimentais
+
+**Decisão:** módulos ficam atrás de flags independentes, não são rotulados como atenção/cognição e só exportam variável científica quando seus gates pré-registrados passam.
+
+## ADR-016 — Sem reconstrução facial 3D neste ciclo
+
+**Decisão:** não implementar DECA, EMOCA, FLAME, avatar ou viewer 3D. O `z` normalizado do MediaPipe não será apresentado como profundidade ou reconstrução métrica.

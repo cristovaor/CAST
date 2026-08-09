@@ -47,6 +47,51 @@ class StorageService:
             print(f"Error generating presigned url: {e}")
             return ""
 
+    def create_multipart_upload(
+        self, object_name: str, content_type: str = "application/octet-stream"
+    ) -> str:
+        response = self.s3.create_multipart_upload(
+            Bucket=self.bucket_name,
+            Key=object_name,
+            ContentType=content_type,
+        )
+        return response["UploadId"]
+
+    def generate_presigned_part_url(
+        self,
+        object_name: str,
+        upload_id: str,
+        part_number: int,
+        expiration: int = 3600,
+    ) -> str:
+        return self.s3_public.generate_presigned_url(
+            "upload_part",
+            Params={
+                "Bucket": self.bucket_name,
+                "Key": object_name,
+                "UploadId": upload_id,
+                "PartNumber": part_number,
+            },
+            ExpiresIn=expiration,
+        )
+
+    def complete_multipart_upload(
+        self, object_name: str, upload_id: str, parts: list[dict]
+    ) -> dict:
+        return self.s3.complete_multipart_upload(
+            Bucket=self.bucket_name,
+            Key=object_name,
+            UploadId=upload_id,
+            MultipartUpload={"Parts": parts},
+        )
+
+    def abort_multipart_upload(self, object_name: str, upload_id: str) -> None:
+        self.s3.abort_multipart_upload(
+            Bucket=self.bucket_name,
+            Key=object_name,
+            UploadId=upload_id,
+        )
+
     def generate_presigned_download_url(self, object_name: str, expiration=3600) -> str:
         try:
             response = self.s3_public.generate_presigned_url(
@@ -76,6 +121,22 @@ class StorageService:
         """Reads an object's bytes. Raises on failure so callers can 404/500."""
         response = self.s3.get_object(Bucket=self.bucket_name, Key=object_name)
         return response['Body'].read()
+
+    def download_to_file(self, object_name: str, destination: str) -> None:
+        self.s3.download_file(self.bucket_name, object_name, destination)
+
+    def upload_file(
+        self,
+        object_name: str,
+        source: str,
+        content_type: str = "application/octet-stream",
+    ) -> None:
+        self.s3.upload_file(
+            source,
+            self.bucket_name,
+            object_name,
+            ExtraArgs={"ContentType": content_type},
+        )
 
     def key_from_uri(self, storage_uri: str) -> str:
         """Strips the s3://<bucket>/ prefix, returning the object key."""

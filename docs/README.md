@@ -20,6 +20,7 @@ cast_artifacts_phases/
   06_infra_operations/
   07_product_rollout/
   08_backlog_tests/
+  09_multimodal_expansion/
   references/
 ```
 
@@ -36,6 +37,7 @@ cast_artifacts_phases/
 | 6 | Infra/operação | Deploy, observabilidade, segurança e CI/CD |
 | 7 | Produto/rollout | KPIs, LMS, roadmap e go-to-market técnico |
 | 8 | Backlog/testes | Épicos, critérios de aceite e QA |
+| 9 | Expansão multimodal | Aquisição, Face Landmarker, LSL/EEG, contexto, Explorer, gaze e pupila com gates |
 
 ## Decisões críticas
 
@@ -59,6 +61,7 @@ cast_artifacts_phases/
 - `05_frontend/02_frontend_design_system.md`
 - `06_infra_operations/01_deployment_runbook.md`
 - `07_product_rollout/03_roadmap_by_sprints.md`
+- `09_multimodal_expansion/00_INDEX.md`
 
 ## Próximo passo recomendado
 

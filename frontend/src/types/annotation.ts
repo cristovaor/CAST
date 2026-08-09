@@ -101,6 +101,7 @@ export interface LandmarkArtifactSummary {
   pointCount: number;
   faceDetectionRate: number;
   chunkSizeFrames: number;
+  capabilities?: string[];
   errorMessage?: string | null;
 }
 

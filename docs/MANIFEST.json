@@ -1,7 +1,7 @@
 {
   "project": "CAST Pro — Cognitive Analysis System",
   "created_at": "2026-06-13",
-  "artifact_count": 38,
+  "artifact_count": 47,
   "files": [
     "00_overview/00_project_charter.md",
     "00_overview/01_scope_mvp_and_non_goals.md",
@@ -39,6 +39,15 @@
     "08_backlog_tests/01_epics_user_stories.md",
     "08_backlog_tests/02_test_strategy.md",
     "08_backlog_tests/03_risks_and_decisions_log.md",
+    "09_multimodal_expansion/00_INDEX.md",
+    "09_multimodal_expansion/01_FOUNDATIONS_AND_LIVE_ACQUISITION.md",
+    "09_multimodal_expansion/02_MEDIAPIPE_FACE_LANDMARKER.md",
+    "09_multimodal_expansion/03_EEG_AND_LSL_ACQUISITION.md",
+    "09_multimodal_expansion/04_EXPERIMENTAL_CONTEXT_AND_ENVIRONMENT.md",
+    "09_multimodal_expansion/05_MULTIMODAL_RESEARCH_EXPLORER.md",
+    "09_multimodal_expansion/06_GAZE_EXPERIMENT.md",
+    "09_multimodal_expansion/07_PUPILLOMETRY_EXPERIMENT.md",
+    "09_multimodal_expansion/08_VALIDATION_GOVERNANCE_AND_GO_NO_GO.md",
     "README.md",
     "references/source_basis.md"
   ]

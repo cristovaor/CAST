@@ -65,6 +65,13 @@ class Settings(BaseSettings):
     # ("local" | "development" | "test" | "production").
     ENVIRONMENT: str = "local"
     EEG_ANALYSIS_V2_ENABLED: bool = False
+    LIVE_CAPTURE_ENABLED: bool = False
+    LSL_ACQUISITION_ENABLED: bool = False
+    FACE_LANDMARKER_V2_ENABLED: bool = False
+    EXPERIMENTAL_CONTEXT_ENABLED: bool = False
+    MULTIMODAL_EXPLORER_ENABLED: bool = False
+    GAZE_EXPERIMENT_ENABLED: bool = False
+    PUPIL_EXPERIMENT_ENABLED: bool = False
     EEG_UPLOAD_MAX_FILES: int = 256
     EEG_UPLOAD_MAX_TOTAL_BYTES: int = 50 * 1024 * 1024 * 1024
 

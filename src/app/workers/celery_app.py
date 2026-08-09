@@ -13,6 +13,12 @@ celery_app = Celery(
         "app.workers.tasks_train", "app.workers.tasks_model_testing",
         "app.workers.tasks_reports",
         "app.workers.tasks_eeg_analysis",
+        "app.workers.tasks_acquisition",
+        "app.workers.tasks_context",
+        "app.workers.tasks_lsl",
+        "app.workers.tasks_gaze",
+        "app.workers.tasks_pupil",
+        "app.workers.tasks_explorer",
     ]
 )
 
@@ -25,6 +31,9 @@ celery_app.conf.update(
     task_routes={
         "app.workers.tasks_eeg.*": {"queue": "eeg"},
         "app.workers.tasks_eeg_analysis.*": {"queue": "eeg"},
+        "app.workers.tasks_lsl.*": {"queue": "eeg"},
+        "app.workers.tasks_gaze.*": {"queue": "gaze"},
+        "app.workers.tasks_pupil.*": {"queue": "pupil"},
     },
     task_track_started=True,
     worker_prefetch_multiplier=1,

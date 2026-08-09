@@ -1,0 +1,1 @@
+"""Calibrated gaze experiment domain."""

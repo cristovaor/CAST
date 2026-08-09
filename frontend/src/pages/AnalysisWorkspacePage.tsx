@@ -14,6 +14,13 @@ import { useVideoPlaybackUrl, useVideoTimeline } from '@/features/videos/useVide
 import type { TimelineEventDTO } from '@/features/videos/types';
 import { MultimodalPlayer } from '@/features/inference/components/MultimodalPlayer';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
+import { useExplorerManifest } from '@/features/explorer/useExplorerManifest';
+import { ExplorerTrackCatalog } from '@/features/explorer/ExplorerTrackCatalog';
+import { FaceFeaturePanel } from '@/features/explorer/FaceFeaturePanel';
+import { OcularExperimentPanel } from '@/features/explorer/OcularExperimentPanel';
+import { ExplorerIntervalActions } from '@/features/explorer/ExplorerIntervalActions';
+import { SessionComparisonPanel } from '@/features/explorer/SessionComparisonPanel';
+import { ContextTrackPanel } from '@/features/explorer/ContextTrackPanel';
 import { cn, getMicroActionConfig } from '@/lib/utils';
 import { PROVENANCE_META, type ProvenanceKind } from '@/types/research';
 import type { MicroAction } from '@/types/domain';
@@ -38,6 +45,7 @@ export function AnalysisWorkspacePage() {
   const playbackQuery = useVideoPlaybackUrl(session?.video_asset_id ?? '');
   const syncQuery = useSync(resolvedSessionId);
   const annotationContextQuery = useAnnotationContext(session?.video_asset_id ?? '');
+  const explorerManifestQuery = useExplorerManifest(resolvedSessionId);
 
   const eeg = eegQuery.data;
   const timeline = timelineQuery.data;
@@ -175,6 +183,33 @@ export function AnalysisWorkspacePage() {
             value={SYNC_STATE_LABEL[sync?.state ?? 'not_synced'] ?? 'Desconhecido'}
           />
         </section>
+
+        <ExplorerTrackCatalog
+          manifest={explorerManifestQuery.data}
+          loading={explorerManifestQuery.isLoading}
+          error={explorerManifestQuery.isError}
+          onSeek={requestSeek}
+        />
+
+        <OcularExperimentPanel
+          sessionId={resolvedSessionId ?? session.id}
+          manifest={explorerManifestQuery.data}
+          faceArtifactId={landmarkArtifact?.id}
+        />
+
+        <ExplorerIntervalActions sessionId={resolvedSessionId ?? session.id} manifest={explorerManifestQuery.data} />
+
+        <SessionComparisonPanel sessionId={resolvedSessionId ?? session.id} manifest={explorerManifestQuery.data} />
+
+        <ContextTrackPanel manifest={explorerManifestQuery.data} />
+
+        {session.video_asset_id && landmarkArtifact?.capabilities?.includes('blendshapes-52') && (
+          <FaceFeaturePanel
+            videoId={session.video_asset_id}
+            artifactId={landmarkArtifact.id}
+            cursorMs={cursorMs}
+          />
+        )}
 
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="min-w-0 space-y-4">
@@ -339,7 +374,7 @@ function AnalysisHeader({
           <ArrowLeft size={17} />
         </Link>
         <div>
-          <h1 className="text-lg font-semibold">Workspace de análise sincronizada</h1>
+          <h1 className="text-lg font-semibold">Multimodal Research Explorer</h1>
           <p className="mt-0.5 text-xs text-text-secondary">
             Sessão {session.id.slice(0, 8).toUpperCase()} · vídeo, EEG e eventos no mesmo relógio compartilhado
           </p>

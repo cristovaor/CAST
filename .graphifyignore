@@ -1,0 +1,3 @@
+# Vendored MediaPipe/Emscripten runtime; represented by the gaze integration,
+# not by thousands of generated helper symbols.
+frontend/public/mediapipe/wasm/

@@ -363,13 +363,92 @@ def _artifact_response(artifact: LandmarkArtifact | None) -> dict | None:
         "pointCount": artifact.point_count,
         "faceDetectionRate": artifact.face_detection_rate,
         "chunkSizeFrames": artifact.chunk_size_frames,
+        "capabilities": artifact.capabilities or [],
         "checksums": {
             "raw": artifact.raw_checksum,
             "normalized": artifact.normalized_checksum,
             "overlay": artifact.overlay_checksum,
+            "features": artifact.features_checksum,
+            "quality": artifact.quality_checksum,
         },
         "createdAt": artifact.created_at.isoformat(),
         "errorMessage": artifact.error_message,
+    }
+
+
+@router.get("/{video_id}/face-features")
+def get_face_features(
+    video_id: UUID,
+    artifact_id: UUID | None = None,
+    start_time_us: int | None = None,
+    end_time_us: int | None = None,
+    limit: int = 1000,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_owned_video(db, current_user, video_id)
+    if limit < 1 or limit > 10_000:
+        raise HTTPException(status_code=422, detail="limit must be between 1 and 10000")
+    query = db.query(LandmarkArtifact).filter(
+        LandmarkArtifact.video_asset_id == video_id,
+        LandmarkArtifact.status == "ready",
+    )
+    if artifact_id is not None:
+        query = query.filter(LandmarkArtifact.id == artifact_id)
+    artifact = query.order_by(LandmarkArtifact.created_at.desc()).first()
+    if artifact is None or not artifact.features_uri:
+        raise HTTPException(status_code=404, detail="Face feature capability is not available for this artifact")
+    import io
+    import pandas as pd
+
+    frame = pd.read_parquet(io.BytesIO(storage_service.download_bytes(storage_service.key_from_uri(artifact.features_uri))), engine="pyarrow")
+    if start_time_us is not None:
+        frame = frame[frame["source_time_us"] >= start_time_us]
+    if end_time_us is not None:
+        frame = frame[frame["source_time_us"] <= end_time_us]
+    frame = frame.head(limit)
+    return {
+        "artifact_id": str(artifact.id),
+        "capabilities": artifact.capabilities or [],
+        "model_output": True,
+        "items": json.loads(frame.to_json(orient="records")),
+    }
+
+
+@router.get("/{video_id}/face-quality")
+def get_face_quality(
+    video_id: UUID,
+    artifact_id: UUID | None = None,
+    start_time_us: int | None = None,
+    end_time_us: int | None = None,
+    limit: int = 1000,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_owned_video(db, current_user, video_id)
+    if limit < 1 or limit > 10_000:
+        raise HTTPException(status_code=422, detail="limit must be between 1 and 10000")
+    query = db.query(LandmarkArtifact).filter(
+        LandmarkArtifact.video_asset_id == video_id,
+        LandmarkArtifact.status == "ready",
+    )
+    if artifact_id is not None:
+        query = query.filter(LandmarkArtifact.id == artifact_id)
+    artifact = query.order_by(LandmarkArtifact.created_at.desc()).first()
+    if artifact is None or not artifact.quality_uri:
+        raise HTTPException(status_code=404, detail="Face quality capability is not available for this artifact")
+    import io
+    import pandas as pd
+
+    frame = pd.read_parquet(io.BytesIO(storage_service.download_bytes(storage_service.key_from_uri(artifact.quality_uri))), engine="pyarrow")
+    if start_time_us is not None:
+        frame = frame[frame["source_time_us"] >= start_time_us]
+    if end_time_us is not None:
+        frame = frame[frame["source_time_us"] <= end_time_us]
+    return {
+        "artifact_id": str(artifact.id),
+        "model_output": True,
+        "items": json.loads(frame.head(limit).to_json(orient="records")),
     }
 
 

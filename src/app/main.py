@@ -25,7 +25,7 @@ def root():
     return {"message": "Welcome to CAST Platform API"}
 
 from app.api.v1 import routes_projects, routes_studies, routes_participants, routes_videos, routes_assessments, routes_reports, routes_jobs, routes_exports, routes_auth, routes_annotations, routes_dashboard, routes_settings, routes_users, routes_inference, routes_models_v2, routes_model_testing, routes_health, routes_eeg, routes_sessions, routes_audit
-from app.api.v1 import routes_sync, routes_datasets, routes_variables, routes_governance, routes_study_groups, routes_invitations, routes_eeg_analysis
+from app.api.v1 import routes_sync, routes_datasets, routes_variables, routes_governance, routes_study_groups, routes_invitations, routes_eeg_analysis, routes_acquisition, routes_explorer, routes_context, routes_lsl, routes_gaze, routes_pupil
 # Authentication and health checks are the only public API surfaces. Applying
 # the dependency at router registration makes new endpoints secure by default;
 # route-level dependencies still provide the user object where ownership or
@@ -34,6 +34,12 @@ app.include_router(routes_auth.router, prefix=settings.API_V1_STR)
 
 protected_routers = (
     routes_sessions.router,
+    routes_acquisition.router,
+    routes_explorer.router,
+    routes_context.router,
+    routes_lsl.router,
+    routes_gaze.router,
+    routes_pupil.router,
     routes_audit.router,
     routes_sync.router,
     routes_datasets.router,

@@ -1,5 +1,18 @@
 # Roadmap Futuro (CAST V2 e V3)
 
+## Fase 3 científica futura: aquisição integrada
+
+Esta evolução permanece fora do escopo operacional atual e terá plano próprio
+quando o equipamento e a interface EEG forem definidos.
+
+- Gravar a webcam diretamente no CAST, mantendo o enquadramento na cabeça.
+- Ingerir continuamente a saída EEG durante a mesma sessão.
+- Registrar início, pausa, estímulos e término em um relógio comum.
+- Persistir vídeo e EEG em chunks recuperáveis após falhas de conexão.
+- Executar calibração de câmera, EEG e sincronização antes da sessão.
+- Produzir automaticamente uma sessão com vídeo, EEG, eventos, consentimento e
+  proveniência completos.
+
 Este documento armazena as evoluções planejadas para o projeto CAST que sucederão a Fase 5 (UX Clínico e Sincronização Multimodal). Elas estão organizadas por trilhas de prioridade.
 
 ## Fase 6: Automação e Treinamento Contínuo de ML (Active Learning)

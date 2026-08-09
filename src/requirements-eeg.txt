@@ -23,3 +23,4 @@ networkx==3.4.2
 opt-einsum==3.4.0
 tqdm==4.67.1
 pyedflib==0.1.40
+pyxdf>=1.17.0
