@@ -22,7 +22,9 @@ services:
     restart: always
 
   minio:
-    image: minio/minio:latest
+    # minio/minio was removed from Docker Hub and quay.io; pgsty/minio is the
+    # community-maintained build of the same server (same CLI, env and mc).
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     container_name: cast_minio
     environment:
       MINIO_ROOT_USER: minioadmin
