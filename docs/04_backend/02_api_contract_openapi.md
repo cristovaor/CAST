@@ -1,5 +1,11 @@
 # Fase 4 — Contrato de API Backend
 
+> **Status:** especificação-base de produto. Os nomes abaixo registram a
+> intenção da Fase 4 e não substituem o contrato executável da aplicação. Para
+> integração, use `GET /api/v1/openapi.json`; extensões atuais estão resumidas
+> em [`multimodal_endpoints.md`](multimodal_endpoints.md) e
+> [`eeg_analysis_v2.md`](eeg_analysis_v2.md).
+
 ## 1. Objetivo
 
 Formalizar os endpoints necessários para React, processamento assíncrono, anotação, inferência, governança e exportação.

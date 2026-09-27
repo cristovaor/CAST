@@ -1,9 +1,15 @@
 # CAST Pro — Auditoria de conclusão, pendências e melhorias
 
+> **Status:** registro histórico das rodadas de auditoria. Afirmações e
+> contagens abaixo descrevem o momento em que cada rodada foi executada e não
+> devem ser usadas como inventário atual. O estado canônico está em
+> [`../09_multimodal_expansion/00_INDEX.md`](../09_multimodal_expansion/00_INDEX.md),
+> e o contrato executável da API em `GET /api/v1/openapi.json`.
+
 Revisão do que foi entregue na evolução multimodal (frontend + backend) frente
 aos critérios de aceite (§28) e à lista de entregáveis (§27), com o que ficou
-pendente e o que pode ser melhorado **seguindo o mesmo padrão** (fallback para
-mock, linguagem científica conservadora, rastreabilidade, versionamento).
+pendente e o que pode ser melhorado, com linguagem científica conservadora,
+rastreabilidade e versionamento.
 
 ## 1. Estado atual — o que está concluído
 
@@ -21,8 +27,8 @@ mock, linguagem científica conservadora, rastreabilidade, versionamento).
 | Variáveis científicas | ✅ leitura; ⚠️ criação só backend | `VariablesPage.tsx` + `/variables` |
 | Governança + auditoria | ✅ | `GovernancePage.tsx` + `/governance` |
 | Linguagem determinística | ✅ zerada | grep sem ocorrências |
-| Banco: 21 tabelas + migração 002 | ✅ | `models.py`, migração parseia |
-| App importa (110 rotas) | ✅ | smoke test |
+| Banco e migração 002 naquele ciclo | ✅ | `models.py`, migração parseava |
+| Import da app naquele ciclo | ✅ | smoke test registrado na rodada |
 
 ## 2. Corrigido nesta rodada
 
@@ -164,8 +170,9 @@ Todos os P0 e a maioria dos P1 identificados foram corrigidos nesta rodada:
 - Adoção inconsistente do design system (`ToneBadge`/`ScientificCaveat`/
   `QualityFindings`) em páginas mais antigas (`GlobalAnnotationsPage`,
   `ModelsPage`, `ReportsPage`, `TimelinePage` etc.).
-- `docs/04_backend/openapi.yaml` e `schema.sql` datam de antes de todo o
-  trabalho multimodal — desatualizados frente aos 21+ modelos atuais.
+- `docs/04_backend/openapi.yaml` e `schema.sql` são snapshots históricos; os
+  próprios arquivos agora apontam para OpenAPI gerado e Alembic como fontes
+  canônicas.
 - `ConsentBar` em `ProjectDetailPage` ainda usa valores fixos (85/10/5).
 
 ### P3 — dívida pré-existente (não introduzida aqui)
@@ -175,15 +182,16 @@ Todos os P0 e a maioria dos P1 identificados foram corrigidos nesta rodada:
   a suíte de testes; testes exigem Postgres/MinIO ativos.
 - Pydantic v1 `class Config` em `routes_models_v2` (deprecation warning).
 
-## 4. Como validar end-to-end
+## 4. Como validar end-to-end atualmente
 ```bash
-docker-compose up -d          # Postgres + MinIO + Redis
-cd src && alembic upgrade head # aplica 001 + 002
-uvicorn app.main:app --reload  # backend :8000
-cd ../frontend && npm run dev  # frontend :5173
+docker compose up -d --build   # stack completa; API :8080 e frontend :80
+docker compose exec backend alembic upgrade head
+docker compose ps
 ```
-Sem os serviços, as telas caem no fallback de mock (por desenho) e o backend
-valida por import (110 rotas, 21 tabelas).
+Para desenvolvimento do frontend fora do Compose, use `npm run dev` em
+`frontend/` e aponte `VITE_API_URL` para `http://localhost:8080/api/v1`. A
+ausência dos serviços deve produzir estado vazio/erro explícito, não dados
+sintéticos apresentados como reais.
 
 ## 5. Recomendação de sequência
 1. Persistir wizard de sessão + anexar uploads (P0) — destrava o fluxo 2 inteiro.

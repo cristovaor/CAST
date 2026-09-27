@@ -60,11 +60,20 @@ def multimodal_v8_promotion_failures(manifest: ModelManifest) -> list[str]:
     v7_view = manifest.model_copy(update={"architecture": "cast-unified-v7"})
     failures = unified_v7_promotion_failures(v7_view)
     validation = manifest.validation_summary
-    eeg_sessions = int(validation.get("eeg_session_count", 0))
+    eeg_train_sessions = int(validation.get("eeg_train_session_count", 0))
+    eeg_validation_sessions = int(
+        validation.get("eeg_validation_session_count", 0)
+    )
     eeg_windows = int(validation.get("eeg_validation_windows", 0))
-    if eeg_sessions < 2:
+    if eeg_train_sessions < 2:
         failures.append(
-            f"sessões EEG aprovadas insuficientes ({eeg_sessions} < 2)"
+            f"sessões EEG aprovadas no treino insuficientes "
+            f"({eeg_train_sessions} < 2)"
+        )
+    if eeg_validation_sessions < 1:
+        failures.append(
+            "sessões EEG aprovadas na validação insuficientes "
+            f"({eeg_validation_sessions} < 1)"
         )
     if eeg_windows < 20:
         failures.append(

@@ -1,3 +1,5 @@
+-- Snapshot histórico do bootstrap da Fase 4.
+-- O schema atual é mantido por src/alembic/versions/; use alembic upgrade head.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Enums

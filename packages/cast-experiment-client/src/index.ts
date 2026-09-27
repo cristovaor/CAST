@@ -4,6 +4,8 @@ export interface CastExperimentClientOptions {
   token: () => string | null;
   sourceClockId?: string;
   flushSize?: number;
+  lslAgentUrl?: string;
+  lslPairToken?: () => string | null;
 }
 
 export type ExperimentEventType =
@@ -59,6 +61,12 @@ export class CastExperimentClient {
     };
     this.buffer.push(event);
     this.persist();
+    if (this.options.lslAgentUrl && this.options.lslPairToken) {
+      void this.emitLSLMarker(event).catch(() => {
+        event.quality_flags.push('lsl_marker_failed');
+        this.persist();
+      });
+    }
     if (this.buffer.length >= this.options.flushSize) void this.flush();
     return event.client_event_id;
   }
@@ -86,6 +94,22 @@ export class CastExperimentClient {
   }
 
   private storageKey() { return `${STORAGE_PREFIX}${this.options.sessionId}`; }
+  private async emitLSLMarker(event: BufferedEvent) {
+    const pairToken = this.options.lslPairToken?.();
+    if (!this.options.lslAgentUrl || !pairToken) return;
+    const requestedLabel = event.payload.marker_label;
+    const response = await fetch(`${this.options.lslAgentUrl.replace(/\/$/, '')}/marker`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${pairToken}` },
+      body: JSON.stringify({
+        client_event_id: event.client_event_id,
+        label: typeof requestedLabel === 'string' ? requestedLabel : event.event_type,
+        source_time_us: event.source_time_us,
+        source_clock_id: event.source_clock_id,
+      }),
+    });
+    if (!response.ok) throw new Error(`CAST LSL marker failed: HTTP ${response.status}`);
+  }
   private persist() { localStorage.setItem(this.storageKey(), JSON.stringify(this.buffer)); }
   private restore(): BufferedEvent[] {
     try { return JSON.parse(localStorage.getItem(this.storageKey()) ?? '[]') as BufferedEvent[]; }

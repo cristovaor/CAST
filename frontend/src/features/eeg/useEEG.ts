@@ -60,18 +60,54 @@ export function useEEGData(eegId?: string) {
   });
 }
 
+export interface PhysiologyStream {
+  kind: 'heart-rate' | 'rr-interval';
+  filename: string;
+  unit: 'bpm' | 'ms';
+  sample_count: number;
+  data: { timestamp_ms: number; value: number }[];
+}
+
+export interface EEGPhysiology {
+  eeg_asset_id: string;
+  streams: PhysiologyStream[];
+  hrv: null | {
+    total_intervals: number;
+    valid_intervals: number;
+    excluded_intervals: number;
+    filter: string;
+    mean_rr_ms: number | null;
+    mean_hr_bpm: number | null;
+    sdnn_ms: number | null;
+    rmssd_ms: number | null;
+    pnn50_pct: number | null;
+  };
+  caveat: string;
+}
+
+export function useEEGPhysiology(eegId?: string) {
+  return useQuery<EEGPhysiology>({
+    queryKey: ['eeg', eegId, 'physiology'],
+    queryFn: () => apiClient.get<EEGPhysiology>(`/eeg/${eegId}/physiology`),
+    enabled: !!eegId,
+  });
+}
+
 export interface EEGBandStat {
   during: number | null;
   baseline: number | null;
   delta_pct: number | null;
   p_value: number | null;
   cohens_d: number | null;
+  effect_ci95: [number, number] | null;
+  paired_event_count: number;
   significant: boolean;
   q_value?: number;
 }
 
 export interface EEGCoactivationAction {
   action: string;
+  origin: 'annotator' | 'model' | 'unknown';
   n_events: number;
   total_ms: number;
   sample_count: number;
@@ -87,9 +123,10 @@ export interface EEGCoactivation {
   alpha: number;
   actions: EEGCoactivationAction[];
   analysis_run_id?: string | null;
-  source?: 'analysis-run' | 'legacy-csv';
+  source?: 'analysis-run-full' | 'legacy-csv';
   roi?: string | null;
   multiple_comparisons?: string;
+  design?: string;
   caveat?: string;
 }
 
@@ -183,6 +220,31 @@ export interface EEGResultEnvelope {
   networks?: Record<string, unknown>[];
   sample_count?: number;
   warnings?: string[];
+  sampling_frequency_hz?: number;
+  duration_seconds?: number;
+  bad_channels?: string[];
+  removed_components?: {
+    component: number;
+    label: string;
+    probability: number;
+    threshold: number;
+  }[];
+  quality_before?: EEGSignalQualitySnapshot;
+  quality_after?: EEGSignalQualitySnapshot;
+  quality_gain_percentage_points?: number;
+  quality_interpretation?: string;
+}
+
+export interface EEGSignalQualitySnapshot {
+  threshold_uv: number;
+  overall_valid_ratio: number;
+  p95_abs_centered_uv: number | null;
+  channels: {
+    name: string;
+    valid_ratio: number;
+    p95_abs_centered_uv: number | null;
+    median_offset_uv: number;
+  }[];
 }
 
 export function useEEGAnalysisRuns(eegId?: string) {
@@ -265,7 +327,7 @@ export function useEEGAnalysisArtifacts(runId?: string) {
 
 export function useEEGAnalysisResult(
   runId: string | undefined,
-  resultType: 'power' | 'timeseries' | 'stats' | 'topomaps' | 'mdmp',
+  resultType: 'preprocessing' | 'power' | 'timeseries' | 'stats' | 'topomaps' | 'mdmp',
 ) {
   return useQuery<EEGResultEnvelope>({
     queryKey: ['eeg-analysis-result', runId, resultType],
@@ -299,7 +361,11 @@ export function useUploadEEG() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { participant_id: string; session_id?: string; file: File }) => {
+    mutationFn: async (data: { participant_id: string; session_id?: string; file: File }) => {
+      if (data.file.name.toLowerCase().endsWith('.xdf')) {
+        if (!data.session_id) throw new Error('A importação XDF requer uma sessão de destino.');
+        return uploadXdf(data.session_id, data.file);
+      }
       const formData = new FormData();
       formData.append('participant_id', data.participant_id);
       if (data.session_id) formData.append('session_id', data.session_id);
@@ -325,4 +391,54 @@ export function useUploadEEG() {
       queryClient.invalidateQueries({ queryKey: ['videos'] });
     }
   });
+}
+
+interface LSLRecording {
+  id: string;
+  session_id: string;
+  status: string;
+  upload_url?: string;
+  eeg_asset_id?: string | null;
+  error_message?: string | null;
+}
+
+async function sha256(file: File) {
+  const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  return [...new Uint8Array(hash)].map((value) => value.toString(16).padStart(2, '0')).join('');
+}
+
+async function uploadXdf(sessionId: string, file: File) {
+  const recording = await apiClient.post<LSLRecording & { upload_url: string }>(
+    `/sessions/${sessionId}/lsl-recordings`,
+    {
+      agent_id: 'browser-xdf-import',
+      selected_stream_ids: [],
+      browser_clock: { source_clock_id: 'xdf-file', filename: file.name },
+    },
+  );
+  const checksum = await sha256(file);
+  const upload = await fetch(recording.upload_url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/x-xdf' },
+    body: file,
+  });
+  if (!upload.ok) throw new Error(`Falha ao enviar o XDF ao armazenamento (HTTP ${upload.status}).`);
+  await apiClient.post(`/lsl-recordings/${recording.id}/complete`, {
+    checksum_sha256: checksum,
+    size_bytes: file.size,
+    ended_source_time_us: Math.round(performance.now() * 1000),
+  });
+
+  const deadline = Date.now() + 10 * 60_000;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+    const current = await apiClient.get<LSLRecording>(`/lsl-recordings/${recording.id}`);
+    if (current.status === 'failed') {
+      throw new Error(current.error_message ?? 'Falha ao materializar o arquivo XDF.');
+    }
+    if (current.status === 'ready' && current.eeg_asset_id) {
+      return { eeg_asset_id: current.eeg_asset_id, session_id: current.session_id };
+    }
+  }
+  throw new Error('O XDF foi recebido, mas o processamento excedeu 10 minutos. Consulte a sessão novamente.');
 }

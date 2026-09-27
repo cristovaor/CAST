@@ -1,5 +1,6 @@
-# CAST — EasyPanel deployment that builds the images LOCALLY on the VPS from
-# the Dockerfiles in this repository (no registry required).
+# CAST — EasyPanel deployment on the Hostinger VPS (the same box and EasyPanel
+# project, "doutorado", that runs CSH-MARL). Images are built LOCALLY on the VPS
+# from the Dockerfiles in this repository (no registry required).
 #
 # ─── Triton is deliberately absent ────────────────────────────────────────
 # The GPU inference server from docker-compose.yml is NOT part of this stack:
@@ -41,6 +42,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-https://api.cast.crlabs.com.br/api/v1}
+        # Environment label shown in the top bar and dashboard.
+        VITE_ENV: ${VITE_ENV:-production}
         # Public Firebase web config; empty values disable the Google button.
         VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
         VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-}
@@ -98,10 +101,26 @@ services:
       REDIS_URL: ${REDIS_URL:?required}
       SECRET_KEY: ${SECRET_KEY:?required}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-11520}
+      # ── Feature flags ─────────────────────────────────────────────────
+      # Shared by the API and both workers through this anchor, so a flag is
+      # never on in the API while the worker that runs its jobs has it off.
       EEG_ANALYSIS_V2_ENABLED: ${EEG_ANALYSIS_V2_ENABLED:-false}
+      LSL_ACQUISITION_ENABLED: ${LSL_ACQUISITION_ENABLED:-false}
+      LIVE_CAPTURE_ENABLED: ${LIVE_CAPTURE_ENABLED:-false}
+      FACE_LANDMARKER_V2_ENABLED: ${FACE_LANDMARKER_V2_ENABLED:-false}
+      EXPERIMENTAL_CONTEXT_ENABLED: ${EXPERIMENTAL_CONTEXT_ENABLED:-false}
+      MULTIMODAL_EXPLORER_ENABLED: ${MULTIMODAL_EXPLORER_ENABLED:-false}
+      GAZE_EXPERIMENT_ENABLED: ${GAZE_EXPERIMENT_ENABLED:-false}
+      PUPIL_EXPERIMENT_ENABLED: ${PUPIL_EXPERIMENT_ENABLED:-false}
+      EEG_UPLOAD_MAX_FILES: ${EEG_UPLOAD_MAX_FILES:-256}
+      EEG_UPLOAD_MAX_TOTAL_BYTES: ${EEG_UPLOAD_MAX_TOTAL_BYTES:-53687091200}
       # Object storage stays local to this stack (see the minio service below).
       MINIO_URL: http://minio:9000
-      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://cast.crlabs.com.br/storage}
+      # Presigned URLs are signed against this origin, so it must be served at
+      # the ROOT of its own domain: a path prefix like ".../storage" that the
+      # proxy strips changes the signed path and MinIO rejects every URL with
+      # SignatureDoesNotMatch.
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://storage.cast.crlabs.com.br}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?required}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?required}
       # ── Invite-only Google login ──────────────────────────────────────
@@ -123,7 +142,10 @@ services:
     expose:
       - "8080"
     volumes:
-      - cast_models:/app/models
+      # Tracked in the repo (face_landmarker_v1.task); read-only because nothing
+      # writes here — trained models go to MinIO. A named volume would freeze
+      # the first copy and never pick up model updates from later deploys.
+      - ./models:/app/models:ro
     depends_on:
       minio:
         condition: service_healthy
@@ -155,7 +177,10 @@ services:
       # so the worker runs its models on CPU instead of failing to reach Triton.
       TF_CPP_MIN_LOG_LEVEL: "2"
     volumes:
-      - cast_models:/app/models
+      # Tracked in the repo (face_landmarker_v1.task); read-only because nothing
+      # writes here — trained models go to MinIO. A named volume would freeze
+      # the first copy and never pick up model updates from later deploys.
+      - ./models:/app/models:ro
     depends_on:
       backend:
         condition: service_healthy
@@ -211,6 +236,9 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?required}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?required}
+      # The browser PUTs uploads straight to MinIO via presigned URLs; only the
+      # frontend origin may do so cross-origin.
+      MINIO_API_CORS_ALLOW_ORIGIN: ${CORS_ORIGINS:?required}
     expose:
       - "9000"
       - "9001"
@@ -242,4 +270,3 @@ networks:
 
 volumes:
   cast_minio: {}
-  cast_models: {}

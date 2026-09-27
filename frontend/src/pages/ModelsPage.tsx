@@ -2,6 +2,7 @@ import { Eye, Sparkles, UploadCloud } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, type ColumnDef } from '@/components/data-display/DataTable';
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { ModelVersionBadge } from '@/components/ui/ModelVersionBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { RegisterModelDialog } from '@/features/models/RegisterModelDialog';
@@ -34,8 +35,8 @@ export function ModelsPage() {
       key: 'metrics',
       header: 'F1 Score',
       render: (_, row) => {
-        const f1 = row.metrics?.f1_score || row.metrics?.f1;
-        return <span className="font-mono text-xs text-text-secondary">{f1 ? Number(f1).toFixed(3) : '—'}</span>;
+        const f1 = row.metrics?.f1_score ?? row.metrics?.f1;
+        return <span className="font-mono text-xs text-text-secondary">{f1 == null || !Number.isFinite(Number(f1)) ? '—' : Number(f1).toFixed(3)}</span>;
       },
     },
     {
@@ -48,7 +49,9 @@ export function ModelsPage() {
       header: '',
       render: (_, row) => (
         <button
+          type="button"
           onClick={() => navigate(`/app/models/${row.model_id}/${row.version}/${row.action}`)}
+          aria-label={`Ver modelo ${row.model_id}, versão ${row.version}`}
           className="p-1 text-text-muted hover:text-blue-600 transition-colors"
         >
           <Eye size={16} />
@@ -83,11 +86,20 @@ export function ModelsPage() {
         }
       />
       <div className="p-6">
+        <p className="mb-4 text-sm text-text-secondary">
+          {isLoading ? 'Carregando versões…' : models.length === 1 ? '1 versão registrada.' : `${models.length} versões registradas.`}
+          {' '}Abra uma versão para revisar métricas e proveniência antes de usá-la na análise.
+        </p>
         <div className="card overflow-hidden">
           {isLoading ? (
             <div className="flex justify-center p-12">
               <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
             </div>
+          ) : models.length === 0 ? (
+            <EmptyState
+              title="Nenhum modelo registrado"
+              description="Treine um modelo novo ou registre um artefato existente usando as ações acima."
+            />
           ) : (
             <DataTable columns={MODEL_COLUMNS} data={models} />
           )}

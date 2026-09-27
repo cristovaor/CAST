@@ -134,6 +134,50 @@ def _safe_filter(raw: Any, config: AnalysisConfig, warnings: list[str]) -> None:
         raw.notch_filter(valid_notches, picks="eeg", verbose="ERROR")
 
 
+def _signal_quality_snapshot(raw: Any, threshold_uv: float = 150.0) -> dict[str, Any]:
+    """Transparent amplitude QC for before/after preprocessing comparisons.
+
+    This is deliberately named a snapshot rather than a final validity score:
+    it reports the fraction within a centered amplitude threshold and keeps the
+    per-channel evidence required for researcher review.
+    """
+    np, _, _ = _scientific()
+    eeg = raw.copy().pick("eeg")
+    data_uv = np.asarray(eeg.get_data(), dtype=float) * 1e6
+    if data_uv.size == 0:
+        return {
+            "threshold_uv": threshold_uv,
+            "overall_valid_ratio": 0.0,
+            "p95_abs_centered_uv": None,
+            "channels": [],
+        }
+    medians = np.nanmedian(data_uv, axis=1, keepdims=True)
+    centered = data_uv - medians
+    finite = np.isfinite(centered)
+    valid = finite & (np.abs(centered) <= threshold_uv)
+    channel_ratios = valid.sum(axis=1) / max(1, data_uv.shape[1])
+    channels = []
+    for index, name in enumerate(eeg.ch_names):
+        finite_channel = np.abs(centered[index][finite[index]])
+        channels.append({
+            "name": name,
+            "valid_ratio": float(channel_ratios[index]),
+            "p95_abs_centered_uv": (
+                float(np.percentile(finite_channel, 95)) if len(finite_channel) else None
+            ),
+            "median_offset_uv": float(medians[index, 0]),
+        })
+    finite_values = np.abs(centered[finite])
+    return {
+        "threshold_uv": threshold_uv,
+        "overall_valid_ratio": float(valid.sum() / valid.size),
+        "p95_abs_centered_uv": (
+            float(np.percentile(finite_values, 95)) if len(finite_values) else None
+        ),
+        "channels": channels,
+    }
+
+
 def preprocess_recording(
     input_path: str | Path,
     output_dir: str | Path,
@@ -144,6 +188,7 @@ def preprocess_recording(
     output.mkdir(parents=True, exist_ok=True)
     warnings: list[str] = []
     raw = _read_raw(input_path)
+    quality_before = _signal_quality_snapshot(raw)
 
     if cfg.montage:
         try:
@@ -197,6 +242,8 @@ def preprocess_recording(
         except Exception as exc:
             warnings.append(f"ICA/ICLabel omitted: {exc}")
 
+    quality_after = _signal_quality_snapshot(raw)
+
     clean_path = output / "cleaned_raw.fif"
     raw.save(clean_path, overwrite=True, verbose="ERROR")
     block_artifacts: list[Artifact] = []
@@ -230,6 +277,16 @@ def preprocess_recording(
         "channels": list(raw.ch_names),
         "bad_channels": list(raw.info["bads"]),
         "removed_components": removed,
+        "quality_before": quality_before,
+        "quality_after": quality_after,
+        "quality_gain_percentage_points": 100.0 * (
+            quality_after["overall_valid_ratio"]
+            - quality_before["overall_valid_ratio"]
+        ),
+        "quality_interpretation": (
+            "Amplitude within a centered threshold is a QC indicator, not a final "
+            "scientific validity score. Review channels, ICA and rejected segments."
+        ),
         "warnings": warnings,
         "provenance": _provenance(cfg),
     }
@@ -243,6 +300,12 @@ def preprocess_recording(
             *block_artifacts,
         ),
         metrics={
+            "raw_valid_ratio": quality_before["overall_valid_ratio"],
+            "processed_valid_ratio": quality_after["overall_valid_ratio"],
+            "quality_gain_percentage_points": 100.0 * (
+                quality_after["overall_valid_ratio"]
+                - quality_before["overall_valid_ratio"]
+            ),
             "duration_seconds": duration,
             "channel_count": len(raw.ch_names),
             "removed_component_count": len(removed),
@@ -387,6 +450,18 @@ def _downsample_rows(rows: Sequence[Mapping[str, Any]], limit: int) -> list[Mapp
     return list(rows[::stride])[:limit]
 
 
+TIMESERIES_COLUMNS = (
+    "time_seconds",
+    "state",
+    "channel",
+    "roi",
+    "band",
+    "metric",
+    "value",
+    "channel_coverage",
+)
+
+
 def compute_timeseries_power(
     recording: str | Path | Any,
     output_dir: str | Path,
@@ -447,8 +522,22 @@ def compute_timeseries_power(
                         }
                     )
 
+    warnings: tuple[str, ...] = ()
+    if not rows:
+        available_channels = ", ".join(picked.ch_names) or "<none>"
+        configured_rois = ", ".join(roi.name for roi in cfg.rois) or "<none>"
+        warnings = (
+            "no time-series power rows were produced; verify configured ROI channel "
+            f"labels and frequency bands (channels={available_channels}; "
+            f"rois={configured_rois})",
+        )
+
     csv_path = output / "timeseries.csv"
-    pd.DataFrame(rows).to_csv(csv_path, index=False)
+    # Preserve the public CSV schema even when scientific gates produce no
+    # rows. A zero-byte DataFrame CSV is not parseable by pandas consumers.
+    pd.DataFrame.from_records(rows, columns=TIMESERIES_COLUMNS).to_csv(
+        csv_path, index=False
+    )
     grouped: dict[tuple[int, str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         tile = int(float(row["time_seconds"]) // cfg.tile_seconds)
@@ -503,6 +592,7 @@ def compute_timeseries_power(
         "tile_seconds": cfg.tile_seconds,
         "tiles": tiles,
         "preview": _downsample_rows(rows, 2000),
+        "warnings": list(warnings),
         "provenance": _provenance(cfg),
     }
     index_path = output / "timeseries-index.json"
@@ -527,6 +617,7 @@ def compute_timeseries_power(
         kind="timeseries",
         artifacts=tuple(artifacts),
         metrics={"point_count": len(rows), "tile_count": len(tiles)},
+        warnings=warnings,
         units={"time": "s", "absolute_power": "uV^2"},
         provenance=_provenance(cfg),
     )

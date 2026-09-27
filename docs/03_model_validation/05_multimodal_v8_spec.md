@@ -21,11 +21,18 @@ Sincronização não aprovada nunca é interpretada como offset zero válido.
 
 - Split por participante antes da geração de janelas.
 - Cabeça é modalidade obrigatória; EEG é modalidade opcional.
-- O treino multimodal exige pelo menos duas sessões com EEG e sincronização
-  aprovados.
+- O treino multimodal exige pelo menos duas sessões únicas com EEG no split de
+  treino e uma sessão única no split de validação participante-disjunto, todas
+  com sincronização aprovada.
+- Os limites são configurados por `min_eeg_sessions` (treino, padrão `2`) e
+  `min_validation_eeg_sessions` (validação, padrão `1`). O manifesto registra
+  `eeg_train_session_count`, `eeg_validation_session_count` e
+  `eeg_validation_windows`; sessões são deduplicadas por `Session.id`.
 - EEG só entra na fusão quando a avaliação de qualidade registra
   `valid_ratio >= 0.70`; abaixo disso o ramo é mascarado e a condição é
   registrada na saída.
+- Treino e inferência leem somente o artefato `timeseries-csv` completo; o
+  `preview` do índice é exclusivamente visual e nunca alimenta o modelo.
 - `modality_dropout_probability=0.25` ensina o modelo a operar sem EEG.
 - A calibração e compactação temporal continuam por rótulo.
 
@@ -35,7 +42,9 @@ Toda predição informa:
 
 - `modalitiesUsed`;
 - `syncQuality`;
-- `branchContributions`;
+- `branchContributions`, com `eeg_gate_mean` (quando a camada é inspecionável)
+  e `eeg_output_delta_mean` calculado por ablação do ramo EEG; o gate não é
+  apresentado como se fosse uma proporção causal cabeça/EEG;
 - `eegValidationStatus`;
 - eventos observáveis e sinais contínuos.
 
@@ -52,5 +61,8 @@ anotação humana; EEG fornece validação convergente e de construto.
 6. Desempenho estratificado por qualidade e disponibilidade das modalidades.
 
 Um artefato V8 permanece em `draft` enquanto não houver métricas por rótulo,
-split separado por participante e pelo menos 20 janelas de validação com EEG
-de qualidade e sincronização aprovadas.
+split separado por participante, duas sessões EEG no treino, uma na validação
+e pelo menos 20 janelas de validação com EEG de qualidade e sincronização
+aprovadas. A coativação usa o artefato `timeseries-csv` completo, nunca o
+`preview`, pareia cada evento a uma janela pré-evento de igual duração e reporta
+anotações humanas separadamente de eventos previstos.

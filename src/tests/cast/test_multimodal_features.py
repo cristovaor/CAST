@@ -85,3 +85,67 @@ def test_modality_dropout_never_creates_eeg_presence():
     assert dropped.shape == presence.shape
     assert dropped[1, 0] == 0.0
     assert np.all(dropped <= presence)
+
+
+def test_multimodal_windows_do_not_extrapolate_eeg_outside_recording():
+    head = np.arange(12, dtype=np.float32).reshape(3, 4)
+    timestamps = np.array([20_000.0, 20_500.0, 21_000.0])
+    eeg = extract_eeg_features(_eeg_rows())
+
+    windows = build_multimodal_windows(
+        head,
+        timestamps,
+        eeg_series=eeg,
+        sync_mapping={"approved": True, "offset_ms": 0, "drift_ms_per_min": 0},
+        target_fps=2,
+        head_window_ms=1000,
+    )
+
+    assert windows.modalities_used == ("head_video",)
+    assert not windows.eeg_present.any()
+    assert not windows.eeg.any()
+    assert not windows.eeg_valid_fraction.any()
+
+
+def test_multimodal_windows_zero_only_out_of_range_eeg_points():
+    head = np.arange(12, dtype=np.float32).reshape(3, 4)
+    timestamps = np.array([0.0, 500.0, 1000.0])
+    eeg = extract_eeg_features(_eeg_rows())
+
+    windows = build_multimodal_windows(
+        head,
+        timestamps,
+        eeg_series=eeg,
+        sync_mapping={"approved": True, "offset_ms": 0, "drift_ms_per_min": 0},
+        target_fps=2,
+        head_window_ms=1000,
+        eeg_window_ms=8000,
+    )
+
+    assert windows.eeg_present.all()
+    assert np.all(windows.eeg_valid_fraction[:, 0] < 1.0)
+    assert np.any(np.all(windows.eeg == 0.0, axis=2))
+
+
+def test_multimodal_windows_do_not_bridge_large_eeg_gaps():
+    head = np.arange(4, dtype=np.float32).reshape(1, 4)
+    timestamps = np.array([50_000.0])
+    rows = [
+        {"time_seconds": 0.0, "roi": "frontal", "band": "alpha", "value": 1.0},
+        {"time_seconds": 1.0, "roi": "frontal", "band": "alpha", "value": 1.0},
+        {"time_seconds": 99.0, "roi": "frontal", "band": "alpha", "value": 1.0},
+        {"time_seconds": 100.0, "roi": "frontal", "band": "alpha", "value": 1.0},
+    ]
+
+    windows = build_multimodal_windows(
+        head,
+        timestamps,
+        eeg_series=extract_eeg_features(rows),
+        sync_mapping={"approved": True, "offset_ms": 0, "drift_ms_per_min": 0},
+        target_fps=1,
+        head_window_ms=1000,
+        eeg_window_ms=1000,
+    )
+
+    assert not windows.eeg_present.any()
+    assert not windows.eeg.any()

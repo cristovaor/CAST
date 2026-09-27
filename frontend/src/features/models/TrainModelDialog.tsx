@@ -77,15 +77,15 @@ export function TrainModelDialog({ children }: { children: React.ReactNode }) {
                 className="mt-0.5 rounded border-border-strong"
               />
               <span>
-                Multimodal V8: cabeÃ§a + EEG sincronizado. O EEG Ã© mascarado
-                quando ausente, mas o treino exige ao menos duas sessÃµes com
-                anÃ¡lise EEG e sincronizaÃ§Ã£o aprovadas.
+                Multimodal V8: cabeça + EEG sincronizado. O EEG é mascarado
+                quando ausente na inferência, mas o treino exige ao menos duas
+                sessões EEG aprovadas no treino e uma na validação participante-disjunta.
               </span>
             </label>
           )}
           <p className="text-xs text-text-muted">
             O treino usa os vídeos já anotados no sistema (landmarks extraídos + eventos
-            de anotação) para {unified ? 'todas as ações em um único artefato V7' : 'esta ação no modo V6'}. Não é
+            de anotação) para {unified ? `todas as ações em um único artefato ${multimodal ? 'V8' : 'V7'}` : 'esta ação no modo V6'}. Não é
             necessário fornecer um artefato — ele é gerado e registrado automaticamente
             como <strong>draft</strong> ao final.
           </p>

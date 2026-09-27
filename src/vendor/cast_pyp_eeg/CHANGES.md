@@ -1,5 +1,7 @@
 # CAST adaptations
 
+- `2.0.1`: time-series analyses with no valid ROI/band rows now emit a
+  schema-only CSV and structured warning instead of a zero-byte CSV.
 - Replaced global `code/config.py` state with immutable dataclasses.
 - Removed filesystem writes and pipeline execution from module imports.
 - Added explicit input and output paths to every public analysis function.

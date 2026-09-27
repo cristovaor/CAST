@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { forwardRef, useState, type ButtonHTMLAttributes } from 'react';
+import { forwardRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Video, Activity, Waypoints, Flag, ArrowRight, Camera, Crosshair, FlaskConical } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ToneBadge } from '@/components/ui/ToneBadge';
@@ -34,67 +34,46 @@ export function AcquisitionPage() {
         description="Importação e validação de vídeo, EEG e eventos experimentais. As duas modalidades centrais recebem tratamento equivalente."
       />
       <div className="px-6 pt-6 space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
-          <UploadAssetDialog kind="video">
-            <EntryCard icon={Video} title="Importar vídeo" desc="Formato, codec, fps, face, frames válidos." tone="blue" />
-          </UploadAssetDialog>
-          <UploadAssetDialog kind="eeg">
-            <EntryCard icon={Activity} title="Importar EEG" desc="Canais, montagem, taxa, impedância, artefatos." tone="cyan" />
-          </UploadAssetDialog>
-          <SelectTargetDialog
-            target="session"
-            title="Contexto experimental"
-            description="Escolha a sessão para editar trials, registrar eventos e importar séries ambientais."
-            confirmLabel="Abrir contexto"
-            onSelect={(sessionId) => setContextSessionId(sessionId)}
-          >
-            <EntryCard icon={FlaskConical} title="Contexto" desc="Trials, eventos, CSV/JSONL e ambiente." tone="indigo" />
-          </SelectTargetDialog>
-          <SelectTargetDialog
-            target="session"
-            title="Calibrar gaze experimental"
-            description="Escolha a sessão e execute o protocolo controlado em tela cheia."
-            confirmLabel="Iniciar calibração"
-            onSelect={(sessionId) => setGazeSessionId(sessionId)}
-          >
-            <EntryCard icon={Crosshair} title="Calibrar gaze" desc="Grade 3×3, validação e drift." tone="rose" />
-          </SelectTargetDialog>
-          <SelectTargetDialog
-            target="session"
-            title="Capturar vídeo ao vivo"
-            description="Escolha a sessão que receberá o vídeo capturado neste navegador."
-            confirmLabel="Abrir câmera"
-            onSelect={(sessionId) => setCaptureSessionId(sessionId)}
-          >
-            <EntryCard icon={Camera} title="Capturar ao vivo" desc="Câmera, QA local e envio retomável." tone="emerald" />
-          </SelectTargetDialog>
-          <SelectTargetDialog
-            target="session"
-            title="Registrar eventos"
-            description="Escolha a sessão para abrir a ferramenta de eventos e anotações."
-            confirmLabel="Abrir anotações"
-            onSelect={(sessionId) => navigate(`/app/sessions/${sessionId}/annotate`)}
-          >
-            <EntryCard icon={Flag} title="Importar eventos" desc="Triggers, marcadores e estímulos." tone="amber" />
-          </SelectTargetDialog>
-          <SelectTargetDialog
-            target="session"
-            title="Gravar EEG/LSL"
-            description="Escolha a sessão e conecte o agente LabRecorder local."
-            confirmLabel="Conectar agente"
-            onSelect={(sessionId) => setLslSessionId(sessionId)}
-          >
-            <EntryCard icon={Activity} title="Gravar LSL" desc="Discovery, XDF, markers e checksum." tone="cyan" />
-          </SelectTargetDialog>
-          <SelectTargetDialog
-            target="session"
-            title="Sincronizar sessão"
-            description="Escolha a sessão cujas fontes serão alinhadas no eixo temporal."
-            confirmLabel="Abrir sincronização"
-            onSelect={(sessionId) => navigate(`/app/sessions/${sessionId}/sync`)}
-          >
-            <EntryCard icon={Waypoints} title="Sincronizar" desc="Alinhar fontes no eixo temporal." tone="violet" />
-          </SelectTargetDialog>
+        <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-blue-900">
+          <strong>Por onde começar?</strong> Se a coleta já está em XDF, use <strong>Importar EEG</strong>. Para uma nova gravação sincronizada, use <strong>Gravar LSL</strong>. Depois, revise a sessão e a sincronização.
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <AcquisitionGroup title="1 · Importar arquivos" description="Dados já gravados e disponíveis no computador.">
+            <UploadAssetDialog kind="eeg">
+              <EntryCard icon={Activity} title="Importar EEG / XDF" desc="Ler EEG, FC, RR e marcadores do arquivo." tone="cyan" />
+            </UploadAssetDialog>
+            <UploadAssetDialog kind="video">
+              <EntryCard icon={Video} title="Importar vídeo" desc="Enviar vídeo para uma sessão existente." tone="blue" />
+            </UploadAssetDialog>
+          </AcquisitionGroup>
+
+          <AcquisitionGroup title="2 · Gravar uma nova coleta" description="Captura ao vivo vinculada à sessão.">
+            <SelectTargetDialog target="session" title="Capturar vídeo ao vivo" description="Escolha a sessão que receberá o vídeo capturado neste navegador." confirmLabel="Abrir câmera" onSelect={(sessionId) => setCaptureSessionId(sessionId)}>
+              <EntryCard icon={Camera} title="Capturar vídeo" desc="Câmera, revisão local e envio retomável." tone="emerald" />
+            </SelectTargetDialog>
+            <SelectTargetDialog target="session" title="Gravar EEG/LSL" description="Escolha a sessão e conecte o agente LabRecorder local." confirmLabel="Conectar agente" onSelect={(sessionId) => setLslSessionId(sessionId)}>
+              <EntryCard icon={Activity} title="Gravar LSL" desc="EEG, Polar H10 e marcadores em XDF." tone="cyan" />
+            </SelectTargetDialog>
+          </AcquisitionGroup>
+
+          <AcquisitionGroup title="3 · Complementar o experimento" description="Eventos, condições e calibração contextual.">
+            <SelectTargetDialog target="session" title="Contexto experimental" description="Escolha a sessão para editar trials, registrar eventos e importar séries ambientais." confirmLabel="Abrir contexto" onSelect={(sessionId) => setContextSessionId(sessionId)}>
+              <EntryCard icon={FlaskConical} title="Contexto" desc="Trials, eventos e séries ambientais." tone="indigo" />
+            </SelectTargetDialog>
+            <SelectTargetDialog target="session" title="Calibrar gaze experimental" description="Escolha a sessão e execute o protocolo controlado em tela cheia." confirmLabel="Iniciar calibração" onSelect={(sessionId) => setGazeSessionId(sessionId)}>
+              <EntryCard icon={Crosshair} title="Calibrar gaze" desc="Grade 3×3, validação e drift." tone="rose" />
+            </SelectTargetDialog>
+          </AcquisitionGroup>
+
+          <AcquisitionGroup title="4 · Preparar a análise" description="Revise as referências temporais da sessão.">
+            <SelectTargetDialog target="session" title="Registrar eventos" description="Escolha a sessão para abrir a ferramenta de eventos e anotações." confirmLabel="Abrir anotações" onSelect={(sessionId) => navigate(`/app/sessions/${sessionId}/annotate`)}>
+              <EntryCard icon={Flag} title="Revisar eventos" desc="Marcadores, estímulos e anotações." tone="amber" />
+            </SelectTargetDialog>
+            <SelectTargetDialog target="session" title="Sincronizar sessão" description="Escolha a sessão cujas fontes serão alinhadas no eixo temporal." confirmLabel="Abrir sincronização" onSelect={(sessionId) => navigate(`/app/sessions/${sessionId}/sync`)}>
+              <EntryCard icon={Waypoints} title="Sincronizar" desc="Alinhar vídeo e EEG no eixo temporal." tone="violet" />
+            </SelectTargetDialog>
+          </AcquisitionGroup>
         </div>
 
         <ScientificCaveat variant="quality" compact />
@@ -175,6 +154,16 @@ interface EntryCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   tone: string;
 }
 
+function AcquisitionGroup({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return (
+    <section className="rounded-xl border border-border bg-surface p-4">
+      <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
+      <p className="mt-1 text-xs text-text-muted">{description}</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">{children}</div>
+    </section>
+  );
+}
+
 const EntryCard = forwardRef<HTMLButtonElement, EntryCardProps>(
   ({ icon: Icon, title, desc, tone, ...props }, ref) => {
   const c: Record<string, string> = {
@@ -187,7 +176,7 @@ const EntryCard = forwardRef<HTMLButtonElement, EntryCardProps>(
     <button
       ref={ref}
       type="button"
-      className="w-full rounded-xl border border-border bg-surface p-4 text-left hover:border-blue-300 transition-colors"
+      className="h-full w-full rounded-xl border border-border bg-surface p-4 text-left hover:border-blue-300 transition-colors"
       {...props}
     >
       <div className={`h-9 w-9 rounded-lg flex items-center justify-center mb-3 ${c[tone]}`}><Icon size={18} /></div>

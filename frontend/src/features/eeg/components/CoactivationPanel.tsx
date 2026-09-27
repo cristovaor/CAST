@@ -26,7 +26,7 @@ function DeltaBar({ stat }: { stat: EEGBandStat }) {
   const tooltip = [
     `${deltaPct.toFixed(1)}% vs baseline`,
     p_value !== null ? formatP(p_value) : null,
-    cohens_d !== null ? `d=${cohens_d.toFixed(2)}` : null,
+    cohens_d !== null ? `dz=${cohens_d.toFixed(2)}` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -72,7 +72,7 @@ export function CoactivationPanel({ eegId, runId, roi }: CoactivationPanelProps)
           Co-ativação EEG × Microações
         </CardTitle>
         <p className="text-xs text-text-muted">
-          Variação da potência média de cada banda durante as microações vs. linha de base.
+          Comparação pareada entre cada microação e uma linha de base pré-evento de igual duração.
         </p>
       </CardHeader>
       <CardContent className="pt-0">
@@ -84,7 +84,8 @@ export function CoactivationPanel({ eegId, runId, roi }: CoactivationPanelProps)
 
         {error && (
           <div className="h-24 flex items-center justify-center text-red-500 text-sm text-center px-4">
-            Não foi possível calcular a co-ativação (é preciso EEG e eventos do modelo).
+            Não foi possível calcular a co-ativação. Verifique o artefato EEG completo,
+            a sincronização aprovada e os eventos humanos ou do modelo.
           </div>
         )}
 
@@ -99,11 +100,14 @@ export function CoactivationPanel({ eegId, runId, roi }: CoactivationPanelProps)
             {data.actions.map((row) => {
               const cfg = getMicroActionConfig(row.action as MicroAction);
               return (
-                <div key={row.action} className="space-y-2">
+                <div key={`${row.origin}-${row.action}`} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-primary">
                       <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: cfg.color }} />
                       {cfg.label}
+                      <span className="font-normal text-text-muted">
+                        ({row.origin === 'annotator' ? 'humano' : row.origin === 'model' ? 'modelo' : 'origem desconhecida'})
+                      </span>
                     </span>
                     <span className="text-[11px] text-text-muted">
                       {row.n_events} evento{row.n_events === 1 ? '' : 's'} · {(row.total_ms / 1000).toFixed(1)}s
@@ -128,11 +132,11 @@ export function CoactivationPanel({ eegId, runId, roi }: CoactivationPanelProps)
               );
             })}
             <p className="text-[10px] text-text-muted border-t border-border pt-2 leading-relaxed">
-              <span className="text-amber-500">★</span> = diferença significativa (teste de permutação, q&lt;{data.alpha}, BH-FDR).
-              Barras esbatidas = não significativas. Linha de base: {data.baseline_sample_count.toLocaleString('pt-BR')} amostras
-              fora de microações; transformação aprovada: offset {data.sync_transform.offset_ms} ms,
+              <span className="text-amber-500">★</span> = diferença significativa (teste pareado por troca de sinal, q&lt;{data.alpha}, BH-FDR).
+              Barras esbatidas = não significativas. Linhas de base pré-evento: até {data.baseline_sample_count.toLocaleString('pt-BR')} amostras;
+              transformação aprovada: offset {data.sync_transform.offset_ms} ms,
               drift {data.sync_transform.drift_ms_per_min} ms/min.
-              Tooltip mostra p e o tamanho de efeito (Cohen&apos;s d).
+              Tooltip mostra p e o tamanho de efeito pareado (Cohen&apos;s dz).
               {data.analysis_run_id ? ` Run ${data.analysis_run_id.slice(0, 8)}.` : ' Fallback CSV legado.'}
             </p>
           </div>

@@ -1,7 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Video, Activity, Flag, ClipboardList, Waypoints, Cpu, PenLine,
-  ArrowLeft, Clock, User, FlaskConical, ShieldCheck,
+  ArrowLeft, ArrowRight, Clock, User, FlaskConical, ShieldCheck,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ToneBadge } from '@/components/ui/ToneBadge';
@@ -74,13 +74,22 @@ export function SessionDetailPage() {
   const eegVerdict = eegAsset?.quality_verdict as QualityVerdict | undefined;
   const ev = eegVerdict ? QUALITY_VERDICT_META[eegVerdict] : null;
   const eegSummary = eegAsset
-      ? `${eegAsset.channel_count ?? eegAsset.channel_names.length ?? '—'} canais · ${eegAsset.sample_rate_hz ?? '—'} Hz · ${eegAsset.valid_ratio != null ? Math.round(eegAsset.valid_ratio * 100) : '—'}% válido`
+      ? `${eegAsset.channel_count ?? eegAsset.channel_names.length ?? '—'} canais · ${eegAsset.sample_rate_hz ?? '—'} Hz · ${eegAsset.valid_ratio != null ? `${Math.round(eegAsset.valid_ratio * 100)}% no sinal bruto` : 'qualidade bruta pendente'}`
       : 'Aguardando processamento do arquivo.';
 
   const sy = SYNC_STATE_META[syncState];
   const syncSummary = liveSync
       ? `Offset ${liveSync.offset_ms} ms${liveSync.drift_ms_per_min != null ? ` · drift ${liveSync.drift_ms_per_min} ms/min` : ''}${liveSync.confidence != null ? ` · confiança ${Math.round(liveSync.confidence * 100)}%` : ''}`
       : 'Sincronização ainda não iniciada.';
+  const nextAction = !hasEeg && !hasVideo
+    ? { title: 'Importar o primeiro registro', detail: 'Associe vídeo ou EEG a esta sessão para iniciar a revisão.', to: '/app/acquisition', cta: 'Abrir aquisição' }
+    : hasEeg && (!eegVerdict || eegVerdict === 'review_required')
+      ? { title: 'Revisar o EEG', detail: 'Compare a qualidade bruta com o resultado do processamento e registre a decisão.', to: `/app/sessions/${sessionId}/eeg`, cta: 'Abrir painel EEG' }
+      : hasEeg && hasVideo && !['synced', 'synced_with_caveats'].includes(syncState)
+        ? { title: 'Revisar a sincronização', detail: 'Confira o alinhamento temporal antes de cruzar vídeo e EEG.', to: `/app/sessions/${sessionId}/sync`, cta: 'Abrir sincronização' }
+        : hasVideo && !hasEeg
+          ? { title: 'Revisar o vídeo', detail: 'Confira a qualidade e os eventos do vídeo antes de explorar a sessão.', to: `/app/videos/${session?.video_asset_id}`, cta: 'Abrir vídeo' }
+        : { title: 'Explorar os resultados', detail: 'Percorra séries, eventos e análises disponíveis nesta sessão.', to: `/app/sessions/${sessionId}/explorer`, cta: 'Abrir explorador' };
 
   // Placed after every hook call so hook order stays stable across renders.
   if (sessionQuery.isLoading) {
@@ -132,6 +141,17 @@ export function SessionDetailPage() {
 
       <div className="px-6 pt-6 space-y-6">
         <ScientificCaveat variant="privacy" compact />
+
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50 p-4" aria-label="Próximo passo da sessão">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-700">Próximo passo sugerido</p>
+            <h2 className="mt-1 text-sm font-semibold text-text-primary">{nextAction.title}</h2>
+            <p className="mt-1 text-xs text-text-secondary">{nextAction.detail}</p>
+          </div>
+          <Link to={nextAction.to} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+            {nextAction.cta} <ArrowRight size={13} />
+          </Link>
+        </section>
 
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">Modalidades</h2>

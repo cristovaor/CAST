@@ -93,6 +93,7 @@ export function SyncPage() {
   const [activeJobId, setActiveJobId] = useState<string>();
   const [reviewRunId, setReviewRunId] = useState<string>();
   const [justification, setJustification] = useState('');
+  const [showAllMethods, setShowAllMethods] = useState(false);
 
   const runQuery = useSyncRun(sessionId, activeRunId);
   const jobQuery = useSyncJob(activeJobId);
@@ -109,6 +110,10 @@ export function SyncPage() {
   const reviewRun = runs.find((run) => run.id === reviewRunId) ?? latestRun;
   const decision = useSyncRunDecision(sessionId, reviewRun?.id);
   const capability = sync?.capabilities.find((item) => item.method === method);
+  const readyMethods = SYNC_METHODS.filter((item) => sync?.capabilities.some((entry) => entry.method === item.value && entry.status === 'available'));
+  const visibleMethods = showAllMethods
+    ? SYNC_METHODS
+    : SYNC_METHODS.filter((item) => item.value === method || readyMethods.some((ready) => ready.value === item.value));
   const durationMs = Math.max(sync?.duration_ms ?? 0, 1);
   const state = SYNC_STATE_META[(sync?.state ?? 'not_synced') as SyncState];
 
@@ -237,14 +242,17 @@ export function SyncPage() {
         </ol>
 
         <section aria-labelledby="methods-heading">
-          <div className="mb-3 flex items-end justify-between">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 id="methods-heading" className="text-sm font-semibold text-text-primary">1. Escolha o método</h2>
-              <p className="text-xs text-text-muted">Cada cartão informa exatamente o que já está disponível e o que ainda falta.</p>
+              <p className="text-xs text-text-muted">{readyMethods.length} método(s) disponível(is) com as evidências atuais. Os demais podem exigir dados adicionais.</p>
             </div>
+            <button type="button" onClick={() => setShowAllMethods((current) => !current)} aria-expanded={showAllMethods} className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50">
+              {showAllMethods ? 'Mostrar métodos disponíveis' : `Ver todos os ${SYNC_METHODS.length} métodos`}
+            </button>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {SYNC_METHODS.map((item) => {
+            {visibleMethods.map((item) => {
               const itemCapability = sync.capabilities.find((entry) => entry.method === item.value);
               const selected = method === item.value;
               return (

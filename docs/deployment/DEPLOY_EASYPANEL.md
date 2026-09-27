@@ -1,7 +1,8 @@
-# CAST — Deploy na VPS (EasyPanel)
+# CAST — Deploy na VPS Hostinger (EasyPanel)
 
-Runbook do deploy do CAST numa VPS gerida por EasyPanel, construindo as imagens
-localmente a partir dos Dockerfiles do repositório (sem registry).
+Runbook do deploy do CAST na VPS Hostinger gerida por EasyPanel (o mesmo
+projeto `doutorado` que corre o CSH-MARL), construindo as imagens localmente a
+partir dos Dockerfiles do repositório (sem registry).
 
 **O que este stack NÃO sobe:**
 
@@ -108,8 +109,14 @@ docker compose -f docker-compose.easypanel.build.yml ps
 docker compose -f docker-compose.easypanel.build.yml logs -f backend
 ```
 
-O `prestart.sh` do backend espera pela base de dados e aplica as migrações
-Alembic (incluindo `017_invite_only_auth`) automaticamente.
+O `prestart.sh` do backend espera pela base de dados e aplica todas as migrações
+Alembic até o `head` automaticamente, incluindo autenticação por convite e os
+domínios multimodais/LSL/gaze/pupila.
+
+A imagem `eeg-worker` instala os wheels científicos internos exclusivamente de
+`src/vendor/wheels/`. O build executa `sha256sum -c SHA256SUMS` antes da
+instalação e falha se um wheel estiver ausente ou alterado. Não remova esses
+artefatos do checkout usado no deploy.
 
 ## 6. Criar o primeiro administrador
 
@@ -165,10 +172,21 @@ portas internas:
 | --------------------------- | ---------- | ----- |
 | `cast.crlabs.com.br`        | `frontend` | 8080  |
 | `api.cast.crlabs.com.br`    | `backend`  | 8080  |
+| `storage.cast.crlabs.com.br`| `minio`    | 9000  |
 
-Se servir o MinIO publicamente (para URLs assinados), encaminhe
-`cast.crlabs.com.br/storage` → `minio:9000` e mantenha `MINIO_PUBLIC_URL`
-coerente com esse endereço.
+O MinIO **tem** de estar na raiz de um subdomínio próprio: os URLs assinados
+(upload de vídeo/EEG pelo browser, downloads de relatórios) são assinados
+contra `MINIO_PUBLIC_URL`, e um prefixo de caminho removido pelo proxy (ex.:
+`/storage`) altera o caminho assinado — o MinIO rejeita tudo com
+`SignatureDoesNotMatch`. Crie o registo DNS `storage.cast` (tipo A para o IP da
+VPS, no painel DNS da Hostinger) antes de configurar o domínio no EasyPanel.
+
+A consola do MinIO (porta 9001) fica sem domínio de propósito; aceda-lhe por
+túnel SSH quando precisar.
+
+**Feature flags** (`EEG_ANALYSIS_V2_ENABLED`, `LSL_ACQUISITION_ENABLED`, …)
+vêm todas desligadas por omissão; ative-as no `.env` e faça
+`up -d` — o mesmo valor chega à API e aos dois workers.
 
 ---
 
@@ -206,4 +224,5 @@ docker exec <container-postgres> pg_dump -U cast_user cast_db | gzip > cast_$(da
 | Login devolve 403 "Acesso restrito a convidados" | Comportamento esperado: não há convite pendente para aquele e-mail |
 | Backend não arranca, erro de host | `POSTGRES_SERVER`/`REDIS_URL` erradas, ou o serviço não está na rede `easypanel-doutorado` |
 | Erros de CORS no browser | `CORS_ORIGINS` não inclui a origem exata do frontend (com esquema, sem barra final) |
+| Upload/download falha com `SignatureDoesNotMatch` ou CORS no bucket | `MINIO_PUBLIC_URL` não é a raiz de um domínio encaminhado para `minio:9000`, ou `CORS_ORIGINS` não inclui a origem do frontend |
 | Worker morre a meio de vídeos | Falta de memória: baixe `WORKER_CONCURRENCY` ou suba o limite de memória do worker |

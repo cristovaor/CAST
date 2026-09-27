@@ -85,6 +85,73 @@ def _latest_timeseries_result(db: Session, eeg_id: UUID, run_id: UUID | None = N
     )
     return run, payload
 
+
+def _parse_csv_rows(payload: bytes) -> list[dict]:
+    rows = []
+    reader = csv.DictReader(io.StringIO(payload.decode("utf-8")))
+    for row in reader:
+        parsed = {}
+        for key, value in row.items():
+            try:
+                parsed[key] = float(value)
+            except (TypeError, ValueError):
+                parsed[key] = value
+        rows.append(parsed)
+    return rows
+
+
+def _full_timeseries_rows(
+    db: Session,
+    run: EEGAnalysisRun,
+    roi: str | None,
+) -> list[dict]:
+    """Load the complete long-form artifact; previews are never used for stats."""
+    artifact = (
+        db.query(EEGAnalysisArtifact)
+        .filter(
+            EEGAnalysisArtifact.run_id == run.id,
+            EEGAnalysisArtifact.kind == "timeseries-csv",
+        )
+        .order_by(EEGAnalysisArtifact.created_at.desc())
+        .first()
+    )
+    if artifact is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Coactivation requires the full timeseries-csv analysis artifact",
+        )
+    long_rows = [
+        row
+        for row in _parse_csv_rows(
+            storage_service.download_bytes(
+                storage_service.key_from_uri(artifact.storage_uri)
+            )
+        )
+        if (roi is None or row.get("roi") == roi)
+        and row.get("metric") == "absolute_power"
+    ]
+    by_time: dict[float, dict] = {}
+    for row in long_rows:
+        try:
+            timestamp_ms = float(row["time_seconds"]) * 1000.0
+            band = str(row["band"]).lower()
+            value = float(row["value"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        target = by_time.setdefault(timestamp_ms, {"timestamp_ms": timestamp_ms})
+        target.setdefault(f"__{band}", []).append(value)
+    rows = []
+    for target in by_time.values():
+        rows.append(
+            {
+                key.removeprefix("__"): sum(values) / len(values)
+                for key, values in target.items()
+                if key.startswith("__")
+            }
+            | {"timestamp_ms": target["timestamp_ms"]}
+        )
+    return sorted(rows, key=lambda row: row["timestamp_ms"])
+
 @router.post("/upload-proxy")
 async def upload_eeg_proxy(
     participant_id: UUID = Form(...),
@@ -188,6 +255,54 @@ def get_eeg_asset(
     return eeg
 
 
+@router.get("/{eeg_id}/physiology")
+def get_eeg_physiology(
+    eeg_id: UUID,
+    limit: int = 5000,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return Polar HR/RR streams materialized from the same XDF plus HRV."""
+    get_owned_eeg(db, current_user, eeg_id)
+    members = (
+        db.query(EEGAssetFile)
+        .filter(
+            EEGAssetFile.eeg_asset_id == eeg_id,
+            EEGAssetFile.role.in_(("heart-rate", "rr-interval")),
+        )
+        .order_by(EEGAssetFile.created_at.asc())
+        .all()
+    )
+    bounded_limit = max(1, min(limit, 20_000))
+    streams = []
+    rr_values = []
+    for member in members:
+        rows = _parse_csv_rows(
+            storage_service.download_bytes(storage_service.key_from_uri(member.storage_uri))
+        )
+        if member.role == "rr-interval":
+            rr_values.extend(
+                float(row["value"])
+                for row in rows
+                if isinstance(row.get("value"), (int, float))
+            )
+        streams.append({
+            "kind": member.role,
+            "filename": member.filename,
+            "unit": "bpm" if member.role == "heart-rate" else "ms",
+            "sample_count": len(rows),
+            "data": rows[:bounded_limit],
+        })
+
+    from app.services.eeg_service import compute_hrv_summary
+    return {
+        "eeg_asset_id": eeg_id,
+        "streams": streams,
+        "hrv": compute_hrv_summary(rr_values) if rr_values else None,
+        "caveat": "Métricas de domínio do tempo; intervalos NN filtrados entre 300 e 2000 ms. Revisão de artefatos continua obrigatória.",
+    }
+
+
 @router.patch("/{eeg_id}/metadata", response_model=EEGAssetDetail)
 def update_eeg_metadata(
     eeg_id: UUID,
@@ -264,64 +379,21 @@ def eeg_quality_check(
             if k not in non_channel and isinstance(v, (int, float)):
                 channel_cols.append(k)
 
-    criteria = [
-        "|amplitude| > 150 = artefato",
-        "variância nula em ≥ 2s = flat",
-        "razão de amostras válidas por canal",
-    ]
-
-    channel_quality = []
-    findings = []
-    valid_ratios = []
-    for col in channel_cols:
-        values = [r[col] for r in rows if isinstance(r.get(col), (int, float))]
-        total = len(values) or 1
-        valid = sum(1 for x in values if abs(x) <= 150)
-        vr = valid / total
-        distinct = len(set(round(x, 6) for x in values))
-        status = "good"
-        if distinct <= 1:
-            status = "flat"
-        elif vr < 0.6:
-            status = "noisy"
-        valid_ratios.append(vr)
-        channel_quality.append({
-            "name": col, "status": status, "valid_ratio": round(vr, 3),
-            "impedance_kohm": None, "notes": None,
-        })
-        if status == "flat":
-            findings.append({
-                "id": f"ef-{col}", "issue": f"Canal plano ({col})",
-                "evidence": "Variância ~0 ao longo do registro.",
-                "impact": "Canal inutilizável; afeta análises espaciais.",
-                "recommendation": "Excluir ou interpolar, registrando a decisão.",
-                "reprocessable": True, "tone": "danger",
-            })
-        elif status == "noisy":
-            findings.append({
-                "id": f"ef-{col}", "issue": f"Canal ruidoso ({col})",
-                "evidence": f"Apenas {round(vr*100)}% de amostras dentro do limiar.",
-                "impact": "Reduz a confiabilidade das features desse canal.",
-                "recommendation": "Revisar filtragem/impedância antes de incluir.",
-                "reprocessable": True, "tone": "warning",
-            })
-
+    from app.services.eeg_service import QUALITY_CRITERIA, _assess_channels, _verdict
+    by_channel = {
+        column: [row[column] for row in rows if isinstance(row.get(column), (int, float))]
+        for column in channel_cols
+    }
+    channel_quality, findings, valid_ratios = _assess_channels(by_channel)
     overall = sum(valid_ratios) / len(valid_ratios) if valid_ratios else 0.0
-    if overall >= 0.9 and not findings:
-        verdict = QualityVerdict.approved
-    elif overall >= 0.8:
-        verdict = QualityVerdict.approved_with_caveats
-    elif any(f["tone"] == "danger" for f in findings):
-        verdict = QualityVerdict.review_required
-    else:
-        verdict = QualityVerdict.review_required
+    verdict = QualityVerdict(_verdict(valid_ratios, findings))
 
     eeg.channel_count = eeg.channel_count or len(channel_cols)
     eeg.channel_names = eeg.channel_names or channel_cols
     eeg.valid_ratio = round(overall, 3)
     eeg.channel_quality = channel_quality
     eeg.quality_findings = findings
-    eeg.quality_criteria = criteria
+    eeg.quality_criteria = QUALITY_CRITERIA
     eeg.quality_verdict = verdict
     db.commit()
     db.refresh(eeg)
@@ -424,39 +496,73 @@ def update_eeg_offset(
     return {"eeg_asset_id": eeg_asset.id, "sync_offset_ms": eeg_asset.sync_offset_ms}
 
 
-def _permutation_test(during, baseline, n_perm=2000, seed=42):
-    """Two-sided permutation test on the difference of means.
-
-    Non-parametric (no normality assumption). Returns (p_value, cohens_d).
-    Shuffles the during/baseline labels n_perm times and counts how often the
-    permuted mean-difference is at least as extreme as the observed one.
-    """
+def _paired_permutation_test(
+    during,
+    baseline,
+    n_perm=2000,
+    n_bootstrap=2000,
+    seed=42,
+):
+    """Paired sign-flip test, Cohen's dz and paired bootstrap mean-difference CI."""
     import numpy as np
 
     during = np.asarray(during, dtype=float)
     baseline = np.asarray(baseline, dtype=float)
-    n_d, n_b = len(during), len(baseline)
-    if n_d < 2 or n_b < 2:
-        return None, None
+    if len(during) != len(baseline):
+        raise ValueError("Paired samples must have the same length")
+    if len(during) < 2:
+        return None, None, None
 
-    observed = during.mean() - baseline.mean()
-
-    # Cohen's d with pooled standard deviation
-    pooled_var = ((n_d - 1) * during.var(ddof=1) + (n_b - 1) * baseline.var(ddof=1)) / (n_d + n_b - 2)
-    pooled_sd = float(np.sqrt(pooled_var)) if pooled_var > 0 else 0.0
-    cohens_d = float(observed / pooled_sd) if pooled_sd > 0 else None
-
-    combined = np.concatenate([during, baseline])
+    differences = during - baseline
+    observed = float(differences.mean())
+    difference_sd = float(differences.std(ddof=1))
+    cohens_dz = float(observed / difference_sd) if difference_sd > 0 else None
     rng = np.random.default_rng(seed)
-    count_extreme = 0
-    for _ in range(n_perm):
-        rng.shuffle(combined)
-        diff = combined[:n_d].mean() - combined[n_d:].mean()
-        if abs(diff) >= abs(observed):
-            count_extreme += 1
-    # +1 smoothing so p is never exactly 0
+    signs = rng.choice((-1.0, 1.0), size=(n_perm, len(differences)))
+    permuted = np.mean(signs * differences, axis=1)
+    count_extreme = int(np.sum(np.abs(permuted) >= abs(observed)))
     p_value = (count_extreme + 1) / (n_perm + 1)
-    return float(p_value), cohens_d
+    bootstrap_indices = rng.integers(
+        0,
+        len(differences),
+        size=(n_bootstrap, len(differences)),
+    )
+    bootstrap_means = differences[bootstrap_indices].mean(axis=1)
+    ci_low, ci_high = np.percentile(bootstrap_means, (2.5, 97.5))
+    return float(p_value), cohens_dz, [float(ci_low), float(ci_high)]
+
+
+def _paired_window_means(rows, windows, all_windows, band):
+    """Return one event mean and one duration-matched pre-event mean per pair."""
+    during_means = []
+    baseline_means = []
+    sample_count = 0
+    baseline_sample_count = 0
+    for window in windows:
+        duration = max(1.0, window["end_ms"] - window["start_ms"])
+        baseline_start = window["start_ms"] - duration
+        during_values = [
+            float(row[band])
+            for row in rows
+            if isinstance(row.get(band), (int, float))
+            and window["start_ms"] <= row.get("timestamp_ms", -1) <= window["end_ms"]
+        ]
+        baseline_values = [
+            float(row[band])
+            for row in rows
+            if isinstance(row.get(band), (int, float))
+            and baseline_start <= row.get("timestamp_ms", -1) < window["start_ms"]
+            and not any(
+                candidate["start_ms"] <= row.get("timestamp_ms", -1) <= candidate["end_ms"]
+                for candidate in all_windows
+            )
+        ]
+        sample_count += len(during_values)
+        baseline_sample_count += len(baseline_values)
+        if during_values and baseline_values:
+            during_means.append(sum(during_values) / len(during_values))
+            baseline_means.append(sum(baseline_values) / len(baseline_values))
+    return during_means, baseline_means, sample_count, baseline_sample_count
 
 
 @router.get("/{eeg_id}/coactivation")
@@ -469,11 +575,9 @@ def get_eeg_coactivation(
 ):
     """Per-band EEG power during each facial micro-action vs. baseline, with stats.
 
-    Baseline = samples outside every micro-action window. Windows are shifted by
-    sync_offset_ms to align with EEG time. For each band × micro-action we report
-    the mean during vs. baseline, the % change, a permutation-test p-value and
-    Cohen's d effect size. This is the core face↔EEG crossing metric for
-    cognitive-activity analysis.
+    Each event is paired with an equal-duration pre-event baseline that excludes
+    every annotated/predicted action window. Human annotations and model
+    predictions are reported separately.
     """
     from app.api.v1.routes_videos import load_timeline_events
 
@@ -483,31 +587,10 @@ def get_eeg_coactivation(
     if not video_asset:
         raise HTTPException(status_code=404, detail="No video associated with this EEG session")
 
-    analysis_run, derived = _latest_timeseries_result(db, eeg_id, run_id)
-    if derived is not None:
-        long_rows = [
-            row
-            for row in derived.get("preview", [])
-            if (roi is None or row.get("roi") == roi)
-            and row.get("metric") == "absolute_power"
-        ]
-        by_time = {}
-        for row in long_rows:
-            timestamp_ms = float(row["time_seconds"]) * 1000
-            target = by_time.setdefault(timestamp_ms, {"timestamp_ms": timestamp_ms})
-            key = f"__{row['band']}"
-            target.setdefault(key, []).append(float(row["value"]))
-        rows = []
-        for target in by_time.values():
-            rows.append(
-                {
-                    key.removeprefix("__"): sum(values) / len(values)
-                    for key, values in target.items()
-                    if key.startswith("__")
-                }
-                | {"timestamp_ms": target["timestamp_ms"]}
-            )
-        result_source = "analysis-run"
+    analysis_run, _ = _latest_timeseries_result(db, eeg_id, run_id)
+    if analysis_run is not None:
+        rows = _full_timeseries_rows(db, analysis_run, roi)
+        result_source = "analysis-run-full"
     else:
         try:
             rows = _read_eeg_rows(eeg_asset)
@@ -522,70 +605,62 @@ def get_eeg_coactivation(
     from app.services.sync_transform_service import approved_mapping, video_to_eeg_ms
 
     mapping = approved_mapping(db, eeg_asset.session_id)
+    if not mapping.get("approved"):
+        raise HTTPException(
+            status_code=409,
+            detail="Coactivation requires an approved EEG-video synchronization mapping",
+        )
     offset = mapping["offset_ms"]
 
     # Micro-action windows in EEG time (ms)
     windows = [
         {
             "action": ev["action"],
+            "origin": ev.get("origin", "unknown"),
             "start_ms": video_to_eeg_ms(ev["start_time"] * 1000, mapping),
             "end_ms": video_to_eeg_ms(ev["end_time"] * 1000, mapping),
         }
         for ev in events
     ]
 
-    present_bands = [b for b in EEG_BANDS if rows and b in rows[0]]
-
-    def in_any_window(ts):
-        return any(w["start_ms"] <= ts <= w["end_ms"] for w in windows)
-
-    # Collect per-sample band values, split into baseline vs. per-action pools.
-    baseline_samples = {b: [] for b in present_bands}
+    present_bands = [b for b in EEG_BANDS if any(b in row for row in rows)]
+    if not present_bands:
+        raise HTTPException(
+            status_code=409,
+            detail="Coactivation requires absolute-power values for at least one EEG band",
+        )
     by_action = {}
     for w in windows:
-        by_action.setdefault(w["action"], []).append(w)
-    action_samples = {a: {b: [] for b in present_bands} for a in by_action}
-
-    for row in rows:
-        ts = row.get("timestamp_ms")
-        if not isinstance(ts, (int, float)):
-            continue
-        values = {b: row.get(b) for b in present_bands}
-
-        if not in_any_window(ts):
-            for b in present_bands:
-                if isinstance(values[b], (int, float)):
-                    baseline_samples[b].append(values[b])
-            continue
-
-        for action, wins in by_action.items():
-            if any(w["start_ms"] <= ts <= w["end_ms"] for w in wins):
-                for b in present_bands:
-                    if isinstance(values[b], (int, float)):
-                        action_samples[action][b].append(values[b])
-
-    baseline_count = max((len(baseline_samples[b]) for b in present_bands), default=0)
+        by_action.setdefault((w["origin"], w["action"]), []).append(w)
 
     actions_result = []
     tested = []
-    for action, wins in by_action.items():
+    baseline_count = 0
+    for (origin, action), wins in by_action.items():
         total_ms = sum(max(0.0, w["end_ms"] - w["start_ms"]) for w in wins)
-        sample_count = max((len(action_samples[action][b]) for b in present_bands), default=0)
 
         bands_out = {}
+        action_sample_count = 0
         for b in present_bands:
-            during_vals = action_samples[action][b]
-            base_vals = baseline_samples[b]
+            during_vals, base_vals, sample_count, base_sample_count = _paired_window_means(
+                rows, wins, windows, b
+            )
+            action_sample_count = max(action_sample_count, sample_count)
+            baseline_count = max(baseline_count, base_sample_count)
             during = sum(during_vals) / len(during_vals) if during_vals else None
             base = sum(base_vals) / len(base_vals) if base_vals else None
             delta_pct = (during - base) / abs(base) * 100.0 if (during is not None and base not in (None, 0)) else None
-            p_value, cohens_d = _permutation_test(during_vals, base_vals)
+            p_value, cohens_d, effect_ci95 = _paired_permutation_test(
+                during_vals, base_vals
+            )
             bands_out[b] = {
                 "during": during,
                 "baseline": base,
                 "delta_pct": delta_pct,
                 "p_value": p_value,
                 "cohens_d": cohens_d,
+                "effect_ci95": effect_ci95,
+                "paired_event_count": len(during_vals),
                 "significant": (p_value is not None and p_value < 0.05),
             }
             if p_value is not None:
@@ -593,9 +668,10 @@ def get_eeg_coactivation(
 
         actions_result.append({
             "action": action,
+            "origin": origin,
             "n_events": len(wins),
             "total_ms": total_ms,
-            "sample_count": sample_count,
+            "sample_count": action_sample_count,
             "bands": bands_out,
         })
 
@@ -624,7 +700,8 @@ def get_eeg_coactivation(
         "source": result_source,
         "roi": roi,
         "metric": "absolute_power",
-        "multiple_comparisons": "Benjamini-Hochberg FDR",
+        "multiple_comparisons": "Benjamini-Hochberg FDR across origin × action × band",
+        "design": "paired event vs duration-matched pre-event baseline",
         "sample_metadata": {
             "baseline_samples": baseline_count,
             "event_count": len(windows),

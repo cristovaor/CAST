@@ -42,6 +42,12 @@ def list_lsl_recordings(session_id: UUID, db: Session = Depends(get_db), current
     return db.query(LSLRecording).filter(LSLRecording.session_id == session_id).order_by(LSLRecording.created_at.desc()).all()
 
 
+@router.get("/lsl-recordings/{recording_id}", response_model=LSLRecordingDetail)
+def get_lsl_recording(recording_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _enabled()
+    return _owned(db, current_user, recording_id)
+
+
 @router.put("/lsl-recordings/{recording_id}/discovery", response_model=LSLRecordingDetail)
 def update_lsl_discovery(recording_id: UUID, payload: LSLDiscoveryUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     _enabled(); return replace_discovery(db, _owned(db, current_user, recording_id), payload.streams)

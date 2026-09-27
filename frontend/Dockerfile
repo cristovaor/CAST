@@ -12,6 +12,10 @@ COPY . .
 ARG VITE_API_URL=http://localhost:8080/api/v1
 ENV VITE_API_URL=$VITE_API_URL
 
+# Environment label shown in the UI ("local" when unset).
+ARG VITE_ENV=local
+ENV VITE_ENV=$VITE_ENV
+
 # Firebase web config. These values are public by design — they identify the
 # project, they do not authorize anything. Access control is enforced
 # server-side by verifying the ID token and requiring an invitation. Leaving

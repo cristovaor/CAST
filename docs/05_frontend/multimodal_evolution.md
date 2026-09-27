@@ -4,9 +4,9 @@ Reposicionamento do frontend de um app enviesado ao cenário educacional para um
 **ambiente científico multimodal, configurável e reutilizável**, centrado na
 análise sincronizada de **vídeo + EEG + eventos experimentais**.
 
-Stack: Vite + React 19 + TypeScript + Tailwind v4 + React Router 7. Build e
-lint validados (novos arquivos sem erros; os 33 erros de lint remanescentes são
-dívida pré-existente em arquivos não tocados).
+Stack: Vite + React 19 + TypeScript + Tailwind v4 + React Router 7. O frontend
+consome a API real por React Query; mocks, quando mantidos em módulos de apoio,
+não definem o comportamento científico da aplicação.
 
 ---
 
@@ -67,6 +67,10 @@ Breadcrumb de estudo: `Projetos / Neuroergonomia 2026 / Estudo de fadiga / …`.
   justificativa → histórico.
 - **Analisar**: player de vídeo + canais EEG + timeline multimodal com faixas
   por proveniência; seletor de análise (Temporal/Vídeo/EEG/Multimodal/Estatística).
+- **Coativação EEG × microações**: exige sincronização aprovada e o artefato
+  `timeseries-csv` completo; mostra eventos humanos e previstos separadamente,
+  baseline pré-evento pareada, `Cohen's dz`, teste por troca de sinal e
+  significância corrigida por BH-FDR.
 - **Dataset reprodutível**: seleção → critérios → transformações → versão →
   manifesto → congelar → exportar.
 
@@ -107,10 +111,11 @@ Breadcrumb de estudo: `Projetos / Neuroergonomia 2026 / Estudo de fadiga / …`.
 
 ## 7. Limitações remanescentes / backlog priorizado
 
-- P1: conectar telas a endpoints reais (hoje mock em `multimodalMocks.ts`).
-- P1: upload real de EEG + parser de metadados (EDF/BrainVision/FIF).
-- P2: renderização de EEG com dados reais (espectrograma, topografia, ICA).
-- P2: seleção de intervalo/exportação funcional no workspace.
-- P2: dupla anotação cega + adjudicação; anotação configurável por esquema.
-- P3: comparação entre sessões/participantes/condições no mesmo eixo.
-- Dívida: eliminar `any` pré-existente sinalizado pelo lint.
+- P0: concluir ensaios LSL/LabRecorder com hardware e XDF golden real.
+- P0: executar a validação científica pré-registrada de gaze, pupila, EEG e
+  ablações multimodais; a interface não substitui essa evidência.
+- P1: concluir estudo HCI com pesquisadores e gate de tempo/erros/SUS.
+- P1: formalizar aprovação de consentimento, retenção e governança LGPD.
+- P2: dupla anotação cega + adjudicação e schema configurável de anotação.
+- P3: ampliar comparações inferenciais entre sessões/participantes/condições;
+  a comparação atual permanece descritiva.

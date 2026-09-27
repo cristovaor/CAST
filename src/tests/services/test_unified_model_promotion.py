@@ -86,6 +86,8 @@ def test_multimodal_v8_promotion_accepts_participant_disjoint_eeg_validation():
             "architecture": "cast-multimodal-v8",
             "validation_summary": {
                 "eeg_session_count": 3,
+                "eeg_train_session_count": 2,
+                "eeg_validation_session_count": 1,
                 "eeg_validation_windows": 120,
                 "approved_sync_required": True,
                 "participant_disjoint_split": True,

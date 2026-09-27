@@ -67,6 +67,8 @@ export function AnalysisIndexPage() {
   const studies = useMemo(() => studiesQuery.data ?? [], [studiesQuery.data]);
   const [studyId, setStudyId] = useState('');
   const [sessionId, setSessionId] = useState('');
+  const [showStudyAnalysis, setShowStudyAnalysis] = useState(false);
+  const [showUnavailable, setShowUnavailable] = useState(false);
 
   const studyNames = useMemo(
     () => new Map(studies.map((study) => [study.id, study.name])),
@@ -79,12 +81,15 @@ export function AnalysisIndexPage() {
   const selectedSession = sessions.find((session) => session.id === sessionId);
   const eegRunsQuery = useEEGAnalysisRuns(selectedSession?.eeg_asset_id ?? undefined);
   const validEEGRun = eegRunsQuery.data?.find((run) => ['succeeded', 'partial'].includes(run.status));
+  const unavailableCount = CATEGORIES.filter((category) => !getCategoryAvailability(category.requirement, selectedSession, !!validEEGRun).available).length;
   const isLoading = sessionsQuery.isLoading || studiesQuery.isLoading;
   const isError = sessionsQuery.isError || studiesQuery.isError;
 
   const handleStudyChange = (value: string) => {
     setStudyId(value);
     setSessionId('');
+    setShowStudyAnalysis(false);
+    setShowUnavailable(false);
   };
 
   return (
@@ -187,23 +192,37 @@ export function AnalysisIndexPage() {
             </section>
 
             {studyId && (
-              <section aria-label="Análise EEG do estudo">
-                <EEGAnalysisWorkspace studyId={studyId} />
+              <section className="rounded-xl border border-border bg-surface p-4" aria-label="Análise EEG do estudo">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold text-text-primary">EEG agregado do estudo</h2>
+                    <p className="mt-1 text-xs text-text-muted">Executa e compara resultados no escopo do estudo selecionado.</p>
+                  </div>
+                  <button type="button" onClick={() => setShowStudyAnalysis((current) => !current)} aria-expanded={showStudyAnalysis} className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50">
+                    {showStudyAnalysis ? 'Recolher análise do estudo' : 'Abrir análise do estudo'}
+                  </button>
+                </div>
+                {showStudyAnalysis && <div className="mt-4"><EEGAnalysisWorkspace studyId={studyId} /></div>}
               </section>
             )}
 
             <ScientificCaveat variant="association" />
 
             <section aria-labelledby="analysis-categories-title">
-              <div className="mb-3">
-                <h2 id="analysis-categories-title" className="text-base font-semibold text-text-primary">Análises disponíveis</h2>
-                <p className="mt-1 text-sm text-text-secondary">
-                  Recursos incompatíveis permanecem visíveis para explicar quais dados ainda são necessários.
-                </p>
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 id="analysis-categories-title" className="text-base font-semibold text-text-primary">Análises da sessão</h2>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    {selectedSession ? 'Escolha uma pergunta que os dados desta sessão permitem explorar.' : 'Selecione uma sessão acima para ver as análises possíveis.'}
+                  </p>
+                </div>
+                {selectedSession && unavailableCount > 0 && <button type="button" onClick={() => setShowUnavailable((current) => !current)} aria-expanded={showUnavailable} className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-text-secondary hover:bg-surface-muted">
+                  {showUnavailable ? 'Ocultar requisitos pendentes' : `Ver ${unavailableCount} análise(s) com requisitos pendentes`}
+                </button>}
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {CATEGORIES.map((category) => {
+              {selectedSession && <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {CATEGORIES.filter((category) => showUnavailable || getCategoryAvailability(category.requirement, selectedSession, !!validEEGRun).available).map((category) => {
                   const availability = getCategoryAvailability(category.requirement, selectedSession, !!validEEGRun);
                   const content = (
                     <>
@@ -251,7 +270,7 @@ export function AnalysisIndexPage() {
                     </div>
                   );
                 })}
-              </div>
+              </div>}
             </section>
 
             <div className="rounded-xl border border-border bg-surface p-4">

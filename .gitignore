@@ -20,6 +20,9 @@ parts/
 sdist/
 var/
 wheels/
+!src/vendor/wheels/
+!src/vendor/wheels/*.whl
+!src/vendor/wheels/SHA256SUMS
 share/python-wheels/
 *.egg-info/
 .installed.cfg

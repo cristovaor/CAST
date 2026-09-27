@@ -32,9 +32,9 @@ Estados permitidos: `BACKLOG`, `READY`, `IN_PROGRESS`, `BLOCKED`, `IN_REVIEW`, `
 | CTX-002 | contexto | SDK | CTX-001 | DONE | frontend | `packages/cast-experiment-client`; buffer offline/reconexão/flush; TypeScript aprovado |
 | CTX-003 | contexto | worker | CTX-001 | DONE | dados | bruto JSONL imutável + Parquet ordenado sem luminância inventada; teste aprovado |
 | CTX-004 | contexto | frontend | CTX-001, EXPLORER-003 | DONE | frontend | console de trials/eventos/importação CSV, JSON e JSONL; tracks ambientais/eventos por intervalo; Vitest/build/lint aprovados |
-| EEG-001 | LSL | agente local | ARCH-002 | IN_REVIEW | EEG | agente loopback autenticado + UI/discovery/markers/XDF; falta ensaio com LabRecorder/hardware real |
+| EEG-001 | LSL | agente local | ARCH-002 | IN_REVIEW | EEG | agente loopback autenticado + UI/discovery/markers `cast-marker-v1` com clock explícito/XDF; falta ensaio com LabRecorder/hardware real |
 | EEG-002 | LSL | banco/API | EEG-001 | DONE | backend | migração `022`; catálogo session-scoped, upload XDF e OpenAPI; testes/migração aprovados |
-| EEG-003 | LSL/XDF | worker | EEG-002 | IN_REVIEW | EEG | seleção EEG, conversão e evidência de sync implementadas; falta golden XDF real no worker pyxdf |
+| EEG-003 | LSL/XDF | worker | EEG-002 | IN_REVIEW | EEG | seleção EEG, CSV primário com SHA-256, XDF source, fallback legado e evidência de sync implementados; falta golden XDF real no worker pyxdf |
 | EEG-004 | EEG | Explorer | EEG-003, EXPLORER-001 | DONE | frontend | track EEG isolado por range/limit no manifest e Explorer |
 | EXPLORER-001 | Explorer | manifest/API | ARCH-002 | DONE | backend | `src/app/api/v1/routes_explorer.py`; OpenAPI validada |
 | EXPLORER-002 | Explorer | shell/rotas | EXPLORER-001 | DONE | frontend | rota canônica/redirect; `ExplorerTrackCatalog`; build aprovado |

@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useParams, Link } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import {
   CalendarClock,
   ChevronRight,
@@ -25,6 +25,8 @@ const MODALITY_LABEL = Object.fromEntries(
 // here so every nested page shares the same source of truth.
 export function StudyLayout() {
   const { studyId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     data: study,
     isLoading: isLoadingStudy,
@@ -36,19 +38,27 @@ export function StudyLayout() {
   } = useProject(study?.project_id ?? '');
   const base = `/app/studies/${studyId}`;
 
-  const navItems = [
-    { name: 'Visão geral', path: `${base}/overview` },
-    { name: 'Protocolo', path: `${base}/protocol` },
-    { name: 'Hipóteses', path: `${base}/hypotheses` },
-    { name: 'Condições', path: `${base}/conditions` },
-    { name: 'Variáveis', path: `${base}/variables` },
-    { name: 'Participantes', path: `${base}/participants` },
-    { name: 'Sessões', path: `${base}/sessions` },
-    { name: 'Sincronização', path: `${base}/sync` },
-    { name: 'Qualidade', path: `${base}/quality` },
-    { name: 'Análises', path: `${base}/analysis` },
-    { name: 'Datasets', path: `${base}/datasets` },
-    { name: 'Configurações', path: `${base}/settings` },
+  const navGroups = [
+    { title: 'Planejamento', items: [
+      { name: 'Visão geral', path: `${base}/overview` },
+      { name: 'Protocolo', path: `${base}/protocol` },
+      { name: 'Hipóteses', path: `${base}/hypotheses` },
+      { name: 'Condições', path: `${base}/conditions` },
+      { name: 'Variáveis', path: `${base}/variables` },
+    ] },
+    { title: 'Coleta', items: [
+      { name: 'Participantes', path: `${base}/participants` },
+      { name: 'Sessões', path: `${base}/sessions` },
+      { name: 'Sincronização', path: `${base}/sync` },
+    ] },
+    { title: 'Resultados', items: [
+      { name: 'Qualidade', path: `${base}/quality` },
+      { name: 'Análises', path: `${base}/analysis` },
+      { name: 'Datasets', path: `${base}/datasets` },
+    ] },
+    { title: 'Gestão', items: [
+      { name: 'Configurações', path: `${base}/settings` },
+    ] },
   ];
 
   if (isLoadingStudy) {
@@ -170,22 +180,41 @@ export function StudyLayout() {
           </div>
         </div>
 
-        <nav className="mt-4 -mb-px flex gap-6 overflow-x-auto scrollbar-none">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                cn(
-                  'whitespace-nowrap border-b-2 pb-3 pt-1 text-[13px] font-medium transition-colors',
-                  isActive
-                    ? 'border-blue-600 text-blue-700'
-                    : 'border-transparent text-text-muted hover:border-border-strong hover:text-text-primary',
-                )
-              }
-            >
-              {item.name}
-            </NavLink>
+        <div className="mt-5 border-t border-border py-3 md:hidden">
+          <label htmlFor="study-section" className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Área do estudo</label>
+          <select
+            id="study-section"
+            value={location.pathname}
+            onChange={(event) => navigate(event.target.value)}
+            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-text-primary"
+          >
+            {navGroups.map((group) => (
+              <optgroup key={group.title} label={group.title}>
+                {group.items.map((item) => <option key={item.path} value={item.path}>{item.name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+
+        <nav aria-label="Áreas do estudo" className="mt-5 hidden grid-cols-[1.5fr_1fr_1fr_auto] gap-6 border-t border-border py-3 md:grid">
+          {navGroups.map((group) => (
+            <div key={group.title}>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{group.title}</p>
+              <div className="flex flex-wrap gap-1">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) => cn(
+                      'rounded-md px-2.5 py-1.5 text-[12px] font-medium transition-colors',
+                      isActive ? 'bg-blue-50 text-blue-700' : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary',
+                    )}
+                  >
+                    {item.name}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </div>

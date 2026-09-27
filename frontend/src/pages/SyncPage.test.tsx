@@ -67,7 +67,7 @@ vi.mock('@/features/multimodal/useMultimodal', () => ({
 }));
 
 describe('SyncPage', () => {
-  it('renders ten method cards, real duration and method-specific inputs', () => {
+  it('prioritizes available methods and reveals advanced options on request', () => {
     render(
       <MemoryRouter initialEntries={['/app/sessions/session-1/sync']}>
         <Routes>
@@ -78,8 +78,11 @@ describe('SyncPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Sincronização vídeo & EEG' })).toBeInTheDocument();
     expect(screen.getByText('0:00 — 1:30')).toBeInTheDocument();
-    expect(screen.getAllByText('Requer entradas')).toHaveLength(9);
+    expect(screen.queryByText('Requer entradas')).not.toBeInTheDocument();
     expect(screen.getByText('Disponível')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver todos os 10 métodos' }));
+    expect(screen.getAllByText('Requer entradas')).toHaveLength(9);
 
     fireEvent.click(screen.getByText('Offset informado'));
 

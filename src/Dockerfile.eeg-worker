@@ -22,11 +22,13 @@ RUN pip install --no-cache-dir torch==2.7.1+cpu \
 # Internal scientific distributions are deployed without Git or an external
 # package registry. Their third-party dependencies were installed above.
 COPY vendor/wheels /opt/cast-wheelhouse
-RUN pip install --no-cache-dir --no-index --no-deps \
+RUN cd /opt/cast-wheelhouse \
+    && sha256sum -c SHA256SUMS \
+    && pip install --no-cache-dir --no-index --no-deps \
     --find-links=/opt/cast-wheelhouse \
     mdmp==0.6.2 \
-    cast-pyp-eeg==2.0.0+cast.4074a2a \
-    && python -c "import cast_pyp_eeg, mdmp; assert cast_pyp_eeg.__version__ == '2.0.0+cast.4074a2a'; assert mdmp.__version__ == '0.6.2'"
+    cast-pyp-eeg==2.0.1+cast.4074a2a \
+    && python -c "import cast_pyp_eeg, mdmp; assert cast_pyp_eeg.__version__ == '2.0.1+cast.4074a2a'; assert mdmp.__version__ == '0.6.2'"
 
 COPY . .
 
