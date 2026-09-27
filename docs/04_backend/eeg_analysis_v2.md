@@ -3,9 +3,13 @@
 ## Escopo
 
 O CAST executa análises EEG por meio da distribuição interna
-`cast-pyp-eeg==2.0.0+cast.4074a2a`. A fonte adaptada está em
+`cast-pyp-eeg==2.0.1+cast.4074a2a`. A fonte adaptada está em
 `src/vendor/cast_pyp_eeg/` e os wheels usados no deploy estão em
 `src/vendor/wheels/`.
+
+A versão `2.0.1` preserva o schema do CSV quando gates de ROI/banda não
+produzem pontos. Estudos continuam como `partial`, com avisos auditáveis e
+MDMP omitido, em vez de falhar com `pandas.EmptyDataError`.
 
 As rotinas científicas são importadas somente pelo worker EEG. A API e o
 worker de vídeo não instalam MNE, ICLabel ou MDMP.
@@ -34,7 +38,9 @@ O script usa árvores limpas dos commits fixados, define `SOURCE_DATE_EPOCH`,
 executa `python -m build`, valida com `twine check` e atualiza
 `src/vendor/wheels/SHA256SUMS`. O container instala os dois wheels com
 `--no-index --no-deps`; as dependências científicas fixas estão em
-`src/requirements-eeg.txt`.
+`src/requirements-eeg.txt`. Os wheels e `SHA256SUMS` fazem parte do repositório;
+o build executa `sha256sum -c` antes da instalação para impedir que um artefato
+ausente ou alterado siga para produção.
 
 `MdmpSource` deve apontar para um checkout local limpo no commit MDMP fixado;
 o build falha se o `HEAD` for diferente e nunca baixa código Git.
@@ -98,6 +104,41 @@ Resultados `eeg-result-v1`:
 
 Jobs EEG reutilizam `/api/v1/jobs/{id}`, SSE, cancelamento e retry.
 
+### Artefatos vazios e runs parciais
+
+Os CSVs `power-csv` e `timeseries-csv` mantêm suas colunas mesmo quando um
+gate científico elimina todas as linhas. Ao agregar um estudo, o worker:
+
+- omite do `concat` apenas os ativos sem linhas úteis e registra o motivo;
+- falha com mensagem acionável se nenhum ativo produzir potência utilizável;
+- mantém `study-timeseries.csv` com schema quando não houver séries válidas;
+- omite o cálculo MDMP nesse caso, publica um `mdmp-json` vazio com avisos e
+  conclui o run como `partial` em vez de esconder a perda de dados.
+
+Ao executar novamente um job, `started_at`, `finished_at`, `error_message` e
+`result` são reinicializados antes do processamento. Artefatos já persistidos
+continuam versionados pelo run e não são apresentados como saída nova.
+
+### Série completa e coativação
+
+Treino multimodal, inferência e coativação leem o artefato
+`timeseries-csv` completo. O `preview` de `timeseries-index` é somente um
+recurso de visualização e não pode ser usado em estatística ou modelagem.
+
+`GET /api/v1/eeg/{eeg_id}/coactivation` exige uma transformação EEG↔vídeo
+aprovada e aceita `run_id` e `roi`. Para cada origem × microação × banda:
+
+1. cada evento é pareado a uma janela pré-evento de igual duração;
+2. a baseline exclui qualquer janela humana ou prevista;
+3. calcula-se a diferença média, `Cohen's dz`, IC 95% por bootstrap e teste
+   pareado por troca de sinal;
+4. os valores de `p` são corrigidos por Benjamini–Hochberg no conjunto
+   origem × ação × banda.
+
+Anotações humanas (`origin=annotator`) e eventos do modelo (`origin=model`) são
+agregados separadamente. O resultado declara `source=analysis-run-full` ou
+`legacy-csv`, o desenho pareado, a amostra testada e a ressalva não causal.
+
 ## Operação e segurança
 
 Cada run usa um diretório temporário isolado. O worker baixa o bundle do
@@ -108,6 +149,11 @@ temporário ao terminar.
 Bundles BrainVision devem conter `.vhdr`, `.eeg` e `.vmrk`. ZIPs BIDS têm
 limites de quantidade, tamanho e taxa de compressão, e entradas com path
 traversal são rejeitadas.
+
+Ativos materializados de LSL registram o CSV EEG derivado como o único membro
+`primary` e preservam o XDF como membro `source`. O parser rejeita bundles com
+mais de um primário; ativos legados sem membro primário continuam usando
+`EEGAsset.storage_uri` como fallback compatível.
 
 Runs concluídos são deduplicados pelo hash das entradas e da configuração.
 Falhas tardias preservam artefatos válidos e produzem estado `partial`.

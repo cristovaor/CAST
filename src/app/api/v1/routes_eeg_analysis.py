@@ -51,6 +51,7 @@ router = APIRouter(tags=["eeg-analysis"])
 ACTIVE_RUN_STATES = ("queued", "running")
 REUSABLE_RUN_STATES = ("succeeded", "partial")
 RESULT_KINDS = {
+    "preprocessing": "preprocessing-report",
     "power": "power-json",
     "timeseries": "timeseries-index",
     "stats": "stats-json",
@@ -96,7 +97,7 @@ def _input_hash(
             "profile": profile,
             "pipeline": pipeline,
             "parameters": parameters,
-            "method": "cast-pyp-eeg:2.0.0+cast.4074a2a",
+            "method": "cast-pyp-eeg:2.0.1+cast.4074a2a",
         },
         sort_keys=True,
         separators=(",", ":"),

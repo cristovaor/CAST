@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Activity, Waypoints, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Activity, HeartPulse, Waypoints, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ToneBadge } from '@/components/ui/ToneBadge';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
@@ -10,6 +10,7 @@ import { useSessionDetail } from '@/features/multimodal/useMultimodal';
 import { useEEGAsset, useEEGQualityCheck, useSetEEGQuality, useParseEEG } from '@/features/multimodal/useMultimodal';
 import { QUALITY_VERDICT_META as VERDICTS } from '@/types/research';
 import { EEGAnalysisWorkspace } from '@/features/eeg/components/EEGAnalysisWorkspace';
+import { useEEGPhysiology } from '@/features/eeg/useEEG';
 
 const CHANNEL_TONE: Record<EEGChannelQuality['status'], { tone: 'success' | 'warning' | 'danger' | 'neutral'; label: string }> = {
   good: { tone: 'success', label: 'Bom' },
@@ -26,6 +27,7 @@ export function EEGQualityPage() {
   const { data: eeg } = useEEGAsset(eegId);
   const qualityCheck = useEEGQualityCheck(eegId);
   const parseEEG = useParseEEG(eegId);
+  const physiology = useEEGPhysiology(eegId);
 
   const r: EEGImportReport = eeg
     ? {
@@ -153,7 +155,13 @@ export function EEGQualityPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">Percentual válido</h3>
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-text-muted">Qualidade na aquisição</h3>
+                <p className="mt-1 text-[10px] text-text-muted">Sinal bruto, antes de filtro e rereferência</p>
+              </div>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] font-semibold uppercase text-slate-600">PRÉ</span>
+            </div>
             <div className="flex items-end gap-2">
               <span className="text-4xl font-bold text-text-primary tabular-nums">{Math.round(r.validRatio * 100)}</span>
               <span className="text-text-muted mb-1.5">% do registro</span>
@@ -161,6 +169,9 @@ export function EEGQualityPage() {
             <div className="mt-3 h-2 rounded-full bg-surface-muted overflow-hidden">
               <div className="h-full bg-emerald-500" style={{ width: `${r.validRatio * 100}%` }} />
             </div>
+            <p className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-2.5 text-[10px] leading-relaxed text-blue-800">
+              Este número mede amplitude no arquivo bruto e não representa o aproveitamento final. Execute o pipeline científico abaixo para comparar antes × depois.
+            </p>
             <div className="mt-4">
               <p className="text-[11px] text-text-muted mb-1.5">Critérios utilizados</p>
               <ul className="space-y-1">
@@ -217,6 +228,36 @@ export function EEGQualityPage() {
               <p className="px-4 py-5 text-xs text-text-muted">
                 Ativo legado sem manifesto de bundle; a migração criará o membro primário.
               </p>
+            )}
+          </div>
+        )}
+
+        {(physiology.data?.streams.length ?? 0) > 0 && (
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="flex items-start gap-3">
+              <HeartPulse size={18} className="mt-0.5 text-rose-600" />
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary">VFC sincronizada · Polar H10</h3>
+                <p className="text-[11px] text-text-muted">
+                  FC e intervalos RR vieram do mesmo XDF e preservam a linha do tempo LSL.
+                </p>
+              </div>
+            </div>
+            {physiology.data?.hrv ? (
+              <>
+                <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  <Metric label="FC média" value={formatMetric(physiology.data.hrv.mean_hr_bpm, 'bpm')} />
+                  <Metric label="RR médio" value={formatMetric(physiology.data.hrv.mean_rr_ms, 'ms')} />
+                  <Metric label="SDNN" value={formatMetric(physiology.data.hrv.sdnn_ms, 'ms')} />
+                  <Metric label="RMSSD" value={formatMetric(physiology.data.hrv.rmssd_ms, 'ms')} />
+                  <Metric label="pNN50" value={formatMetric(physiology.data.hrv.pnn50_pct, '%')} />
+                </dl>
+                <p className="mt-3 text-[11px] text-text-muted">
+                  {physiology.data.hrv.valid_intervals} de {physiology.data.hrv.total_intervals} intervalos usados · filtro {physiology.data.hrv.filter}. {physiology.data.caveat}
+                </p>
+              </>
+            ) : (
+              <p className="mt-3 text-xs text-text-muted">FC disponível, mas sem intervalos RR suficientes para VFC.</p>
             )}
           </div>
         )}
@@ -311,4 +352,17 @@ function Meta({ label, value }: { label: string; value?: string | number }) {
       <dd className="font-medium text-text-secondary mt-0.5">{value ?? '—'}</dd>
     </div>
   );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-surface-muted p-3">
+      <dt className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{label}</dt>
+      <dd className="mt-1 text-lg font-semibold tabular-nums text-text-primary">{value}</dd>
+    </div>
+  );
+}
+
+function formatMetric(value: number | null, unit: string) {
+  return value == null ? '—' : `${value.toFixed(1)} ${unit}`;
 }

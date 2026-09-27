@@ -1,5 +1,10 @@
 # Fase 4 — Especificação do Banco de Dados
 
+> **Status:** baseline arquitetural. O schema atual é definido pelos modelos
+> SQLAlchemy e pelas migrações em `src/alembic/versions/`. O arquivo
+> [`schema.sql`](schema.sql) é um bootstrap histórico e não deve ser aplicado
+> sobre uma instalação existente nem usado no lugar de `alembic upgrade head`.
+
 ## 1. Objetivo
 
 Definir o schema transacional em PostgreSQL para estudos, participantes, vídeos, consentimentos, jobs, artefatos, anotações, modelos e auditoria.

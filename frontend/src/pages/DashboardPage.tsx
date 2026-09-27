@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, FileText, Server, Activity, Clock } from 'lucide-react';
+import { Plus, Upload, FileText, Server, Activity, Clock, ArrowRight, Waypoints, LineChart } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ActionButton } from '@/components/ui/ActionButton';
 
@@ -19,7 +19,7 @@ import { useGovernanceSummary } from '@/features/multimodal/useMultimodal';
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { data: dashboardData, isLoading } = useGlobalDashboard();
+  const { data: dashboardData, isLoading, dataUpdatedAt } = useGlobalDashboard();
   const { data: governance } = useGovernanceSummary();
 
   // Header Context Badges
@@ -33,13 +33,13 @@ export function DashboardPage() {
         <Activity size={12} className="text-blue-500" />
         Registro de modelos
       </span>
-      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-700 shadow-sm">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        {dashboardData?.kpis.failed_jobs ? `${dashboardData.kpis.failed_jobs} falha(s)` : 'Pipeline saudável'}
+      <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 text-[11px] font-semibold shadow-sm ${!dashboardData ? 'border-border bg-surface-muted text-text-secondary' : dashboardData.kpis.failed_jobs ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${!dashboardData ? 'bg-slate-400' : dashboardData.kpis.failed_jobs ? 'bg-red-500' : 'bg-emerald-500'}`} />
+        {!dashboardData ? 'Estado aguardando dados' : dashboardData.kpis.failed_jobs ? `${dashboardData.kpis.failed_jobs} falha(s) registradas` : 'Sem falhas registradas'}
       </span>
       <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-surface-muted text-[11px] font-medium text-text-secondary shadow-sm">
         <Clock size={12} />
-        Atualizado agora
+        {dataUpdatedAt ? `Atualizado ${new Date(dataUpdatedAt).toLocaleString('pt-BR')}` : 'Aguardando dados'}
       </span>
     </>
   );
@@ -79,6 +79,19 @@ export function DashboardPage() {
       />
 
       <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto animate-fade-in">
+        <section aria-label="Fluxo do pesquisador" className="grid gap-3 md:grid-cols-3">
+          {[
+            { label: '1 · Coletar ou importar', detail: 'Vídeo, EEG/XDF e marcadores', icon: Upload, to: '/app/acquisition' },
+            { label: '2 · Revisar sessões', detail: 'Qualidade e sincronização', icon: Waypoints, to: '/app/sessions' },
+            { label: '3 · Explorar resultados', detail: 'Sinais, eventos e comparações', icon: LineChart, to: '/app/analysis' },
+          ].map((step) => (
+            <button key={step.to} type="button" onClick={() => navigate(step.to)} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition hover:border-blue-300 hover:bg-blue-50/40">
+              <span className="rounded-lg bg-blue-50 p-2 text-blue-700"><step.icon size={17} /></span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-text-primary">{step.label}</span><span className="mt-0.5 block text-[11px] text-text-muted">{step.detail}</span></span>
+              <ArrowRight size={15} className="text-text-muted" />
+            </button>
+          ))}
+        </section>
         
         {isLoading ? (
           <div className="flex justify-center p-12">
@@ -93,7 +106,6 @@ export function DashboardPage() {
                 label: 'Projetos ativos',
                 value: dashboardData.kpis?.active_projects || 0,
                 description: 'Projetos com estudos em andamento',
-                trend: { value: 'Atualizado hoje', direction: 'up', isPositive: true },
                 icon: 'FolderKanban',
                 color: 'info',
               },
@@ -102,7 +114,6 @@ export function DashboardPage() {
                 label: 'Estudos em andamento',
                 value: dashboardData.kpis?.ongoing_studies || 0,
                 description: 'Coleta de dados ativa',
-                trend: { value: 'Atualizado hoje', direction: 'up', isPositive: true },
                 icon: 'FlaskConical',
                 color: 'info',
               },
@@ -111,7 +122,6 @@ export function DashboardPage() {
                 label: 'Sessões coletadas',
                 value: dashboardData.kpis?.total_sessions || 0,
                 description: 'Total de sessões com vídeo registrado',
-                trend: { value: 'Atualizado hoje', direction: 'up', isPositive: true },
                 icon: 'Users',
                 color: 'default',
               },
@@ -120,7 +130,6 @@ export function DashboardPage() {
                 label: 'Vídeos processados',
                 value: dashboardData.kpis?.videos_processed || 0,
                 description: 'Total de vídeos analisados',
-                trend: { value: 'Atualizado hoje', direction: 'up', isPositive: true },
                 icon: 'Video',
                 color: 'success',
               },
@@ -129,7 +138,6 @@ export function DashboardPage() {
                 label: 'Taxa média de qualidade',
                 value: ((dashboardData.kpis?.average_quality || 0) * 100).toFixed(1) + '%',
                 description: 'Face detection rate médio',
-                trend: { value: 'Atualizado hoje', direction: 'up', isPositive: true },
                 icon: 'ShieldCheck',
                 color: 'success',
               },
@@ -138,7 +146,6 @@ export function DashboardPage() {
                 label: 'Jobs com falha',
                 value: dashboardData.kpis?.failed_jobs || 0,
                 description: 'Jobs que requerem atenção',
-                trend: { value: 'Atualizado hoje', direction: 'down', isPositive: true },
                 icon: 'AlertTriangle',
                 color: 'danger',
               },

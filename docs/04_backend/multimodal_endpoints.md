@@ -1,9 +1,11 @@
 # CAST Pro — Backend multimodal: endpoints, banco e uploads
 
-Camada de backend que dá suporte à evolução multimodal do frontend (vídeo + EEG
-sincronizados, datasets reprodutíveis, governança). Stack existente: FastAPI +
-SQLAlchemy + Alembic + Celery + MinIO/S3. App valida import com **110 rotas** e
-**21 tabelas** mapeadas.
+Camada de backend que dá suporte à evolução multimodal do frontend (vídeo, EEG,
+LSL, contexto, gaze e pupila sincronizados, datasets reprodutíveis e
+governança). Stack: FastAPI + SQLAlchemy + Alembic + Celery + MinIO/S3.
+
+Contagens de rotas e tabelas não fazem parte do contrato porque mudam a cada
+migração. A referência executável da API é `GET /api/v1/openapi.json`.
 
 ## 1. Entidades de banco adicionadas (`app/db/models.py`)
 
@@ -37,7 +39,15 @@ Enums novos: `SessionState`, `QualityVerdict`, `SyncState`, `DatasetState`,
 **EEG** (`routes_eeg.py`, estendido): `GET /eeg/{id}` (metadados+qualidade),
 `PATCH /eeg/{id}/metadata`, `POST /eeg/{id}/quality-check` (deriva qualidade por
 canal do CSV — sem score único), `PUT /eeg/{id}/quality` (decisão revisada).
-Mantém `upload-proxy`, `timeseries`, `coactivation`, offset.
+Mantém `upload-proxy`, `timeseries`, `coactivation` e offset. A coativação exige
+sync aprovado, usa o `timeseries-csv` completo e separa eventos humanos dos
+previstos com desenho estatístico pareado.
+
+**Aquisição/LSL/contexto/Explorer/oculares**: os routers
+`routes_acquisition.py`, `routes_lsl.py`, `routes_context.py`,
+`routes_explorer.py`, `routes_gaze.py` e `routes_pupil.py` expõem os domínios
+experimentais atrás das respectivas flags de recurso. Todos são registrados
+como routers protegidos por padrão em `app/main.py`.
 
 **Sincronização** (`routes_sync.py`): `GET /sync/{sessionId}` (cria se ausente),
 `PATCH /sync/{sessionId}` (offset/método/âncoras — mantém `EEGAsset.sync_offset_ms`
@@ -77,17 +87,15 @@ alembic upgrade head
 
 `frontend/src/features/multimodal/useMultimodal.ts` expõe hooks React Query para
 sessão, EEG (+quality-check), sync (get/patch/decision), datasets (+freeze),
-variáveis e governança. As telas `SessionDetail`, `EEGQuality`, `Sync`,
-`Datasets`, `Variables` e `Governance` consomem dados reais com **fallback para
-mock** quando offline. Export de dataset aponta para `GET /datasets/{id}/export`.
+variáveis e governança. Aquisição, Explorer, contexto, gaze e pupila usam hooks
+dos respectivos domínios. Export de dataset aponta para
+`GET /datasets/{id}/export`.
 
-## 6. Validação executada
+## 6. Validação
 
-- Import completo da app: OK (110 rotas).
-- Metadata: 21 tabelas mapeadas (inclui `synchronizations`, `datasets`,
-  `research_variables`, `audit_logs`).
-- Migração 002: parse OK, encadeia em 001.
-- Frontend: `npm run build` OK; novos arquivos sem erro de lint.
-
-Testes que exigem Postgres/MinIO/tensorflow não rodam neste ambiente (serviços e
-deps ML ausentes) — são gaps ambientais pré-existentes, não do código novo.
+Os contratos devem ser verificados pelo OpenAPI gerado, pelos testes de API,
+serviço e arquitetura em `src/tests/`, pelas migrações Alembic e por
+`npm run test && npm run build` no frontend. Testes que dependem de
+PostgreSQL/Redis/MinIO, TensorFlow ou do worker EEG devem usar a stack local ou
+um ambiente descartável equivalente; não registrar sucesso quando uma
+dependência tiver impedido a execução.

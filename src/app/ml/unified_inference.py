@@ -156,7 +156,7 @@ def run_unified_inference(
     manifest.validate_features(features.feature_names)
     modalities_used: tuple[str, ...] = ("head_video",)
     sync_quality = dict(sync_mapping or {})
-    branch_contributions = {"head_video": 1.0, "eeg": 0.0}
+    branch_contributions: dict[str, float] = {}
     eeg_validation_status = "not_available"
     if manifest.architecture == "cast-multimodal-v8":
         minimum_valid_ratio = float(
@@ -164,9 +164,9 @@ def run_unified_inference(
         )
         eeg_status = (eeg_metadata or {}).get("status")
         eeg_valid_ratio = (eeg_metadata or {}).get("valid_ratio")
-        quality_approved = True
-        quality_status = eeg_status or "not_available"
-        if eeg_metadata is not None:
+        quality_approved = eeg_metadata is not None
+        quality_status = eeg_status or "quality_metadata_missing"
+        if quality_approved:
             if eeg_status != "ready":
                 quality_approved = False
             elif eeg_valid_ratio is None:
@@ -175,6 +175,12 @@ def run_unified_inference(
             elif float(eeg_valid_ratio) < minimum_valid_ratio:
                 quality_approved = False
                 quality_status = "quality_below_threshold"
+        if quality_approved and not (sync_mapping or {}).get("approved"):
+            quality_approved = False
+            quality_status = "sync_unapproved"
+        if quality_approved and not eeg_rows:
+            quality_approved = False
+            quality_status = "timeseries_missing"
         eeg_series = extract_eeg_features(
             (eeg_rows or []) if quality_approved else []
         )
@@ -212,14 +218,28 @@ def run_unified_inference(
                     model.get_layer("eeg_fusion_gate").output,
                 )
                 gate = gate_model.predict(model_inputs, verbose=0)
-                eeg_contribution = float(np.mean(gate))
+                branch_contributions["eeg_gate_mean"] = round(
+                    float(np.mean(gate)),
+                    4,
+                )
             except Exception:
-                eeg_contribution = float(np.mean(multimodal.eeg_present))
-            branch_contributions["eeg"] = round(eeg_contribution, 4)
-            branch_contributions["head_video"] = round(
-                1.0 - eeg_contribution,
-                4,
-            )
+                pass
+            ablated_inputs = {
+                "head_sequence": model_inputs["head_sequence"],
+                "eeg_sequence": np.zeros_like(model_inputs["eeg_sequence"]),
+                "eeg_present": np.zeros_like(model_inputs["eeg_present"]),
+            }
+            ablated_outputs = _prediction_dict(model, ablated_inputs)
+            output_deltas = [
+                np.abs(outputs[name] - ablated_outputs[name]).reshape(-1)
+                for name in ("actions", "observable_movements")
+                if name in outputs and name in ablated_outputs
+            ]
+            if output_deltas:
+                branch_contributions["eeg_output_delta_mean"] = round(
+                    float(np.mean(np.concatenate(output_deltas))),
+                    6,
+                )
         windows = multimodal.head
     else:
         windows, _ = make_time_centered_windows(

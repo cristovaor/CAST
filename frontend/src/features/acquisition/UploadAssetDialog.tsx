@@ -101,13 +101,13 @@ export function UploadAssetDialog({ children, kind, onUploaded }: UploadAssetDia
             <span className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-surface-muted px-4 py-5 text-text-secondary hover:border-blue-400">
               <UploadCloud size={20} />
               <span className="min-w-0 truncate">
-                {file?.name ?? (kind === 'video' ? 'Selecionar MP4, WebM ou outro vídeo' : 'Selecionar EDF, CSV, FIF ou BrainVision')}
+                {file?.name ?? (kind === 'video' ? 'Selecionar MP4, WebM ou outro vídeo' : 'Selecionar XDF, EDF, CSV, FIF ou BrainVision')}
               </span>
               <input
                 required
                 type="file"
                 className="sr-only"
-                accept={kind === 'video' ? 'video/*' : '.edf,.csv,.fif,.vhdr,.eeg,.set'}
+                accept={kind === 'video' ? 'video/*' : '.xdf,.edf,.bdf,.csv,.fif,.vhdr,.eeg,.set,.txt'}
                 disabled={mutation.isPending}
                 onChange={(event) => {
                   setFile(event.target.files?.[0] ?? null);
@@ -144,7 +144,7 @@ export function UploadAssetDialog({ children, kind, onUploaded }: UploadAssetDia
                 variant="primary"
                 disabled={!sessionId || !file || mutation.isPending}
               >
-                {mutation.isPending ? 'Enviando…' : `Enviar ${label}`}
+                {mutation.isPending ? 'Enviando e processando…' : `Enviar ${label}`}
               </ActionButton>
             )}
           </DialogFooter>

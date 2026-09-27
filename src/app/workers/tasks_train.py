@@ -374,7 +374,7 @@ def _train_multimodal(
         db,
         job,
         "info",
-        "Montando janelas de cabeÃ§a e EEG com sincronizaÃ§Ã£o aprovada",
+        "Montando janelas de cabeça e EEG com sincronização aprovada",
         10.0,
     )
     arrays = build_multimodal_training_arrays(
@@ -386,6 +386,9 @@ def _train_multimodal(
         eeg_dropout_probability=dropout_probability,
         seed=int(config.get("seed", 42)),
         min_eeg_sessions=int(config.get("min_eeg_sessions", 2)),
+        min_validation_eeg_sessions=int(
+            config.get("min_validation_eeg_sessions", 1)
+        ),
         min_eeg_valid_ratio=min_eeg_valid_ratio,
     )
     _log_progress(
@@ -394,7 +397,8 @@ def _train_multimodal(
         "info",
         (
             f"Dados V8: {arrays.head_train.shape[0]} janelas, "
-            f"{arrays.eeg_session_count} sessÃµes com EEG aprovado"
+            f"{arrays.eeg_train_session_count} sessões EEG no treino e "
+            f"{arrays.eeg_val_session_count} na validação"
         ),
         25.0,
     )
@@ -488,6 +492,8 @@ def _train_multimodal(
         },
         validation_summary={
             "eeg_session_count": arrays.eeg_session_count,
+            "eeg_train_session_count": arrays.eeg_train_session_count,
+            "eeg_validation_session_count": arrays.eeg_val_session_count,
             "validation_total_windows": int(len(arrays.head_val)),
             "eeg_validation_windows": int(
                 np.sum(arrays.eeg_present_val[:, 0] > 0)
@@ -519,7 +525,9 @@ def _train_multimodal(
         artifact_uri=artifact_uri,
         notes=(
             "CAST Multimodal V8; EEG optional at inference and required for "
-            f"multimodal validation. eeg_sessions={arrays.eeg_session_count}; "
+            f"multimodal validation. eeg_train_sessions="
+            f"{arrays.eeg_train_session_count}; eeg_validation_sessions="
+            f"{arrays.eeg_val_session_count}; "
             f"train_videos={arrays.train_video_ids}; val_videos={arrays.val_video_ids}"
         ),
     )

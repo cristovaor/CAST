@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProvenanceLegend } from '@/components/data-display/ProvenanceLegend';
@@ -35,6 +35,23 @@ type Lane = {
 export function AnalysisWorkspacePage() {
   const { sessionId: sessionReference } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const viewParam = searchParams.get('view');
+  const category = searchParams.get('category');
+  const view = viewParam === 'overview' || viewParam === 'events' || viewParam === 'signal' || viewParam === 'comparisons'
+    ? viewParam
+    : category === 'eeg' ? 'signal'
+      : category === 'video' ? 'events'
+        : category === 'statistics' ? 'comparisons'
+          : 'overview';
+  const selectView = (nextView: typeof view) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set('view', nextView);
+      next.delete('category');
+      return next;
+    }, { replace: true });
+  };
 
   const sessionQuery = useSessionByReference(sessionReference);
   const session = sessionQuery.data;
@@ -184,32 +201,36 @@ export function AnalysisWorkspacePage() {
           />
         </section>
 
+        <nav className="grid gap-2 rounded-xl border border-border bg-surface p-2 sm:grid-cols-2 xl:grid-cols-4" aria-label="Exploração da sessão">
+          {([
+            { key: 'overview', label: 'Visão sincronizada', detail: 'Player e linha do tempo' },
+            { key: 'events', label: 'Eventos e contexto', detail: 'Momentos e condições' },
+            { key: 'signal', label: 'EEG e coativação', detail: 'Qualidade, bandas e séries' },
+            { key: 'comparisons', label: 'Comparar sessões', detail: 'Diferenças entre coletas' },
+          ] as const).map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => selectView(item.key)}
+              aria-current={view === item.key ? 'page' : undefined}
+              className={cn(
+                'rounded-lg px-3 py-3 text-left transition-colors',
+                view === item.key ? 'bg-blue-50 text-blue-800 ring-1 ring-blue-200' : 'text-text-secondary hover:bg-surface-muted',
+              )}
+            >
+              <span className="block text-sm font-semibold">{item.label}</span>
+              <span className="mt-0.5 block text-[11px] opacity-75">{item.detail}</span>
+            </button>
+          ))}
+        </nav>
+
+        {view === 'overview' && <>
         <ExplorerTrackCatalog
           manifest={explorerManifestQuery.data}
           loading={explorerManifestQuery.isLoading}
           error={explorerManifestQuery.isError}
           onSeek={requestSeek}
         />
-
-        <OcularExperimentPanel
-          sessionId={resolvedSessionId ?? session.id}
-          manifest={explorerManifestQuery.data}
-          faceArtifactId={landmarkArtifact?.id}
-        />
-
-        <ExplorerIntervalActions sessionId={resolvedSessionId ?? session.id} manifest={explorerManifestQuery.data} />
-
-        <SessionComparisonPanel sessionId={resolvedSessionId ?? session.id} manifest={explorerManifestQuery.data} />
-
-        <ContextTrackPanel manifest={explorerManifestQuery.data} />
-
-        {session.video_asset_id && landmarkArtifact?.capabilities?.includes('blendshapes-52') && (
-          <FaceFeaturePanel
-            videoId={session.video_asset_id}
-            artifactId={landmarkArtifact.id}
-            cursorMs={cursorMs}
-          />
-        )}
 
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="min-w-0 space-y-4">
@@ -303,12 +324,40 @@ export function AnalysisWorkspacePage() {
             />
           )}
         </Panel>
+        </>}
 
-        <Panel title='Eventos detectados ("pontos")' subtitle="Predições do modelo e anotações manuais, sincronizadas com o player acima">
-          <EventTable events={timeline?.events ?? []} onSeek={(seconds) => requestSeek(seconds * 1000)} />
+        {view === 'events' && <>
+
+        <OcularExperimentPanel
+          sessionId={resolvedSessionId ?? session.id}
+          manifest={explorerManifestQuery.data}
+          faceArtifactId={landmarkArtifact?.id}
+        />
+
+        <ExplorerIntervalActions sessionId={resolvedSessionId ?? session.id} manifest={explorerManifestQuery.data} />
+
+        <ContextTrackPanel manifest={explorerManifestQuery.data} />
+
+        {session.video_asset_id && landmarkArtifact?.capabilities?.includes('blendshapes-52') && (
+          <FaceFeaturePanel
+            videoId={session.video_asset_id}
+            artifactId={landmarkArtifact.id}
+            cursorMs={cursorMs}
+          />
+        )}
+
+        <Panel title='Eventos detectados ("pontos")' subtitle="Predições e anotações no relógio compartilhado com a visão sincronizada">
+          <EventTable events={timeline?.events ?? []} onSeek={(seconds) => { requestSeek(seconds * 1000); selectView('overview'); }} />
         </Panel>
+        </>}
 
-        {session.eeg_asset_id && <EEGAnalysisWorkspace eegId={session.eeg_asset_id} />}
+        {view === 'signal' && <>
+        {session.eeg_asset_id ? <EEGAnalysisWorkspace eegId={session.eeg_asset_id} /> : (
+          <div className="rounded-xl border border-border bg-surface">
+            <EmptyState variant="empty" title="EEG ainda não disponível" description="Associe um arquivo EEG ou XDF a esta sessão para explorar qualidade, bandas e séries." className="py-10" />
+            <div className="flex justify-center pb-5"><Link to="/app/acquisition" className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Abrir aquisição</Link></div>
+          </div>
+        )}
 
         <section className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
@@ -332,6 +381,9 @@ export function AnalysisWorkspacePage() {
             </div>
           )}
         </section>
+        </>}
+
+        {view === 'comparisons' && <SessionComparisonPanel sessionId={resolvedSessionId ?? session.id} manifest={explorerManifestQuery.data} />}
 
         <ScientificCaveat
           variant="association"

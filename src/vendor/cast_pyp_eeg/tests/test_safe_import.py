@@ -30,4 +30,4 @@ print(json.dumps({
     result = json.loads(completed.stdout)
     assert result["new_files"] == []
     assert result["heavy"] == []
-    assert result["version"] == "2.0.0+cast.4074a2a"
+    assert result["version"] == "2.0.1+cast.4074a2a"

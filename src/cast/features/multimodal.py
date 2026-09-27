@@ -221,6 +221,13 @@ def build_multimodal_windows(
         and len(head)
     )
     if has_eeg:
+        timestamp_deltas = np.diff(eeg_series.timestamps_ms)
+        positive_deltas = timestamp_deltas[timestamp_deltas > 0]
+        nearest_tolerance_ms = (
+            max(1.0, float(np.median(positive_deltas)) * 1.5)
+            if len(positive_deltas)
+            else 1.0
+        )
         offsets = np.linspace(
             -eeg_window_ms / 2.0,
             eeg_window_ms / 2.0,
@@ -230,8 +237,20 @@ def build_multimodal_windows(
             desired_video = timestamp + offsets
             desired_eeg = video_to_eeg_ms(desired_video, sync_mapping or {})
             selected = _nearest_indices(eeg_series.timestamps_ms, desired_eeg)
-            eeg[index] = eeg_series.values[selected]
-            valid_fraction[index, 0] = float(np.mean(eeg_series.valid_mask[selected]))
+            in_bounds = (
+                (desired_eeg >= eeg_series.timestamps_ms[0])
+                & (desired_eeg <= eeg_series.timestamps_ms[-1])
+            )
+            close_enough = (
+                np.abs(eeg_series.timestamps_ms[selected] - desired_eeg)
+                <= nearest_tolerance_ms
+            )
+            point_valid = (
+                in_bounds & close_enough & eeg_series.valid_mask[selected]
+            )
+            if np.any(point_valid):
+                eeg[index, point_valid] = eeg_series.values[selected[point_valid]]
+            valid_fraction[index, 0] = float(np.mean(point_valid))
         presence[:, 0] = (valid_fraction[:, 0] > 0).astype(np.float32)
     modalities = ("head_video", "eeg") if np.any(presence) else ("head_video",)
     return MultimodalWindows(

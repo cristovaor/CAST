@@ -31,10 +31,55 @@ from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 RECORDING_SUFFIXES = (".vhdr", ".edf", ".bdf", ".fif", ".set", ".csv")
+POWER_CSV_COLUMNS = (
+    "state",
+    "level",
+    "channel",
+    "roi",
+    "band",
+    "absolute_power",
+    "relative_power",
+    "channel_coverage",
+    "channels_used",
+)
+TIMESERIES_CSV_COLUMNS = (
+    "time_seconds",
+    "state",
+    "channel",
+    "roi",
+    "band",
+    "metric",
+    "value",
+    "channel_coverage",
+)
+STUDY_METADATA_COLUMNS = (
+    "subject",
+    "condition",
+    "group",
+    "session",
+    "eeg_asset_id",
+)
 
 
 class EEGAnalysisCanceled(Exception):
     pass
+
+
+def _read_csv_result(path: str | Path, columns: tuple[str, ...]) -> Any:
+    """Read a scientific CSV while preserving its schema when it has no rows."""
+    import pandas as pd
+
+    source = Path(path)
+    if not source.exists():
+        raise ValueError(f"analysis artifact does not exist: {source.name}")
+    try:
+        frame = pd.read_csv(source)
+    except pd.errors.EmptyDataError:
+        frame = pd.DataFrame(columns=columns)
+    for column in columns:
+        if column not in frame.columns:
+            frame[column] = None
+    return frame
 
 
 def _log(job: ProcessingJob, message: str, level: str = "info") -> None:
@@ -444,24 +489,55 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
             "session": str(asset.session_id),
             "eeg_asset_id": str(asset.id),
         }
-        power_frame = pd.read_csv(
-            next(item.path for item in power.artifacts if item.kind == "power-csv")
+        power_frame = _read_csv_result(
+            next(item.path for item in power.artifacts if item.kind == "power-csv"),
+            POWER_CSV_COLUMNS,
         )
-        timeseries_frame = pd.read_csv(
-            next(item.path for item in timeseries.artifacts if item.kind == "timeseries-csv")
+        timeseries_frame = _read_csv_result(
+            next(item.path for item in timeseries.artifacts if item.kind == "timeseries-csv"),
+            TIMESERIES_CSV_COLUMNS,
         )
         for key, value in metadata.items():
             power_frame[key] = value
             timeseries_frame[key] = value
-        power_frames.append(power_frame)
-        timeseries_frames.append(timeseries_frame)
-        run.warnings = [*(run.warnings or []), *preprocessed.warnings]
+        if power_frame.empty:
+            run.warnings = [
+                *(run.warnings or []),
+                f"EEG asset {asset.id} omitted from study power: no valid power rows",
+            ]
+        else:
+            power_frames.append(power_frame)
+        if timeseries_frame.empty:
+            run.warnings = [
+                *(run.warnings or []),
+                f"EEG asset {asset.id} omitted from study time-series: no valid rows; "
+                "verify ROI channel labels and configured frequency bands",
+            ]
+        else:
+            timeseries_frames.append(timeseries_frame)
+        run.warnings = [
+            *(run.warnings or []),
+            *preprocessed.warnings,
+            *power.warnings,
+            *timeseries.warnings,
+        ]
         db.commit()
 
     study_output = root / "study"
     study_output.mkdir()
+    if not power_frames:
+        raise ValueError(
+            "study has no usable EEG power rows; verify channel labels, sampling "
+            "frequency, configured bands, and preprocessing quality"
+        )
     power_frame = pd.concat(power_frames, ignore_index=True)
-    timeseries_frame = pd.concat(timeseries_frames, ignore_index=True)
+    timeseries_frame = (
+        pd.concat(timeseries_frames, ignore_index=True)
+        if timeseries_frames
+        else pd.DataFrame(
+            columns=(*TIMESERIES_CSV_COLUMNS, *STUDY_METADATA_COLUMNS)
+        )
+    )
     power_long = study_output / "study-power.csv"
     timeseries_long = study_output / "study-timeseries.csv"
     power_frame.to_csv(power_long, index=False)
@@ -512,6 +588,32 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
     )
     _store_result(db, run, topomaps)
     run.warnings = [*(run.warnings or []), *topomaps.warnings]
+    if timeseries_frame.empty:
+        run.warnings = [
+            *(run.warnings or []),
+            "MDMP omitted: the study has no valid time-series power rows",
+        ]
+        summary_path = study_output / "mdmp-summary.json"
+        summary_path.write_text(
+            json.dumps(
+                {
+                    "schema": "eeg-result-v1",
+                    "networks": [],
+                    "scope": "study",
+                    "method": "individual-and-virtual-typical-subject",
+                    "warnings": [
+                        "MDMP omitted: the study has no valid time-series power rows"
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        _store_artifact(
+            db, run, kind="mdmp-json", path=summary_path, content_type="application/json"
+        )
+        return
     _stage(db, run, job, "mdmp_individual_networks", 84)
     timeseries_frame["node"] = (
         timeseries_frame["roi"]
@@ -646,12 +748,17 @@ def process_eeg_analysis(run_id: str) -> dict[str, Any]:
             raise ValueError("processing job not found")
         run.status = "running"
         run.started_at = datetime.utcnow()
-        run.package_version = "2.0.0+cast.4074a2a"
+        run.finished_at = None
+        run.error_message = None
+        run.package_version = "2.0.1+cast.4074a2a"
         run.upstream_commit = "4074a2a391aec435a1987c0f7ea0c1183bf7eb96"
         run.mdmp_version = "0.6.2"
         run.mdmp_commit = "420afe67cf89e0a656fd5346c3721063365c40e4"
         job.status = JobStatus.running
         job.started_at = datetime.utcnow()
+        job.finished_at = None
+        job.error_message = None
+        job.result = None
         job.worker_id = "eeg"
         _log(job, "EEG analysis started")
         db.commit()

@@ -118,7 +118,7 @@ export function SessionWizardLayout({ studyId }: { studyId: string }) {
               )}
               <p className="text-sm font-medium text-text-secondary">{uploadEEG.isPending ? "Enviando…" : "Selecionar arquivo de EEG"}</p>
               <p className="text-xs text-text-muted mt-1">{EEG_FORMATS.join(" · ")}</p>
-              <input type="file" className="hidden" accept=".edf,.bdf,.csv,.fif,.vhdr,.set,.txt" onChange={handleEEGFile} disabled={uploadEEG.isPending} />
+              <input type="file" className="hidden" accept=".xdf,.edf,.bdf,.csv,.fif,.vhdr,.set,.txt" onChange={handleEEGFile} disabled={uploadEEG.isPending} />
             </label>
             <p className="text-[12px] text-text-muted">Após o envio, o sistema registra dispositivo, canais, montagem, taxa de amostragem e avalia a qualidade por canal.</p>
             <NavRow onBack={handleBack} onSkip={() => { merge({ eegAttached: false }); goNext(); }} skipLabel="Pular EEG" />

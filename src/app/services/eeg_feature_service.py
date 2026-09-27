@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import io
-import json
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -76,22 +75,14 @@ def load_session_eeg_features(
     )
     rows: list[dict[str, Any]] = []
     if artifact is not None:
-        rows = pd.read_csv(io.BytesIO(_artifact_payload(artifact))).to_dict(
-            orient="records"
-        )
-    else:
-        artifact = (
-            db.query(EEGAnalysisArtifact)
-            .filter(
-                EEGAnalysisArtifact.run_id == run.id,
-                EEGAnalysisArtifact.kind == "timeseries-index",
-            )
-            .order_by(EEGAnalysisArtifact.created_at.desc())
-            .first()
-        )
-        if artifact is not None:
-            payload = json.loads(_artifact_payload(artifact).decode("utf-8"))
-            rows = list(payload.get("preview") or [])
+        payload = _artifact_payload(artifact)
+        if payload.strip():
+            try:
+                rows = pd.read_csv(io.BytesIO(payload)).to_dict(orient="records")
+            except pd.errors.EmptyDataError:
+                # Compatibility with analysis artifacts produced before the
+                # empty-series CSV schema fix.
+                rows = []
     if not rows:
         status = "timeseries_missing"
     elif not mapping.get("approved"):

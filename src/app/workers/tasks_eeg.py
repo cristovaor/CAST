@@ -25,6 +25,14 @@ from app.services.eeg_service import parse_eeg, parse_eeg_path, format_from_file
 logger = get_task_logger(__name__)
 
 
+def _primary_member(files):
+    """Return the sole declared primary member, or ``None`` for legacy assets."""
+    primary = [member for member in files if member.is_primary]
+    if len(primary) > 1:
+        raise ValueError("EEG bundle has multiple primary files")
+    return primary[0] if primary else None
+
+
 def _apply_report(eeg: EEGAsset, report: dict) -> None:
     """Copies parsed fields onto the EEGAsset (only overwriting when present)."""
     eeg.eeg_format = report.get("eeg_format") or eeg.eeg_format or format_from_filename(eeg.filename)
@@ -61,7 +69,8 @@ def parse_eeg_asset(eeg_id: str) -> dict:
         if not eeg.storage_uri:
             return {"error": "EEG asset has no storage_uri"}
 
-        if eeg.files:
+        primary_member = _primary_member(eeg.files)
+        if primary_member is not None:
             with tempfile.TemporaryDirectory(prefix=f"cast-eeg-parse-{eeg.id}-") as temp:
                 primary = None
                 for member in eeg.files:
@@ -73,8 +82,6 @@ def parse_eeg_asset(eeg_id: str) -> dict:
                     )
                     if member.is_primary:
                         primary = target
-                if primary is None:
-                    raise ValueError("EEG bundle has no primary file")
                 report = parse_eeg_path(primary)
         else:
             key = storage_service.key_from_uri(eeg.storage_uri)

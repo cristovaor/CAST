@@ -236,10 +236,10 @@ export interface VideoImportReport {
 // ─── EEG import & quality (§10) ──────────────────────────────
 
 export type EEGFileFormat =
-  | 'EDF' | 'EDF+' | 'BDF' | 'BrainVision' | 'FIF' | 'EEGLAB' | 'CSV' | 'proprietary';
+  | 'XDF' | 'EDF' | 'EDF+' | 'BDF' | 'BrainVision' | 'FIF' | 'EEGLAB' | 'CSV' | 'proprietary';
 
 export const EEG_FORMATS: EEGFileFormat[] = [
-  'EDF', 'EDF+', 'BDF', 'BrainVision', 'FIF', 'EEGLAB', 'CSV', 'proprietary',
+  'XDF', 'EDF', 'EDF+', 'BDF', 'BrainVision', 'FIF', 'EEGLAB', 'CSV', 'proprietary',
 ];
 
 export interface EEGChannelQuality {

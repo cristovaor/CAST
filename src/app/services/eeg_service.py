@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import csv
 import io
+import math
+import statistics
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -29,7 +31,7 @@ FORMAT_BY_EXT = {
 }
 
 QUALITY_CRITERIA = [
-    f"|amplitude| > {ARTIFACT_ABS_THRESHOLD:.0f} = artefato",
+    f"|amplitude - mediana do canal| > {ARTIFACT_ABS_THRESHOLD:.0f} µV = artefato",
     f"< {FLAT_DISTINCT_MIN} valores distintos = canal plano",
     f"razão de amostras válidas < {NOISY_VALID_RATIO:.0%} = canal ruidoso",
 ]
@@ -180,10 +182,15 @@ def _assess_channels(
     valid_ratios: List[float] = []
 
     for name, values in by_channel.items():
+        finite = [float(value) for value in values if math.isfinite(float(value))]
         total = len(values) or 1
-        valid = sum(1 for x in values if abs(x) <= ARTIFACT_ABS_THRESHOLD)
+        baseline = statistics.median(finite) if finite else 0.0
+        valid = sum(
+            1 for value in finite
+            if abs(value - baseline) <= ARTIFACT_ABS_THRESHOLD
+        )
         vr = valid / total
-        distinct = len({round(x, 6) for x in values})
+        distinct = len({round(value - baseline, 6) for value in finite})
         status = "good"
         if distinct < FLAT_DISTINCT_MIN:
             status = "flat"
@@ -193,7 +200,8 @@ def _assess_channels(
         valid_ratios.append(vr)
         channel_quality.append({
             "name": name, "status": status, "valid_ratio": round(vr, 3),
-            "impedance_kohm": None, "notes": None,
+            "impedance_kohm": None,
+            "notes": f"Offset DC removido pela mediana: {baseline:.2f} µV",
         })
 
         if status == "flat":
@@ -214,6 +222,30 @@ def _assess_channels(
             })
 
     return channel_quality, findings, valid_ratios
+
+
+def compute_hrv_summary(rr_values_ms: List[float]) -> Dict[str, Any]:
+    """Time-domain HRV from NN intervals after an explicit physiologic filter."""
+    numeric = [float(value) for value in rr_values_ms if math.isfinite(float(value))]
+    valid = [value for value in numeric if 300.0 <= value <= 2000.0]
+    differences = [valid[index] - valid[index - 1] for index in range(1, len(valid))]
+    return {
+        "total_intervals": len(numeric),
+        "valid_intervals": len(valid),
+        "excluded_intervals": len(numeric) - len(valid),
+        "filter": "300–2000 ms",
+        "mean_rr_ms": statistics.fmean(valid) if valid else None,
+        "mean_hr_bpm": 60_000.0 / statistics.fmean(valid) if valid else None,
+        "sdnn_ms": statistics.stdev(valid) if len(valid) > 1 else None,
+        "rmssd_ms": (
+            math.sqrt(statistics.fmean(value * value for value in differences))
+            if differences else None
+        ),
+        "pnn50_pct": (
+            100.0 * sum(abs(value) > 50.0 for value in differences) / len(differences)
+            if differences else None
+        ),
+    }
 
 
 def _verdict(valid_ratios: List[float], findings: List[Dict[str, Any]]) -> str:

@@ -72,6 +72,8 @@ services:
       - MINIO_PUBLIC_URL=http://localhost:9000
       - REDIS_URL=redis://redis:6379/0
       - EEG_ANALYSIS_V2_ENABLED=true
+      - LSL_ACQUISITION_ENABLED=true
+      - EXPERIMENTAL_CONTEXT_ENABLED=true
     volumes:
       - ./models:/app/models  # Model registry volume
     depends_on:
@@ -115,6 +117,7 @@ services:
       - MINIO_PUBLIC_URL=http://localhost:9000
       - REDIS_URL=redis://redis:6379/0
       - EEG_ANALYSIS_V2_ENABLED=true
+      - LSL_ACQUISITION_ENABLED=true
       - MPLCONFIGDIR=/tmp/matplotlib
     depends_on:
       - redis
@@ -133,7 +136,7 @@ services:
       dockerfile: Dockerfile
     container_name: cast_frontend
     ports:
-      - "80:80"
+      - "80:8080"
     depends_on:
       - backend
     restart: always

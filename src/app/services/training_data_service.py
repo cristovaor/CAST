@@ -208,6 +208,8 @@ class MultimodalTrainingArrays:
     train_video_ids: List[str]
     val_video_ids: List[str]
     eeg_session_count: int
+    eeg_train_session_count: int
+    eeg_val_session_count: int
 
     def train_inputs(self) -> Dict[str, np.ndarray]:
         return {
@@ -520,6 +522,7 @@ def build_multimodal_training_arrays(
     eeg_dropout_probability: float = 0.25,
     seed: int = 42,
     min_eeg_sessions: int = 2,
+    min_validation_eeg_sessions: int = 1,
     min_eeg_valid_ratio: float = 0.70,
 ) -> MultimodalTrainingArrays:
     """Assemble participant-disjoint V8 tensors with EEG as optional input."""
@@ -541,7 +544,10 @@ def build_multimodal_training_arrays(
     }
     head_feature_names: List[str] | None = None
     eeg_feature_names: List[str] | None = None
-    eeg_sessions = 0
+    eeg_sessions_by_split: dict[str, set[UUID]] = {
+        "train": set(),
+        "val": set(),
+    }
 
     for video_id in ids:
         video = db.query(VideoAsset).filter(VideoAsset.id == video_id).first()
@@ -597,8 +603,9 @@ def build_multimodal_training_arrays(
         )
         if not len(windows.head):
             continue
+        prefix = "val" if video_id in val_ids else "train"
         if np.any(windows.eeg_present):
-            eeg_sessions += 1
+            eeg_sessions_by_split[prefix].add(video.session_id)
         head_feature_names = head_features.feature_names
         eeg_feature_names = windows.eeg_feature_names
         signal_targets = head_features.values[:, -len(CONTINUOUS_SIGNALS) :]
@@ -612,7 +619,6 @@ def build_multimodal_training_arrays(
             signal_targets,
             face_detected,
         )
-        prefix = "val" if video_id in val_ids else "train"
         buckets[f"{prefix}_head"].append(windows.head)
         buckets[f"{prefix}_eeg"].append(windows.eeg)
         buckets[f"{prefix}_present"].append(windows.eeg_present)
@@ -623,11 +629,22 @@ def build_multimodal_training_arrays(
         raise InsufficientTrainingDataError(
             "No usable multimodal training windows were assembled"
         )
-    if eeg_sessions < min_eeg_sessions:
+    train_eeg_sessions = len(eeg_sessions_by_split["train"])
+    val_eeg_sessions = len(eeg_sessions_by_split["val"])
+    eeg_sessions = len(
+        eeg_sessions_by_split["train"] | eeg_sessions_by_split["val"]
+    )
+    if train_eeg_sessions < min_eeg_sessions:
         raise InsufficientTrainingDataError(
-            f"Multimodal training requires at least {min_eeg_sessions} approved "
-            f"EEG sessions with valid_ratio >= {min_eeg_valid_ratio:.2f}; "
-            f"found {eeg_sessions}"
+            f"Multimodal training requires at least {min_eeg_sessions} unique "
+            f"approved EEG sessions in the training split with valid_ratio >= "
+            f"{min_eeg_valid_ratio:.2f}; found {train_eeg_sessions}"
+        )
+    if val_eeg_sessions < min_validation_eeg_sessions:
+        raise InsufficientTrainingDataError(
+            f"Multimodal validation requires at least "
+            f"{min_validation_eeg_sessions} unique approved EEG session in the "
+            f"participant-disjoint validation split; found {val_eeg_sessions}"
         )
 
     def concatenate(name: str, prefix: str) -> np.ndarray:
@@ -670,4 +687,6 @@ def build_multimodal_training_arrays(
         train_video_ids=[str(item) for item in ids if item in train_ids],
         val_video_ids=[str(item) for item in ids if item in val_ids],
         eeg_session_count=eeg_sessions,
+        eeg_train_session_count=train_eeg_sessions,
+        eeg_val_session_count=val_eeg_sessions,
     )

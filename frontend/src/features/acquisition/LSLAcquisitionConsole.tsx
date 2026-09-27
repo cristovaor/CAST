@@ -47,7 +47,12 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
       await agent('/health');
       const discovery = await agent<{ streams: LSLStream[] }>('/discovery');
       setStreams(discovery.streams);
-      setSelected(discovery.streams.filter((stream) => stream.type.toUpperCase() === 'EEG').slice(0, 1).map((stream) => stream.uid || stream.source_id));
+      const eeg = discovery.streams.filter((stream) => stream.type.toUpperCase() === 'EEG').slice(0, 1);
+      const synchronized = discovery.streams.filter((stream) => {
+        const token = `${stream.name} ${stream.type}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return token.includes('heartrate') || token.includes('rrinterval') || token.includes('marker');
+      });
+      setSelected([...new Set([...eeg, ...synchronized].map((stream) => stream.uid || stream.source_id))]);
       setPhase('ready');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível parear o agente.');
@@ -71,15 +76,21 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
       });
       await apiClient.post(`/lsl-recordings/${recording.id}/started`, started);
       setRecordingId(recording.id); setPhase('recording');
+      await emitMarker('recording_start');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Falha ao iniciar LSL.');
     }
   };
 
-  const marker = async () => {
+  const emitMarker = async (label: string) => {
     await agent('/marker', {
       method: 'POST',
-      body: JSON.stringify({ client_event_id: crypto.randomUUID(), label: 'CAST marker', source_time_us: Math.round(performance.now() * 1000) }),
+      body: JSON.stringify({
+        client_event_id: crypto.randomUUID(),
+        label,
+        source_time_us: Math.round(performance.now() * 1000),
+        source_clock_id: 'browser-performance',
+      }),
     });
   };
 
@@ -87,6 +98,7 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
     if (!recordingId) return;
     setError(null);
     try {
+      await emitMarker('recording_end');
       const completed = await agent<{ checksum_sha256: string; size_bytes: number; ended_source_time_us: number }>('/stop', { method: 'POST' });
       await apiClient.post(`/lsl-recordings/${recordingId}/complete`, completed);
       setPhase('processing');
@@ -130,7 +142,7 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
           {phase === 'idle' && <ActionButton variant="secondary" onClick={pair} disabled={!token}><Activity size={15} />Parear e descobrir</ActionButton>}
           {phase === 'pairing' && <ActionButton variant="secondary" disabled><Loader2 size={15} className="animate-spin" />Descobrindo</ActionButton>}
           {phase === 'ready' && <ActionButton variant="primary" onClick={start} disabled={selected.length === 0}><Radio size={15} />Iniciar LSL</ActionButton>}
-          {phase === 'recording' && <><ActionButton variant="secondary" onClick={marker}>Marker</ActionButton><ActionButton variant="danger" onClick={stop}><Square size={14} fill="currentColor" />Parar</ActionButton></>}
+          {phase === 'recording' && <><ActionButton variant="secondary" onClick={() => emitMarker('manual_marker')}>Marker</ActionButton><ActionButton variant="danger" onClick={stop}><Square size={14} fill="currentColor" />Parar</ActionButton></>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

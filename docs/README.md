@@ -1,75 +1,71 @@
-# CAST Pro — Cognitive Analysis System — Pacote de Especificações por Fase
+# Documentação do CAST
 
-**Data:** 2026-06-13  
-**Objetivo:** transformar o protótipo científico/Streamlit do CAST em uma plataforma profissional com backend Python/FastAPI, frontend React, pipeline ML replicável, governança LGPD e operação produtiva.
+Este diretório reúne especificações de produto e ciência, contratos técnicos,
+runbooks operacionais e o registro de evolução do CAST. A implementação atual
+é uma plataforma multimodal; os documentos V6 continuam disponíveis como base
+histórica, não como visão geral da versão em produção.
 
-## Diagnóstico executivo
+**Última revisão do índice:** 2026-08-20.
 
-O sistema é viável como produto técnico e científico, desde que o posicionamento inicial seja conservador: **análise de microações faciais em sessões de aprendizagem multimídia**, e não diagnóstico definitivo de carga cognitiva. A dissertação sustenta uma prova de conceito, mas aponta necessidade de coleta maior, mais padronizada e validação mais rigorosa.
+## Por onde começar
 
-## Estrutura do pacote
+| Necessidade | Documento canônico |
+|---|---|
+| Estado da expansão multimodal | [`09_multimodal_expansion/00_INDEX.md`](09_multimodal_expansion/00_INDEX.md) |
+| Arquitetura e decisões | [`00_overview/02_architecture_decision_record.md`](00_overview/02_architecture_decision_record.md) |
+| Contrato do Multimodal V8 | [`03_model_validation/05_multimodal_v8_spec.md`](03_model_validation/05_multimodal_v8_spec.md) |
+| Pilha científica EEG | [`04_backend/eeg_analysis_v2.md`](04_backend/eeg_analysis_v2.md) |
+| Endpoints multimodais | [`04_backend/multimodal_endpoints.md`](04_backend/multimodal_endpoints.md) |
+| Evolução do frontend | [`05_frontend/multimodal_evolution.md`](05_frontend/multimodal_evolution.md) |
+| Execução local | [`../README.md`](../README.md) |
+| Deploy EasyPanel | [`deployment/DEPLOY_EASYPANEL.md`](deployment/DEPLOY_EASYPANEL.md) |
+| Backlog e riscos | [`08_backlog_tests/pendencias_e_melhorias.md`](08_backlog_tests/pendencias_e_melhorias.md) |
 
-```text
-cast_artifacts_phases/
-  00_overview/
-  01_data_governance/
-  02_dataset_annotation/
-  03_model_validation/
-  04_backend/
-  05_frontend/
-  06_infra_operations/
-  07_product_rollout/
-  08_backlog_tests/
-  09_multimodal_expansion/
-  references/
-```
+## Organização
 
-## Ordem recomendada de execução
+| Diretório | Conteúdo |
+|---|---|
+| `00_overview/` | charter, escopo, não objetivos e decisões arquiteturais |
+| `01_data_governance/` | coleta, consentimento, retenção e LGPD |
+| `02_dataset_annotation/` | schema de dataset e protocolo/ferramenta de anotação |
+| `03_model_validation/` | replicação, avaliação, estatística, registry, V7 e V8 |
+| `04_backend/` | API, banco, pipeline, OpenAPI e análise EEG |
+| `05_frontend/` | requisitos, design system, fluxos e interface multimodal |
+| `06_infra_operations/` | execução, observabilidade, segurança e CI/CD |
+| `07_product_rollout/` | métricas, LMS, roadmap e critérios de aceite |
+| `08_backlog_tests/` | épicos, estratégia de testes, riscos e pendências |
+| `09_multimodal_expansion/` | planos executáveis e gates de validação multimodal |
+| `cast_v6_model_specs/` | especificação histórica e compatibilidade do modelo V6 |
+| `deployment/` | runbooks específicos de ambiente |
+| `references/` | fontes e bases documentais |
 
-| Fase | Entrega | Critério de saída |
-|---|---|---|
-| 0 | Escopo, arquitetura alvo e decisões | MVP definido, não objetivos explícitos, riscos aceitos |
-| 1 | Coleta, consentimento, retenção e LGPD | Coleta padronizada e juridicamente defensável |
-| 2 | Dataset e anotação | Ground truth confiável com dupla anotação |
-| 3 | Modelo e validação | Replicação metodológica, métricas e registry |
-| 4 | Backend | API, banco, workers e pipeline assíncrono |
-| 5 | Frontend | React profissional, dashboards e anotação |
-| 6 | Infra/operação | Deploy, observabilidade, segurança e CI/CD |
-| 7 | Produto/rollout | KPIs, LMS, roadmap e go-to-market técnico |
-| 8 | Backlog/testes | Épicos, critérios de aceite e QA |
-| 9 | Expansão multimodal | Aquisição, Face Landmarker, LSL/EEG, contexto, Explorer, gaze e pupila com gates |
+O inventário das especificações canônicas está em [`MANIFEST.json`](MANIFEST.json).
 
-## Decisões críticas
+## Estado técnico atual
 
-1. Não armazenar frames extraídos por padrão; frames só em modo debug com expiração curta.
-2. Tratar vídeo facial, landmarks e metadados como dados pessoais de alto risco operacional.
-3. Versionar tudo: dataset, anotação, modelo, pipeline, thresholds, relatórios e consentimentos.
-4. Separar inferência de microações de inferência educacional. Microação não é automaticamente carga cognitiva.
-5. Começar com validação offline antes de vender análise em tempo real.
+- Aquisição ao vivo, Face Landmarker v2, contexto experimental, Explorer,
+  gaze e pupillometria têm implementação integrada atrás de flags de recurso.
+- LSL/XDF e validações científicas dependentes de hardware permanecem em
+  revisão até existirem ensaios com equipamentos e arquivos golden reais.
+- EEG Analysis V2 roda em worker isolado e usa wheels internos verificados por
+  SHA-256. Artefatos vazios preservam schema e geram avisos auditáveis.
+- A coativação EEG × microações usa a série completa, sincronização aprovada,
+  pares evento/baseline pré-evento e FDR de Benjamini–Hochberg; eventos humanos
+  e previstos são reportados separadamente.
+- O Multimodal V8 mantém cabeça como modalidade obrigatória e EEG como ramo
+  opcional na inferência, sujeito a qualidade, sincronização e gates de
+  promoção.
 
-## Artefatos principais
+O status detalhado e suas evidências vivem exclusivamente em
+[`09_multimodal_expansion/00_INDEX.md`](09_multimodal_expansion/00_INDEX.md).
 
-- `01_data_governance/01_data_collection_protocol.md`
-- `01_data_governance/02_lgpd_governance_spec.md`
-- `02_dataset_annotation/02_annotation_protocol.md`
-- `03_model_validation/01_model_replication_spec_cast.md`
-- `03_model_validation/02_evaluation_protocol.md`
-- `04_backend/02_api_contract_openapi.md`
-- `04_backend/openapi.yaml`
-- `04_backend/03_database_schema_spec.md`
-- `04_backend/schema.sql`
-- `05_frontend/02_frontend_design_system.md`
-- `06_infra_operations/01_deployment_runbook.md`
-- `07_product_rollout/03_roadmap_by_sprints.md`
-- `09_multimodal_expansion/00_INDEX.md`
+## Princípios de documentação
 
-## Próximo passo recomendado
-
-Antes de implementar novas telas, executar uma sprint de documentação operacional:
-
-```text
-Semana 1: protocolo de coleta + consentimento + schema inicial
-Semana 2: anotação + API + banco
-Semana 3: pipeline ML offline + validação
-Semana 4: frontend MVP + deploy staging
-```
+1. Diferenciar comportamento implementado, experimento pendente e proposta.
+2. Não apresentar EEG, gaze, pupila ou saídas de modelo como diagnóstico ou
+   evidência causal.
+3. Registrar versão, checksum, unidade, origem, qualidade e transformação dos
+   artefatos científicos.
+4. Manter exemplos de portas e variáveis coerentes com o Compose e com
+   `app/core/config.py`.
+5. Atualizar `MANIFEST.json` quando uma especificação canônica for adicionada.

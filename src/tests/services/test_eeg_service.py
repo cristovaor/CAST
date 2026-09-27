@@ -1,4 +1,4 @@
-from app.services.eeg_service import parse_eeg, format_from_filename
+from app.services.eeg_service import compute_hrv_summary, parse_eeg, format_from_filename
 
 
 def _csv_bytes(rows: list[dict]) -> bytes:
@@ -52,7 +52,7 @@ def test_parse_eeg_csv_flags_noisy_channel_from_artifacts():
     # Most Fp2 samples exceed the 150 uV artifact threshold.
     rows = []
     for i, t in enumerate(range(0, 4000, 250)):
-        rows.append({"timestamp_ms": t, "Fp2": 500.0 if i % 4 != 0 else 10.0})
+        rows.append({"timestamp_ms": t, "Fp2": 500.0 if i % 2 else -500.0})
     data = _csv_bytes(rows)
     report = parse_eeg(data, "recording.csv")
 
@@ -76,3 +76,27 @@ def test_parse_eeg_csv_approves_clean_signal():
     assert report["quality_verdict"] == "approved"
     assert report["quality_findings"] == []
     assert report["valid_ratio"] == 1.0
+
+
+def test_parse_eeg_quality_removes_dc_offset_before_thresholding():
+    rows = [
+        {"timestamp_ms": t, "Fp1": 12_000.0 + (i % 5)}
+        for i, t in enumerate(range(0, 4000, 50))
+    ]
+    report = parse_eeg(_csv_bytes(rows), "offset.csv")
+
+    assert report["channel_quality"][0]["status"] == "good"
+    assert report["channel_quality"][0]["valid_ratio"] == 1.0
+    assert "Offset DC removido" in report["channel_quality"][0]["notes"]
+
+
+def test_compute_hrv_summary_filters_implausible_rr_and_computes_time_domain_metrics():
+    summary = compute_hrv_summary([1000.0, 900.0, 1100.0, 250.0, 2500.0])
+
+    assert summary["total_intervals"] == 5
+    assert summary["valid_intervals"] == 3
+    assert summary["excluded_intervals"] == 2
+    assert summary["mean_hr_bpm"] == 60.0
+    assert summary["sdnn_ms"] == 100.0
+    assert summary["rmssd_ms"] > 0
+    assert summary["pnn50_pct"] == 100.0
