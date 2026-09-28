@@ -4,6 +4,7 @@ import json
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from sqlalchemy import case
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -494,7 +495,12 @@ def get_annotation_context(
     artifact = (
         db.query(LandmarkArtifact)
         .filter(LandmarkArtifact.video_asset_id == video_id)
-        .order_by(LandmarkArtifact.created_at.desc())
+        # Keep a usable overlay while a newer extraction is running or failed.
+        # This matches the ready-artifact selection in /landmarks.
+        .order_by(
+            case((LandmarkArtifact.status == "ready", 0), else_=1),
+            LandmarkArtifact.created_at.desc(),
+        )
         .first()
     )
     prediction = (
