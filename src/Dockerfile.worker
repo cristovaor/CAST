@@ -10,10 +10,27 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
+# Multi-GB downloads over slow links: wait longer per read and retry instead of
+# failing the whole build on one stalled connection.
+ENV PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10
+
 COPY requirements.txt .
 
+# CPU-only PyTorch first, from PyTorch's CPU index. Resolved from PyPI,
+# `torch>=2.1.0` pulls the CUDA build plus several GB of nvidia-* wheels that a
+# host without a GPU never uses. Once this is installed, requirements.txt
+# treats torch as already satisfied.
+#
+# The BuildKit cache mount keeps downloaded wheels between builds, so a build
+# interrupted by a network timeout resumes instead of starting over; nothing
+# from the cache ends up in the image.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install torch==2.7.1+cpu --index-url https://download.pytorch.org/whl/cpu
+
 # Install ALL dependencies including ML
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
 # Worker/test-only columnar runtime. Kept out of Dockerfile.api so the
 # production API image does not carry MediaPipe/Parquet dependencies.
