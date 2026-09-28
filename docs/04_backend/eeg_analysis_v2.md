@@ -53,9 +53,13 @@ Celery `eeg` e inicia com concorrência 1. O worker padrão consome somente
 
 O PyTorch transitivo usado pelo `pgmpy` é instalado pelo índice CPU oficial,
 na versão fixada em `requirements-eeg.txt`; imagens CUDA não fazem parte do
-worker. O `pgmpy` é instalado sem dependências transitivas opcionais de
-XGBoost/APIs generativas, que não participam do caminho HC usado pelo MDMP;
-o smoke test científico valida esse runtime reduzido.
+worker. O `pgmpy` é instalado com `--no-deps`, com suas dependências
+explicitadas no runtime EEG. O `pgmpy 0.1.26` importa
+`google.generativeai` e `xgboost` ao carregar estimadores, incluindo HC;
+por isso o worker inclui `google-generativeai==0.8.5` e
+`xgboost-cpu==2.1.4`, sem usar essas rotinas no cálculo MDMP. O build importa
+`HillClimbSearch` e executa topomapas e MDMP reais no smoke científico, para
+impedir imagens que apenas importam o pacote mas não conseguem calcular redes.
 
 Recursos iniciais recomendados:
 
@@ -160,6 +164,56 @@ Falhas tardias preservam artefatos válidos e produzem estado `partial`.
 Downloads públicos usam URL assinada e nunca expõem a URI interna do MinIO.
 
 ## Perfil científico
+
+### Etapas individuais e motivos de indisponibilidade
+
+O workflow `individual-derived-v1` conecta as rotinas já presentes no wheel
+ao worker, sem modificar a distribuição científica. O plano implementado é:
+
+1. Persistir pré-processamento, potência e séries temporais.
+2. Gerar topomapas da potência por canal, agrupados por banda e estado.
+3. Gerar MDMP a partir do CSV temporal completo, preservando nós
+   `ROI::banda` ou `canal::banda`, como no estudo.
+4. Publicar estado e motivo de etapas desativadas, excluídas ou com falha.
+5. Reservar estatística pareada para o estudo, com ROIs e desenho explícito.
+
+Sem `parameters.stages`, a análise individual solicita `preprocess`, `power`,
+`timeseries`, `topomaps`, `stats` e `mdmp`. Uma lista explícita seleciona as
+etapas; `topomaps` inclui automaticamente `power` e `mdmp` inclui
+`timeseries`. Etapas desconhecidas e listas vazias são rejeitadas pela API.
+O pré-processamento continua controlado pela seleção explícita de etapas.
+
+Topomapas usam `parameters.power_metric` (`absolute_power`, padrão, ou
+`relative_power`). MDMP usa a potência absoluta temporal calculada pelo wheel
+e exige pelo menos dez observações completas e dois nós. A geração de mapas
+exige pelo menos três canais posicionados na montagem configurada.
+
+A estatística individual publica um `stats-json` vazio com `status=skipped`
+e motivo: uma única sessão não fornece pares independentes para a rotina de
+estudo. Essa ausência esperada não torna o run parcial. No estudo, ausência
+de desenho ou de potência por ROI também publica um envelope com motivo;
+contrastes com dados insuficientes preservam as exclusões científicas. Sessões
+repetidas de um participante na mesma condição são agregadas antes do teste,
+para não inflar o número de pares; contrastes não pareados são rejeitados.
+Estimativas não finitas (como normalidade com apenas dois pares ou efeito com
+variância nula) são apresentadas pela API como `null`, mantendo o resultado
+legível em JSON.
+
+Falhas em topografia ou MDMP individual não impedem a tentativa da outra
+etapa. Elas são registradas em `step_status`, nos logs e no envelope vazio,
+e tornam o run parcial; cancelamento e limite de tempo continuam propagando.
+O manifesto final inclui as etapas derivadas produzidas e a versão do workflow.
+
+A versão do workflow participa do hash de execução, evitando reutilizar runs
+anteriores sem essas saídas. Runs antigos permanecem consultáveis. Após
+atualizar API, worker EEG e frontend, execute uma nova análise para gerar os
+novos artefatos. A interface espera o processamento terminar antes de buscar
+resultados, apresenta os motivos de ausência e diferencia erros de leitura.
+
+Regressões: `test_eeg_individual_derived.py` cobre consumo do CSV completo,
+preservação de canais/ROIs e bandas, falha isolada, exclusões, dependências
+e cancelamento. `EEGAnalysisWorkspace.test.tsx` cobre explicações e a escolha
+de uma rede de estudo válida após sujeitos excluídos.
 
 O perfil padrão é genérico. `pyp_eeg_v2` é um preset explícito que reproduz
 os valores originais do projeto, mas nunca é aplicado silenciosamente.

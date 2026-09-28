@@ -28,8 +28,11 @@ RUN cd /opt/cast-wheelhouse \
     --find-links=/opt/cast-wheelhouse \
     mdmp==0.6.2 \
     cast-pyp-eeg==2.0.1+cast.4074a2a \
-    && python -c "import cast_pyp_eeg, mdmp; assert cast_pyp_eeg.__version__ == '2.0.1+cast.4074a2a'; assert mdmp.__version__ == '0.6.2'"
+    && python -c "import cast_pyp_eeg, mdmp; from pgmpy.estimators import HillClimbSearch; assert cast_pyp_eeg.__version__ == '2.0.1+cast.4074a2a'; assert mdmp.__version__ == '0.6.2'"
 
 COPY . .
+
+# Exercise actual estimators, not only lightweight package imports.
+RUN python vendor/cast_pyp_eeg/tests/smoke_pipeline.py
 
 CMD ["celery", "-A", "app.workers.celery_app", "worker", "-l", "info", "-Q", "eeg", "--concurrency=1", "-n", "eeg@%h"]

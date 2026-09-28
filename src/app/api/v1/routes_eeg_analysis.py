@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import gzip
 import json
+import math
 import mimetypes
 import uuid
 from datetime import datetime
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.api.ownership import get_eeg, get_participant, get_study
 from app.core.config import settings
+from app.core.eeg_analysis import EEG_ANALYSIS_WORKFLOW_VERSION
 from app.db.models import (
     EEGAnalysisArtifact,
     EEGAnalysisRun,
@@ -60,6 +62,17 @@ RESULT_KINDS = {
 }
 
 
+def _finite_result(value: Any) -> Any:
+    """JSON has no NaN/Infinity; keep undefined scientific estimates as null."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: _finite_result(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_finite_result(item) for item in value]
+    return value
+
+
 def _enabled() -> None:
     if not settings.EEG_ANALYSIS_V2_ENABLED:
         raise HTTPException(status_code=404, detail="EEG analysis v2 is disabled")
@@ -98,6 +111,7 @@ def _input_hash(
             "pipeline": pipeline,
             "parameters": parameters,
             "method": "cast-pyp-eeg:2.0.1+cast.4074a2a",
+            "workflow": EEG_ANALYSIS_WORKFLOW_VERSION,
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -674,4 +688,4 @@ def get_eeg_analysis_result(
         run_id=str(run.id),
         result_type=result_type,
     )
-    return JSONResponse(payload)
+    return JSONResponse(_finite_result(payload))
