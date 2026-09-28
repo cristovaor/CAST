@@ -141,11 +141,15 @@ def _extract_landmarks(
     if config.get("extractor") == "mediapipe_face_landmarker_v2":
         from app.domains.face.landmarker_v2 import FaceLandmarkerV2
 
-        return FaceLandmarkerV2(
+        landmarker = FaceLandmarkerV2(
             str(config["model_path"]),
             expected_sha256=str(config["model_checksum"]),
             min_confidence=float(config.get("min_detection_confidence", 0.5)),
-        ).extract_from_video(video_path, video_id)
+        )
+        tasks_python = os.environ.get("MEDIAPIPE_TASKS_PYTHON", "/opt/mediapipe-tasks/bin/python")
+        if os.path.exists(tasks_python):
+            return landmarker.extract_isolated(tasks_python, video_path, video_id)
+        return landmarker.extract_from_video(video_path, video_id)
     legacy_python = os.environ.get(
         "MEDIAPIPE_PYTHON",
         "/opt/mediapipe-legacy/bin/python",

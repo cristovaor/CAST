@@ -392,6 +392,7 @@ def materialize_lsl_recording(db: Session, recording_id: UUID) -> LSLRecording:
                         size_bytes=xdf_path.stat().st_size,
                         checksum_sha256=checksum,
                         is_primary=False,
+                        verified_at=datetime.utcnow(),
                     )
                 )
 
