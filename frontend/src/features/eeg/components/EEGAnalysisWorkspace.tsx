@@ -11,6 +11,7 @@ import {
 import { ChartFrame } from '@/components/charts/ChartFrame';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
+import { ApiError } from '@/lib/api';
 import { ToneBadge } from '@/components/ui/ToneBadge';
 import { useProcessingJobStream } from '@/features/jobs/useProcessingJobStream';
 import {
@@ -181,6 +182,11 @@ export function EEGAnalysisWorkspace({
               <PipelineStep label="Artefatos" value={pipelineSummary.ica} />
               <PipelineStep label="Saída" value="FIF + métricas" />
             </div>
+            <p className="mt-3 text-xs text-text-muted">
+              {eegId
+                ? 'Inclui topomapas e MDMP quando os dados atendem aos requisitos. A estatística pareada é realizada na análise do estudo, com ROIs e condições comparáveis.'
+                : 'A estatística requer ROIs e contrastes ou pares de condições em study_design. Topomapas e MDMP são calculados quando há canais posicionados e observações suficientes.'}
+            </p>
 
             <details className="mt-3 rounded-lg border border-border bg-surface p-3">
               <summary className="cursor-pointer text-xs font-medium text-text-secondary">
@@ -339,13 +345,14 @@ function EEGRunResult({ tab, run, eegId, onSelectTab }: {
   eegId?: string;
   onSelectTab: (tab: Tab) => void;
 }) {
-  const artifactsQuery = useEEGAnalysisArtifacts(run.id);
-  const preprocessing = useEEGAnalysisResult(run.id, 'preprocessing');
-  const power = useEEGAnalysisResult(run.id, 'power');
-  const timeseries = useEEGAnalysisResult(run.id, 'timeseries');
-  const stats = useEEGAnalysisResult(run.id, 'stats');
-  const topomaps = useEEGAnalysisResult(run.id, 'topomaps');
-  const mdmp = useEEGAnalysisResult(run.id, 'mdmp');
+  const ready = !['queued', 'running'].includes(run.status);
+  const artifactsQuery = useEEGAnalysisArtifacts(run.id, ready);
+  const preprocessing = useEEGAnalysisResult(run.id, 'preprocessing', ready);
+  const power = useEEGAnalysisResult(run.id, 'power', ready);
+  const timeseries = useEEGAnalysisResult(run.id, 'timeseries', ready);
+  const stats = useEEGAnalysisResult(run.id, 'stats', ready);
+  const topomaps = useEEGAnalysisResult(run.id, 'topomaps', ready);
+  const mdmp = useEEGAnalysisResult(run.id, 'mdmp', ready);
 
   if (['queued', 'running'].includes(run.status)) {
     return <ResultState title="Análise em processamento" description="Os artefatos aparecerão conforme cada etapa for persistida." loading />;
@@ -366,7 +373,7 @@ function EEGRunResult({ tab, run, eegId, onSelectTab }: {
   if (tab === 'Espectro e bandas') return <PowerResult query={power} run={run} footer={provenance} />;
   if (tab === 'Séries temporais') return <TimeseriesResult query={timeseries} run={run} footer={provenance} />;
   if (tab === 'Topografia') {
-    return <ArtifactResult query={topomaps} run={run} artifacts={artifacts} kind="topomap-png" title="Topomapas científicos" footer={provenance} />;
+    return <ArtifactResult query={{ ...topomaps, isLoading: topomaps.isLoading || artifactsQuery.isLoading, isError: topomaps.isError || artifactsQuery.isError, error: topomaps.error ?? artifactsQuery.error }} run={run} artifacts={artifacts} kind="topomap-png" title="Topomapas científicos" footer={provenance} />;
   }
   if (tab === 'Estatística') return <StatsResult query={stats} run={run} footer={provenance} />;
   if (tab === 'MDMP') return <MDMPResult query={mdmp} run={run} artifacts={artifacts} footer={provenance} />;
@@ -638,7 +645,7 @@ function QualityStage({ title, subtitle, snapshot, tone }: {
   );
 }
 
-type ResultQuery = { data?: EEGResultEnvelope; isLoading: boolean; isError: boolean };
+type ResultQuery = { data?: EEGResultEnvelope; isLoading: boolean; isError: boolean; error?: Error | null };
 
 export function PowerResult({ query, run, footer }: { query: ResultQuery; run: EEGAnalysisRun; footer: React.ReactNode }) {
   const [selectedBand, setSelectedBand] = useState('');
@@ -791,9 +798,9 @@ export function TimeseriesResult({ query, run, footer }: { query: ResultQuery; r
   );
 }
 
-function StatsResult({ query, run, footer }: { query: ResultQuery; run: EEGAnalysisRun; footer: React.ReactNode }) {
+export function StatsResult({ query, run, footer }: { query: ResultQuery; run: EEGAnalysisRun; footer: React.ReactNode }) {
   const rows = query.data?.results ?? [];
-  if (!rows.length) return <QueryState query={query} run={run} title="Estatística incompatível ou ausente" />;
+  if (!rows.length) return <QueryState query={query} run={run} resultType="stats" title="Estatística não disponível" />;
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded-xl border border-border bg-surface">
@@ -825,7 +832,7 @@ function ArtifactResult({ query, run, artifacts, kind, title, footer }: {
   kind: string; title: string; footer: React.ReactNode;
 }) {
   const matching = artifacts.filter((artifact) => artifact.kind === kind);
-  if (!matching.length) return <QueryState query={query} run={run} title={`${title} indisponíveis`} />;
+  if (!matching.length) return <QueryState query={query} run={run} resultType="topomaps" title={`${title} indisponíveis`} />;
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-surface p-4">
@@ -840,15 +847,15 @@ function ArtifactResult({ query, run, artifacts, kind, title, footer }: {
   );
 }
 
-function MDMPResult({ query, run, artifacts, footer }: {
+export function MDMPResult({ query, run, artifacts, footer }: {
   query: ResultQuery; run: EEGAnalysisRun; artifacts: EEGAnalysisArtifact[]; footer: React.ReactNode;
 }) {
   const network = query.data?.nodes?.length
     ? query.data
-    : query.data?.networks?.find((item) => Array.isArray(item.nodes));
+    : query.data?.networks?.find((item) => Array.isArray(item.nodes) && item.nodes.length > 0);
   const nodes = (network?.nodes ?? []) as { id: string; label: string }[];
   const edges = (network?.edges ?? []) as { source: string; target: string; directed: boolean }[];
-  if (!nodes.length) return <QueryState query={query} run={run} title="MDMP incompatível ou indisponível" />;
+  if (!nodes.length) return <QueryState query={query} run={run} resultType="mdmp" title="MDMP não disponível" />;
   const positions = new Map(nodes.map((node, index) => {
     const angle = (index / nodes.length) * Math.PI * 2 - Math.PI / 2;
     return [node.id, { x: 200 + Math.cos(angle) * 135, y: 180 + Math.sin(angle) * 125 }] as const;
@@ -915,9 +922,40 @@ function RunProvenance({ run, artifacts }: { run: EEGAnalysisRun; artifacts: EEG
   );
 }
 
-function QueryState({ query, run, title }: { query: ResultQuery; run: EEGAnalysisRun; title: string }) {
+export function QueryState({ query, run, title, resultType }: { query: ResultQuery; run: EEGAnalysisRun; title: string; resultType?: 'stats' | 'topomaps' | 'mdmp' }) {
   if (query.isLoading) return <ResultState title="Carregando resultado" description="Lendo o artefato versionado e seus metadados." loading />;
-  return <ResultState title={title} description={run.status === 'partial' ? 'A execução terminou parcialmente; consulte as ressalvas e os artefatos válidos.' : 'Esta etapa não produziu um artefato compatível com os dados e parâmetros atuais.'} error={query.isError} />;
+  const unavailable = query.error instanceof ApiError && query.error.status === 409;
+  const readError = query.isError && !unavailable;
+  const step = resultType ? run.step_status?.[resultType] : undefined;
+  const warnings = query.data?.warnings ?? [];
+  const legacyIndividual = run.scope_type === 'session' && resultType && !step && !query.data;
+  const description = readError
+    ? 'Não foi possível carregar o resultado. Verifique a conexão e tente novamente.'
+    : query.data?.reason || step?.message || warnings.join(' ') || (legacyIndividual
+      ? resultType === 'stats'
+        ? 'A estatística pareada requer uma análise de estudo com ROIs, condições comparáveis e pelo menos dois pares válidos.'
+        : 'Esta execução não gerou esta etapa. Execute uma nova análise para calcular topomapas e MDMP.'
+      : resultType === 'topomaps'
+        ? 'Nenhum topomapa foi gerado. Verifique a montagem e pelo menos três canais com posições reconhecidas.'
+        : resultType === 'mdmp'
+          ? 'Nenhuma rede MDMP foi gerada. São necessárias séries temporais válidas, pelo menos dez observações completas e dois nós.'
+          : resultType === 'stats'
+            ? 'Nenhuma comparação foi gerada. Configure ROIs e contrastes ou pares de condições no estudo, com pelo menos dois pares válidos.'
+            : run.error_message || 'Esta etapa não produziu resultados. Consulte os avisos da execução.');
+  const additionalWarnings = query.data?.reason ? warnings.filter((warning) => warning !== query.data?.reason) : [];
+  return <div className="space-y-3">
+    <ResultState title={title} description={explainEEGWarning(description)} error={readError || step?.status === 'failed' || query.data?.status === 'failed'} />
+    {additionalWarnings.length > 0 && <ul className="list-inside list-disc text-xs text-text-muted">{additionalWarnings.map((warning, index) => <li key={index}>{explainEEGWarning(warning)}</li>)}</ul>}
+  </div>;
+}
+
+function explainEEGWarning(message: string): string {
+  return message
+    .replace('MDMP omitted: requires at least ten complete observations and two nodes', 'MDMP omitido: são necessárias pelo menos dez observações completas e dois nós.')
+    .replace(/topomap omitted for (.+?): fewer than three positioned channels/g, 'Topomapa omitido em $1: menos de três canais com posições reconhecidas na montagem.')
+    .replace('topomap generation omitted:', 'Geração de topomapas omitida:')
+    .replace(/contrast (.+?) omitted: fewer than two pairs/g, 'Contraste $1 omitido: menos de dois pares válidos.')
+    .replace(/contrast (.+?) omitted: factor column absent/g, 'Contraste $1 omitido: a coluna da condição comparada está ausente.');
 }
 
 function ResultState({ title, description, loading, error }: { title: string; description: string; loading?: boolean; error?: boolean }) {

@@ -1,9 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EEGAnalysisRun, EEGSignalQualitySnapshot } from '../useEEG';
-import { ChannelQualityExplorer, PowerResult, ResearchQuestionNavigator, TimeseriesResult } from './EEGAnalysisWorkspace';
+import { ApiError } from '@/lib/api';
+import { ChannelQualityExplorer, MDMPResult, PowerResult, QueryState, ResearchQuestionNavigator, StatsResult, TimeseriesResult } from './EEGAnalysisWorkspace';
 
 const run = { id: 'run-123', profile: 'custom', package_version: '2.0' } as EEGAnalysisRun;
+
+afterEach(cleanup);
 
 function snapshot(offset = 0): EEGSignalQualitySnapshot {
   return {
@@ -27,6 +30,55 @@ describe('ResearchQuestionNavigator', () => {
     expect(screen.getByRole('heading', { name: 'O sinal é aproveitável?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /próxima/i }));
     expect(onChange).toHaveBeenCalledWith('Espectro e bandas');
+  });
+});
+
+describe('Unavailable EEG results', () => {
+  const individualRun = { ...run, status: 'succeeded', scope_type: 'session', step_status: {} } as EEGAnalysisRun;
+
+  it('explains why individual paired statistics are not applicable', () => {
+    render(<StatsResult query={{ isLoading: false, isError: false, data: {
+      schema: 'eeg-result-v1', results: [], reason: 'Uma única sessão não fornece pares independentes.',
+    } }} run={individualRun} footer={null} />);
+    expect(screen.getByText('Uma única sessão não fornece pares independentes.')).toBeInTheDocument();
+    expect(screen.queryByText(/dados e parâmetros atuais/)).not.toBeInTheDocument();
+  });
+
+  it('shows the recorded stage failure', () => {
+    render(<QueryState title="Topomapas indisponíveis" resultType="topomaps" query={{ isLoading: false, isError: false }} run={{
+      ...individualRun, step_status: { topomaps: { status: 'failed', message: 'Montagem sem posições disponíveis.' } },
+    }} />);
+    expect(screen.getByText('Montagem sem posições disponíveis.')).toBeInTheDocument();
+  });
+
+  it('explains that an old individual run needs a new analysis', () => {
+    render(<QueryState title="MDMP não disponível" resultType="mdmp" query={{ isLoading: false, isError: true, error: new ApiError('unavailable', 409) }} run={individualRun} />);
+    expect(screen.getByText(/Execute uma nova análise/)).toBeInTheDocument();
+    expect(screen.queryByText(/Verifique a conexão/)).not.toBeInTheDocument();
+  });
+
+  it('distinguishes network failures from absent scientific results', () => {
+    render(<QueryState title="MDMP não disponível" resultType="mdmp" query={{ isLoading: false, isError: true, error: new ApiError('server error', 500) }} run={individualRun} />);
+    expect(screen.getByText(/Verifique a conexão/)).toBeInTheDocument();
+    expect(screen.queryByText(/Execute uma nova análise/)).not.toBeInTheDocument();
+  });
+
+  it('displays scientific exclusions from the envelope', () => {
+    render(<QueryState title="MDMP não disponível" resultType="mdmp" query={{ isLoading: false, isError: false, data: {
+      schema: 'eeg-result-v1', warnings: ['MDMP omitted: requires at least ten complete observations and two nodes'],
+    } }} run={individualRun} />);
+    expect(screen.getByText(/dez observações completas e dois nós/)).toBeInTheDocument();
+  });
+
+  it('finds a valid study network after an excluded subject', () => {
+    render(<MDMPResult query={{ isLoading: false, isError: false, data: {
+      schema: 'eeg-result-v1', networks: [
+        { nodes: [], warnings: ['insufficient data'] },
+        { nodes: [{ id: 'Fp1::alpha', label: 'Fp1::alpha' }, { id: 'Fp2::alpha', label: 'Fp2::alpha' }], edges: [], sample_count: 30 },
+      ],
+    } }} run={individualRun} artifacts={[]} footer={null} />);
+    expect(screen.getByRole('img', { name: 'Rede direcionada MDMP' })).toBeInTheDocument();
+    expect(screen.getByText('Fp1::alpha')).toBeInTheDocument();
   });
 });
 

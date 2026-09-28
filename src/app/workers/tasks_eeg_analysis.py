@@ -15,6 +15,8 @@ from typing import Any
 
 from celery.exceptions import SoftTimeLimitExceeded
 
+from app.core.eeg_analysis import EEG_ANALYSIS_WORKFLOW_VERSION, individual_stages
+
 from app.db.models import (
     EEGAnalysisArtifact,
     EEGAnalysisRun,
@@ -384,17 +386,22 @@ def _write_study_results(
 
 
 def _run_individual(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> None:
-    from cast_pyp_eeg import run_pipeline
+    from cast_pyp_eeg import compute_mdmp, compute_topomaps, run_pipeline
 
     asset = run.eeg_asset
     _stage(db, run, job, "download_inputs", 8)
     primary = _download_asset(asset, root)
     config = _analysis_config(run.profile, run.parameters or {})
-    stages = tuple(
-        (run.parameters or {}).get("stages", ("preprocess", "power", "timeseries"))
-    )
+    stages = individual_stages(run.parameters or {})
     _stage(db, run, job, "scientific_pipeline", 18)
-    result = run_pipeline(primary, root / "output", config, stages=stages)
+    result = run_pipeline(
+        primary,
+        root / "output",
+        config,
+        stages=tuple(
+            stage for stage in stages if stage in {"preprocess", "power", "timeseries"}
+        ),
+    )
     total = max(1, sum(len(step.artifacts) for step in result.steps))
     stored = 0
     for step in result.steps:
@@ -410,13 +417,116 @@ def _run_individual(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path
         run.warnings = [*(run.warnings or []), *step.warnings]
         db.commit()
     manifest = root / "output" / "pipeline-result.json"
-    _store_artifact(
-        db,
-        run,
-        kind="pipeline-manifest",
-        path=manifest,
-        content_type="application/json",
+    manifest_payload = json.loads(manifest.read_text(encoding="utf-8"))
+
+    artifacts = {
+        artifact.kind: artifact for step in result.steps for artifact in step.artifacts
+    }
+    derived_root = root / "output" / "derived"
+    derived_root.mkdir(exist_ok=True)
+    metric = (run.parameters or {}).get("power_metric", "absolute_power")
+    if metric not in {"absolute_power", "relative_power"}:
+        raise ValueError("power_metric must be absolute_power or relative_power")
+
+    def topomaps():
+        frame = _read_csv_result(artifacts["power-csv"].path, POWER_CSV_COLUMNS)
+        frame = frame[frame["level"] == "channel"].copy()
+        if frame.empty:
+            return None
+        frame["value"] = frame[metric]
+        return compute_topomaps(
+            frame.to_dict("records"), derived_root / "topomaps",
+            group_columns=("band", "state"), config=config,
+        )
+
+    def mdmp():
+        frame = _read_csv_result(artifacts["timeseries-csv"].path, TIMESERIES_CSV_COLUMNS)
+        if frame.empty:
+            return None
+        # Match study networks: keep bands separate instead of averaging them.
+        frame["node"] = (
+            frame["roi"].where(frame["roi"].notna(), frame["channel"]).astype(str)
+            + "::" + frame["band"].astype(str)
+        )
+        return compute_mdmp(
+            frame.to_dict("records"), derived_root / "mdmp", node_column="node", config=config,
+        )
+
+    for name, compute, count_key, progress in (
+        ("topomaps", topomaps, "topomap_count", 92),
+        ("mdmp", mdmp, "node_count", 95),
+    ):
+        if name not in stages:
+            _omit_result(db, run, job, derived_root, name, "Etapa desativada nos parâmetros desta análise.")
+            continue
+        _stage(db, run, job, name, progress)
+        try:
+            derived = compute()
+        except (EEGAnalysisCanceled, SoftTimeLimitExceeded):
+            raise
+        except Exception as exc:
+            logger.exception("EEG %s failed for run %s", name, run.id)
+            _omit_result(db, run, job, derived_root, name, f"Falha na etapa {name}: {exc}", status="failed")
+            continue
+        if derived is None:
+            reason = (
+                "Topomapas omitidos: nenhuma potência válida por canal foi produzida."
+                if name == "topomaps"
+                else "MDMP omitido: nenhuma série temporal válida foi produzida."
+            )
+            _omit_result(db, run, job, derived_root, name, reason, warn=True)
+            continue
+        _store_result(db, run, derived)
+        manifest_payload["steps"].append(derived.to_dict())
+        run.warnings = [*(run.warnings or []), *derived.warnings]
+        count = derived.metrics.get(count_key, 0)
+        message = " ".join(derived.warnings) or (
+            "Nenhum resultado válido foi produzido." if not count else ""
+        )
+        _result_step(db, run, job, name, "succeeded" if count else "skipped", message)
+
+    _omit_result(
+        db, run, job, derived_root, "stats",
+        "A estatística pareada requer uma análise de estudo com ROIs, contrastes ou pares de condições e pelo menos dois pares válidos. Uma única sessão não fornece pares independentes."
+        if "stats" in stages else "Etapa desativada nos parâmetros desta análise.",
     )
+    manifest_payload["provenance"].update({
+        "workflow_version": EEG_ANALYSIS_WORKFLOW_VERSION, "stages": list(stages),
+    })
+    manifest_payload["step_status"] = run.step_status
+    manifest_payload["warnings"] = run.warnings or []
+    manifest.write_text(json.dumps(manifest_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    _store_artifact(db, run, kind="pipeline-manifest", path=manifest, content_type="application/json")
+
+
+def _result_step(
+    db: Any, run: EEGAnalysisRun, job: ProcessingJob,
+    name: str, status: str, message: str = "",
+) -> None:
+    run.step_status = {
+        **(run.step_status or {}),
+        name: {"status": status, "message": message, "at": datetime.utcnow().isoformat()},
+    }
+    _log(job, message or f"{name}: {status}", "warning" if status == "failed" else "info")
+    db.commit()
+
+
+def _omit_result(
+    db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path,
+    name: str, reason: str, *, status: str = "skipped", warn: bool = False,
+) -> None:
+    field = {"stats": "results", "topomaps": "topomaps", "mdmp": "networks"}[name]
+    path = root / f"{name}-unavailable.json"
+    path.write_text(json.dumps({
+        "schema": "eeg-result-v1", field: [], "status": status, "reason": reason,
+        "warnings": [reason],
+        "provenance": {"workflow_version": EEG_ANALYSIS_WORKFLOW_VERSION, "scope": run.scope_type},
+    }, ensure_ascii=False), encoding="utf-8")
+    kind = "topomaps-json" if name == "topomaps" else f"{name}-json"
+    _store_artifact(db, run, kind=kind, path=path, content_type="application/json")
+    if warn or status == "failed":
+        run.warnings = [*(run.warnings or []), reason]
+    _result_step(db, run, job, name, status, reason)
 
 
 def _study_design(parameters: dict[str, Any]) -> Any:
@@ -434,6 +544,14 @@ def _study_design(parameters: dict[str, Any]) -> Any:
         session_pairs=tuple(tuple(item) for item in payload.get("session_pairs", ())),
         contrasts=contrasts,
     )
+
+
+def _paired_study_rows(frame: Any, design: Any) -> list[dict[str, Any]]:
+    """One estimate per subject/condition: repeated sessions are not extra pairs."""
+    factors = [contrast.factor for contrast in design.contrasts] or [design.condition_column]
+    keys = list(dict.fromkeys([design.subject_column, "band", "roi", *factors]))
+    keys = [key for key in keys if key in frame.columns]
+    return frame.groupby(keys, dropna=False, as_index=False)["value"].mean().to_dict("records")
 
 
 def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> None:
@@ -560,21 +678,32 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
         (run.parameters or {}).get("power_metric", "absolute_power")
     ]
     design = _study_design(run.parameters or {})
-    if design.contrasts or design.session_pairs:
-        stats_result = compute_paired_stats(
-            roi_frame.to_dict("records"),
-            study_output / "stats",
-            design,
-            dimensions=("band", "roi"),
-            config=config,
-        )
-        _store_result(db, run, stats_result)
-        run.warnings = [*(run.warnings or []), *stats_result.warnings]
+    if (design.contrasts or design.session_pairs) and not roi_frame.empty:
+        try:
+            stats_result = compute_paired_stats(
+                _paired_study_rows(roi_frame, design),
+                study_output / "stats", design, dimensions=("band", "roi"), config=config,
+            )
+        except (EEGAnalysisCanceled, SoftTimeLimitExceeded):
+            raise
+        except Exception as exc:
+            logger.exception("EEG study statistics failed for run %s", run.id)
+            _omit_result(db, run, job, study_output, "stats", f"Falha na estatística do estudo: {exc}", status="failed")
+        else:
+            _store_result(db, run, stats_result)
+            run.warnings = [*(run.warnings or []), *stats_result.warnings]
+            _result_step(
+                db, run, job, "stats",
+                "succeeded" if stats_result.metrics.get("comparison_count") else "skipped",
+                " ".join(stats_result.warnings),
+            )
     else:
-        run.warnings = [
-            *(run.warnings or []),
-            "paired statistics omitted: no contrasts configured in study_design",
-        ]
+        reason = (
+            "Estatística omitida: configure contrastes ou pares de condições em study_design."
+            if not (design.contrasts or design.session_pairs)
+            else "Estatística omitida: nenhuma potência válida por ROI. Configure ROIs compatíveis com os canais do EEG."
+        )
+        _omit_result(db, run, job, study_output, "stats", reason, warn=True)
     _stage(db, run, job, "study_topomaps", 77)
     channel_frame = power_frame[power_frame["level"] == "channel"].copy()
     channel_frame["value"] = channel_frame[
@@ -588,6 +717,11 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
     )
     _store_result(db, run, topomaps)
     run.warnings = [*(run.warnings or []), *topomaps.warnings]
+    _result_step(
+        db, run, job, "topomaps",
+        "succeeded" if topomaps.metrics.get("topomap_count") else "skipped",
+        " ".join(topomaps.warnings),
+    )
     if timeseries_frame.empty:
         run.warnings = [
             *(run.warnings or []),
@@ -613,6 +747,7 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
         _store_artifact(
             db, run, kind="mdmp-json", path=summary_path, content_type="application/json"
         )
+        _result_step(db, run, job, "mdmp", "skipped", "MDMP omitido: o estudo não produziu séries temporais válidas.")
         return
     _stage(db, run, job, "mdmp_individual_networks", 84)
     timeseries_frame["node"] = (
@@ -631,6 +766,8 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
                 node_column="node",
                 config=config,
             )
+        except (EEGAnalysisCanceled, SoftTimeLimitExceeded):
+            raise
         except Exception as exc:
             run.warnings = [
                 *(run.warnings or []),
@@ -678,6 +815,8 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
                 node_column="node",
                 config=config,
             )
+        except (EEGAnalysisCanceled, SoftTimeLimitExceeded):
+            raise
         except Exception as exc:
             run.warnings = [
                 *(run.warnings or []),
@@ -716,6 +855,15 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
             }
         )
         run.warnings = [*(run.warnings or []), *result.warnings]
+    valid_networks = [item for item in mdmp_summaries if item.get("nodes")]
+    mdmp_warnings = [
+        str(warning) for warning in (run.warnings or [])
+        if str(warning).startswith("MDMP")
+    ]
+    reason = "" if valid_networks else " ".join(mdmp_warnings) or (
+        "MDMP omitido: nenhuma rede válida. São necessárias pelo menos "
+        "dez observações completas e dois nós."
+    )
     summary_path = study_output / "mdmp-summary.json"
     summary_path.write_text(
         json.dumps(
@@ -724,6 +872,9 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
                 "networks": mdmp_summaries,
                 "scope": "study",
                 "method": "individual-and-virtual-typical-subject",
+                "status": "succeeded" if valid_networks else "skipped",
+                "reason": reason,
+                "warnings": mdmp_warnings,
             },
             ensure_ascii=False,
             indent=2,
@@ -733,6 +884,7 @@ def _run_study(db: Any, run: EEGAnalysisRun, job: ProcessingJob, root: Path) -> 
     _store_artifact(
         db, run, kind="mdmp-json", path=summary_path, content_type="application/json"
     )
+    _result_step(db, run, job, "mdmp", "succeeded" if valid_networks else "skipped", reason)
 
 
 def process_eeg_analysis(run_id: str) -> dict[str, Any]:

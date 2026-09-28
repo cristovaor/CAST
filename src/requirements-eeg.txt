@@ -16,10 +16,13 @@ seaborn==0.13.2
 torch==2.7.1+cpu
 scikit-learn==1.6.1
 networkx==3.4.2
-# pgmpy is installed with --no-deps in Dockerfile.eeg-worker. Its HC path
-# needs the scientific stack above, PyTorch CPU, statsmodels/joblib from the
-# API/scikit-learn requirements, and opt-einsum; optional LLM/XGBoost
-# integrations are deliberately absent from the EEG worker.
+# pgmpy 0.1.26 imports these modules unconditionally when loading its
+# estimators, including HillClimbSearch. They must exist even though MDMP
+# does not call an LLM or XGBoost. Use the CPU distribution to avoid CUDA.
+google-generativeai==0.8.5
+xgboost-cpu==2.1.4
+# Install pgmpy itself with --no-deps to keep its xgboost dependency from
+# pulling the GPU-enabled distribution. The remaining imports are below.
 opt-einsum==3.4.0
 tqdm==4.67.1
 pyedflib==0.1.40

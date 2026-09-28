@@ -198,6 +198,8 @@ export interface EEGAnalysisArtifact {
 
 export interface EEGResultEnvelope {
   schema: 'eeg-result-v1';
+  status?: string;
+  reason?: string;
   units?: Record<string, string>;
   provenance?: Record<string, unknown>;
   power?: Record<string, unknown>[];
@@ -315,26 +317,27 @@ export function useCreateStudyEEGAnalysisRun(studyId?: string) {
   });
 }
 
-export function useEEGAnalysisArtifacts(runId?: string) {
+export function useEEGAnalysisArtifacts(runId?: string, enabled = true) {
   return useQuery<EEGAnalysisArtifact[]>({
     queryKey: ['eeg-analysis-artifacts', runId],
     queryFn: () => apiClient.get<EEGAnalysisArtifact[]>(
       `/eeg/analysis-runs/${runId}/artifacts`,
     ),
-    enabled: !!runId,
+    enabled: !!runId && enabled,
   });
 }
 
 export function useEEGAnalysisResult(
   runId: string | undefined,
   resultType: 'preprocessing' | 'power' | 'timeseries' | 'stats' | 'topomaps' | 'mdmp',
+  enabled = true,
 ) {
   return useQuery<EEGResultEnvelope>({
     queryKey: ['eeg-analysis-result', runId, resultType],
     queryFn: () => apiClient.get<EEGResultEnvelope>(
       `/eeg/analysis-runs/${runId}/results/${resultType}`,
     ),
-    enabled: !!runId,
+    enabled: !!runId && enabled,
     retry: false,
   });
 }

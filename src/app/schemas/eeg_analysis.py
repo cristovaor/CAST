@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.eeg_analysis import individual_stages
+
 
 class EEGUploadFileInit(BaseModel):
     filename: str = Field(min_length=1, max_length=255)
@@ -44,6 +46,22 @@ class EEGAnalysisRunCreate(BaseModel):
     pipeline: Literal["individual", "study", "mdmp", "multimodal"] = "individual"
     parameters: dict[str, Any] = Field(default_factory=dict)
     reuse_completed: bool = True
+
+    @model_validator(mode="after")
+    def validate_stages(self):
+        if "stages" in self.parameters:
+            individual_stages(self.parameters)
+        if self.parameters.get("power_metric", "absolute_power") not in {"absolute_power", "relative_power"}:
+            raise ValueError("power_metric must be absolute_power or relative_power")
+        design = self.parameters.get("study_design", {})
+        if not isinstance(design, dict):
+            raise ValueError("study_design must be an object")
+        contrasts = design.get("contrasts", [])
+        if not isinstance(contrasts, list) or not all(isinstance(item, dict) for item in contrasts):
+            raise ValueError("study_design.contrasts must be a list of objects")
+        if any(item.get("paired", True) is not True for item in contrasts):
+            raise ValueError("Only paired contrasts are supported by the current study statistics")
+        return self
 
 
 class EEGArtifactDetail(BaseModel):
