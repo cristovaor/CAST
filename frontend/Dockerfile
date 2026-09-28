@@ -31,7 +31,10 @@ ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY \
 
 RUN npm run build
 
-FROM nginx:alpine
+# Unprivileged variant: runs as the nginx user (uid 101) with its pid and temp
+# dirs under /tmp. The stock nginx image starts as root and chowns
+# /var/cache/nginx/*, which fails under the compose's `cap_drop: ALL`.
+FROM nginxinc/nginx-unprivileged:1.27.5-alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
