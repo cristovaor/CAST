@@ -257,6 +257,9 @@ const studies = {
     settings: {
       title: 'Configurações do estudo',
       subtitle: 'Governança, retenção e responsáveis.',
+      dangerTitle: 'Zona de perigo',
+      dangerBody: 'Excluir o estudo apaga permanentemente participantes, sessões, vídeos, EEG, anotações e arquivos armazenados.',
+      delete: 'Excluir estudo',
     },
   },
   variables: {

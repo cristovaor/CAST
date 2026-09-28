@@ -247,6 +247,8 @@ const participants = {
     history: 'Ver histórico',
     historyShort: 'Histórico',
     historyOf: 'Histórico de {{code}}',
+    delete: 'Excluir participante',
+    deleteShort: 'Excluir',
     copy: 'Copiar código',
     copyCode: 'Copiar código {{code}}',
     copied: 'Código copiado',

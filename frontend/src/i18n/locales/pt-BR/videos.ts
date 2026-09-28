@@ -45,6 +45,7 @@ const videos = {
     inference: 'Inferência',
     running: 'Rodando...',
     annotate: 'Anotar',
+    delete: 'Excluir vídeo',
     kpis: {
       events: { label: 'Total de eventos', description: 'Microações detectadas no vídeo' },
       perMinute: { label: 'Eventos por min', description: 'Taxa média de ocorrência' },

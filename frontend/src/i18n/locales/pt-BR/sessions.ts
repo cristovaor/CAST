@@ -156,6 +156,7 @@ const sessions = {
     condition: 'Condição: {{value}}',
     conditionMissing: 'Não informada',
     back: 'Sessões',
+    delete: 'Excluir sessão',
     optionalModality: 'Modalidade opcional — não coletada nesta sessão.',
     video: {
       title: 'Vídeo',

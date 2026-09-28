@@ -20,11 +20,13 @@ import {
   LineChart,
   Database,
   Layers,
+  ScrollText,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useSidebarStore } from '@/app/stores/useSidebarStore';
 import { useLogout, useMe } from '@/features/auth/useAuth';
+import { useOrganizationSettings } from '@/features/settings/useSettings';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { roleLabel } from '@/lib/formatters';
 import type { ptBR } from '@/i18n/locales/pt-BR';
@@ -39,6 +41,8 @@ interface NavItem {
   path: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   badge?: number;
+  /** Hidden from non-admin users. */
+  adminOnly?: boolean;
 }
 
 interface NavGroup {
@@ -88,6 +92,7 @@ const NAV_GROUPS: NavGroup[] = [
     key: 'governance',
     items: [
       { key: 'governance',   path: '/app/governance',   icon: ShieldCheck },
+      { key: 'audit',        path: '/app/audit',        icon: ScrollText, adminOnly: true },
       { key: 'settings',     path: '/app/settings',     icon: Settings },
     ],
   },
@@ -108,6 +113,9 @@ export function Sidebar() {
   const { isCollapsed, toggle } = useSidebarStore();
   const navigate = useNavigate();
   const { data: user } = useMe();
+  const { data: organization } = useOrganizationSettings();
+  const organizationLabel =
+    organization?.display_name || organization?.name || user?.organization?.name || '—';
   const logout = useLogout();
 
   const handleLogout = () => {
@@ -169,7 +177,7 @@ export function Sidebar() {
             )}
 
             {/* Items */}
-            {group.items.map((item) => (
+            {group.items.filter((item) => !item.adminOnly || user?.role === 'admin').map((item) => (
               <SidebarItem
                 key={item.path}
                 item={item}
@@ -190,7 +198,7 @@ export function Sidebar() {
                 <Building2 size={11} className="text-[#64748B]" />
               </div>
               <span className="text-[11px] text-[#64748B] truncate font-medium">
-                {user?.organization?.name ?? '—'}
+                {organizationLabel}
               </span>
             </div>
 

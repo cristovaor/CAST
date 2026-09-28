@@ -5,10 +5,22 @@ import type { User } from '@/types/domain';
 export interface OrganizationSettings {
   id: string;
   name: string;
+  display_name: string | null;
+  institution: string | null;
+  contact_email: string | null;
+  timezone: string;
+  default_locale: 'pt-BR' | 'en';
   plan: string;
   max_storage_gb: number;
   used_storage_gb: number;
 }
+
+export type OrganizationSettingsUpdate = Partial<
+  Pick<
+    OrganizationSettings,
+    'name' | 'display_name' | 'institution' | 'contact_email' | 'timezone' | 'default_locale'
+  >
+>;
 
 export interface PipelineSettings {
   face_detection_threshold: number;
@@ -20,6 +32,18 @@ export function useOrganizationSettings() {
   return useQuery<OrganizationSettings>({
     queryKey: ['settings', 'organization'],
     queryFn: () => apiClient.get<OrganizationSettings>('/settings/organization'),
+  });
+}
+
+export function useUpdateOrganizationSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: OrganizationSettingsUpdate) =>
+      apiClient.patch<OrganizationSettings>('/settings/organization', payload),
+    onSuccess: (organization) => {
+      queryClient.setQueryData(['settings', 'organization'], organization);
+      void queryClient.invalidateQueries({ queryKey: ['audit'] });
+    },
   });
 }
 

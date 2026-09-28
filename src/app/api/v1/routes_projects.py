@@ -1,7 +1,7 @@
 import csv
 import io
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -14,6 +14,9 @@ from app.db.models import (
     VideoAsset, QualityVerdict, StudyStatus,
 )
 from app.api.deps import get_db, get_current_user
+from app.api.deletion import deletion_impact, perform_deletion
+from app.core.permissions import require_admin
+from app.schemas.deletion import DeletionImpact, DeletionRequest
 from app.services.audit_service import build_changes, record_audit
 from app.db.models import AuditAction
 
@@ -180,12 +183,7 @@ def update_project(
     return _build_project_details(db, [db_obj])[0]
 
 
-@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(
-    project_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+def _owned_project(db: Session, current_user: User, project_id: UUID) -> ProjectModel:
     db_obj = (
         db.query(ProjectModel)
         .filter(
@@ -196,14 +194,42 @@ def delete_project(
     )
     if not db_obj:
         raise HTTPException(status_code=404, detail="Project not found")
-    if db.query(Study.id).filter(Study.project_id == project_id).first():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Project has studies and cannot be deleted; archive it instead",
-        )
+    return db_obj
 
-    db.delete(db_obj)
-    db.commit()
+
+@router.get("/{project_id}/deletion-impact", response_model=DeletionImpact)
+def get_project_deletion_impact(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    db_obj = _owned_project(db, current_user, project_id)
+    return deletion_impact(
+        db, "project", db_obj.id, label=db_obj.name, confirmation_phrase=db_obj.name
+    )
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: UUID,
+    payload: DeletionRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Permanently deletes the project with its studies, participants,
+    sessions, videos and derived data."""
+    db_obj = _owned_project(db, current_user, project_id)
+    perform_deletion(
+        db,
+        current_user,
+        "project",
+        db_obj.id,
+        payload,
+        background_tasks,
+        label=db_obj.name,
+        confirmation_phrase=db_obj.name,
+    )
     return None
 
 

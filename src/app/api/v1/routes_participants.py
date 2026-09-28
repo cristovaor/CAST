@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from datetime import UTC, datetime
@@ -26,6 +26,9 @@ from app.db.session import SessionLocal
 router = APIRouter(prefix="/participants", tags=["participants"])
 
 from app.api.deps import get_db, get_current_user
+from app.api.deletion import deletion_impact, perform_deletion, short_id
+from app.core.permissions import require_admin, require_researcher
+from app.schemas.deletion import DeletionImpact, DeletionRequest
 from app.api.ownership import (
     get_participant,
     get_study,
@@ -368,3 +371,42 @@ def request_deletion(
     db.commit()
     
     return {"message": "Deletion request accepted and processing"}
+
+
+@router.get("/{participant_id}/deletion-impact", response_model=DeletionImpact)
+def get_participant_deletion_impact(
+    participant_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    participant = get_participant(db, current_user, participant_id)
+    return deletion_impact(
+        db,
+        "participant",
+        participant.id,
+        label=participant.external_code or short_id(participant.id),
+        confirmation_phrase=participant.external_code or short_id(participant.id),
+    )
+
+
+@router.delete("/{participant_id}", status_code=204)
+def delete_participant(
+    participant_id: UUID,
+    payload: DeletionRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Permanently erases the participant and all of their sessions and recordings."""
+    participant = get_participant(db, current_user, participant_id)
+    perform_deletion(
+        db,
+        current_user,
+        "participant",
+        participant.id,
+        payload,
+        background_tasks,
+        label=participant.external_code or short_id(participant.id),
+        confirmation_phrase=participant.external_code or short_id(participant.id),
+    )
+    return None

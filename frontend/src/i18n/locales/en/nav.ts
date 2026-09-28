@@ -24,7 +24,7 @@ const nav = {
     models: 'Models',
     reports: 'Reports',
     governance: 'Governance',
-    audit: 'Audit',
+    audit: 'Logs & audit',
     settings: 'Administration',
   },
   keywords: {
@@ -35,7 +35,7 @@ const nav = {
     annotations: 'labelling labels',
     models: 'lstm training inference',
     governance: 'lgpd privacy consent',
-    audit: 'logs trail',
+    audit: 'logs trail api requests deletions access',
     settings: 'settings users',
   },
   breadcrumbs: {
@@ -48,7 +48,7 @@ const nav = {
     models: 'Models',
     annotations: 'Annotations',
     reports: 'Reports',
-    audit: 'Audit',
+    audit: 'Logs & audit',
     settings: 'Administration',
     analysis: 'Analyses',
     new: 'New',

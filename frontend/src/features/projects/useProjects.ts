@@ -68,19 +68,6 @@ export function useArchiveProject() {
   });
 }
 
-export function useDeleteProject() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => apiClient.delete<void>(`/projects/${id}`),
-    onSuccess: (_, id) => {
-      queryClient.removeQueries({ queryKey: ['projects', id] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success(i18n.t('projects:toasts.deleted'));
-    },
-  });
-}
-
 export function useExportProject() {
   return useMutation({
     mutationFn: async (projectId: string) => {

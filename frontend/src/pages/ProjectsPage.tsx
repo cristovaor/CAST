@@ -11,16 +11,16 @@ import { DataTable, type ColumnDef } from '@/components/data-display/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { QualityBadge } from '@/components/ui/QualityBadge';
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { cn, scoreToQuality } from '@/lib/utils';
 import { formatRelativeTime, formatNumber, statusLabel } from '@/lib/formatters';
 import {
   useArchiveProject,
-  useDeleteProject,
   useProjects,
 } from '@/features/projects/useProjects';
 import { CreateProjectDialog } from '@/features/projects/CreateProjectDialog';
 import { EditProjectDialog } from '@/features/projects/EditProjectDialog';
+import { DeleteEntityDialog } from '@/features/deletion/DeleteEntityDialog';
+import { useMe } from '@/features/auth/useAuth';
 import type { Project, StudyStatus, ViewMode } from '@/types/domain';
 
 // ─── Filter types ─────────────────────────────────────────────
@@ -131,7 +131,7 @@ export function ProjectsPage() {
 
   const { data: projects = [], isLoading } = useProjects();
   const archiveProject = useArchiveProject();
-  const deleteProject = useDeleteProject();
+  const isAdmin = useMe().data?.role === 'admin';
 
   // Filter projects
   const filtered = projects.filter((p) => {
@@ -287,14 +287,13 @@ export function ProjectsPage() {
                       onClick: () => archiveProject.mutate(row.id),
                     }]
                   : []),
-                {
-                  label: t('actions.delete'),
-                  onClick: () => {
-                    deleteProject.reset();
-                    setProjectToDelete(row);
-                  },
-                  destructive: true,
-                },
+                ...(isAdmin
+                  ? [{
+                      label: t('actions.delete'),
+                      onClick: () => setProjectToDelete(row),
+                      destructive: true,
+                    }]
+                  : []),
               ]}
               emptyState={
                 <EmptyState variant="no-results" title={t('empty.table')} />
@@ -319,34 +318,16 @@ export function ProjectsPage() {
         onOpenChange={setCreateProjectOpen}
       />
 
-      <ConfirmDialog
-        open={projectToDelete !== null}
-        onClose={() => {
-          if (!deleteProject.isPending) setProjectToDelete(null);
-        }}
-        onConfirm={() => {
-          if (!projectToDelete) return;
-          deleteProject.mutate(projectToDelete.id, {
-            onSuccess: () => setProjectToDelete(null),
-          });
-        }}
-        title={t('deleteDialog.title')}
-        description={
-          <>
-            <span>
-              {t('deleteDialog.body', { name: projectToDelete?.name ?? '' })}
-            </span>
-            {deleteProject.isError && (
-              <span className="block mt-2 text-red-600 dark:text-red-400" role="alert">
-                {(deleteProject.error as Error).message}
-              </span>
-            )}
-          </>
-        }
-        confirmLabel={t('deleteDialog.confirm')}
-        destructive
-        isLoading={deleteProject.isPending}
-      />
+      {projectToDelete && (
+        <DeleteEntityDialog
+          entityType="project"
+          entityId={projectToDelete.id}
+          open
+          onOpenChange={(open) => {
+            if (!open) setProjectToDelete(null);
+          }}
+        />
+      )}
     </div>
   );
 }

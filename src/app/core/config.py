@@ -75,6 +75,18 @@ class Settings(BaseSettings):
     EEG_UPLOAD_MAX_FILES: int = 256
     EEG_UPLOAD_MAX_TOTAL_BYTES: int = 50 * 1024 * 1024 * 1024
 
+    # Per-minute request budgets, counted in Redis (REDIS_URL) per signed-in
+    # user, or per client IP for anonymous calls. Auth is always per IP.
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_AUTH_PER_MINUTE: int = 10
+    RATE_LIMIT_DELETE_PER_MINUTE: int = 30
+    RATE_LIMIT_WRITE_PER_MINUTE: int = 300
+    RATE_LIMIT_READ_PER_MINUTE: int = 1200
+
+    # Operational log of writes and denied requests (Logs page).
+    REQUEST_LOG_ENABLED: bool = True
+    REQUEST_LOG_RETENTION_DAYS: int = 180
+
     # Comma-separated list of browser origins allowed to call the API, e.g.
     # "https://cast.crlabs.com.br". Empty keeps the permissive local default;
     # it must be set in production, where "*" would let any site drive the API

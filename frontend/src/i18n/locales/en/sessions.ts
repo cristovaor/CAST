@@ -159,6 +159,7 @@ const sessions = {
     condition: 'Condition: {{value}}',
     conditionMissing: 'Not provided',
     back: 'Sessions',
+    delete: 'Delete session',
     optionalModality: 'Optional modality — not collected in this session.',
     video: {
       title: 'Video',
