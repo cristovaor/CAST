@@ -3,8 +3,10 @@ import { useLocale } from '@/i18n/useLocale';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Video, Activity, Flag, ClipboardList, Waypoints, Cpu, PenLine,
-  ArrowLeft, ArrowRight, Clock, User, FlaskConical, ShieldCheck,
+  ArrowLeft, ArrowRight, Clock, User, FlaskConical, ShieldCheck, Trash2,
 } from 'lucide-react';
+import { DeleteEntityDialog } from '@/features/deletion/DeleteEntityDialog';
+import { useMe } from '@/features/auth/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ToneBadge } from '@/components/ui/ToneBadge';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
@@ -52,6 +54,8 @@ export function SessionDetailPage() {
   const locale = useLocale();
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const role = useMe().data?.role;
+  const canDelete = role === 'admin' || role === 'researcher';
   const sessionQuery = useSessionDetail(sessionId);
   const { data: session } = sessionQuery;
 
@@ -151,9 +155,23 @@ export function SessionDetailPage() {
           </>
         }
         actions={
-          <Link to="/app/sessions" className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary">
-            <ArrowLeft size={15} aria-hidden="true" /> {t('detail.back')}
-          </Link>
+          <>
+            {canDelete && sessionId && (
+              <DeleteEntityDialog
+                entityType="session"
+                entityId={sessionId}
+                onDeleted={() => navigate('/app/sessions', { replace: true })}
+              >
+                <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-surface border border-red-200 rounded-lg hover:bg-red-50 transition-colors dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40">
+                  <Trash2 size={14} aria-hidden="true" />
+                  {t('detail.delete')}
+                </button>
+              </DeleteEntityDialog>
+            )}
+            <Link to="/app/sessions" className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary">
+              <ArrowLeft size={15} aria-hidden="true" /> {t('detail.back')}
+            </Link>
+          </>
         }
       />
 

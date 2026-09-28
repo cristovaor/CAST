@@ -2,11 +2,19 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.deps import get_current_user
+from app.core.rate_limit import RateLimitMiddleware
+from app.core.request_log import RequestLogMiddleware
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+# Starlette wraps the last-added middleware outermost. Adding these before CORS
+# keeps CORS outermost, so a 429 still carries the CORS headers the browser
+# needs to read it; the request log sits outside the limiter to record 429s.
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RequestLogMiddleware)
 
 # "*" with allow_credentials is rejected by browsers anyway, and would let any
 # site drive the API with a logged-in user's token. In production the allowed

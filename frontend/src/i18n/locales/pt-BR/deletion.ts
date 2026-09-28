@@ -1,0 +1,50 @@
+const deletion = {
+  trigger: 'Excluir',
+  title: {
+    project: 'Excluir projeto',
+    study: 'Excluir estudo',
+    participant: 'Excluir participante',
+    session: 'Excluir sessão',
+    video: 'Excluir vídeo',
+  },
+  warning:
+    'A exclusão é permanente: os registros e os arquivos armazenados serão apagados e não podem ser recuperados. A ação fica registrada na trilha de auditoria.',
+  impactTitle: 'O que será excluído',
+  impactLoading: 'Calculando o impacto…',
+  impactError: 'Não foi possível calcular o impacto: {{message}}',
+  storageObjects_one: '{{count}} arquivo no armazenamento',
+  storageObjects_other: '{{count}} arquivos no armazenamento',
+  otherRecords_one: '{{count}} outro registro derivado',
+  otherRecords_other: '{{count}} outros registros derivados',
+  detached_one: '{{count}} registro será mantido sem o vínculo (ex.: relatórios do estudo)',
+  detached_other: '{{count}} registros serão mantidos sem o vínculo (ex.: relatórios do estudo)',
+  activeJobs_one:
+    'Há {{count}} processamento na fila ou em execução. Cancele-o ou aguarde a conclusão antes de excluir.',
+  activeJobs_other:
+    'Há {{count}} processamentos na fila ou em execução. Cancele-os ou aguarde a conclusão antes de excluir.',
+  tables: {
+    projects: 'Projeto',
+    studies: 'Estudos',
+    participants: 'Participantes',
+    sessions: 'Sessões',
+    video_assets: 'Vídeos',
+    eeg_assets: 'Registros de EEG',
+    landmark_artifacts: 'Extrações de landmarks',
+    annotation_events: 'Anotações',
+    predictions: 'Predições',
+    processing_jobs: 'Processamentos',
+    analysis_reports: 'Relatórios',
+    consent_terms: 'Termos de consentimento',
+  },
+  justification: 'Justificativa',
+  justificationHint: 'Obrigatória (mín. 10 caracteres). Fica gravada na auditoria.',
+  justificationPlaceholder: 'Ex.: participante retirou o consentimento em 28/09/2026',
+  confirmLabel: 'Para confirmar, digite <code>{{phrase}}</code>',
+  confirm: 'Excluir permanentemente',
+  deleting: 'Excluindo…',
+  cancel: 'Cancelar',
+  success: '{{label}} foi excluído.',
+  noPermission: 'Somente administradores podem excluir este item.',
+};
+
+export default deletion;

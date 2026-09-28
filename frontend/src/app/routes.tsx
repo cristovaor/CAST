@@ -76,7 +76,7 @@ const ModelDetailPage = lazy(() => importWithReload(() => import("../pages/Model
 const ModelTrainingPage = page(() => import("../pages/ModelTrainingPage"), "ModelTrainingPage");
 const GlobalAnnotationsPage = page(() => import("../pages/GlobalAnnotationsPage"), "GlobalAnnotationsPage");
 const GlobalVideosPage = page(() => import("../pages/GlobalVideosPage"), "GlobalVideosPage");
-const AuditPage = page(() => import("../pages/AuditPage"), "AuditPage");
+const LogsAuditPage = page(() => import("../pages/LogsAuditPage"), "LogsAuditPage");
 const GlobalSessionsPage = page(() => import("../pages/GlobalSessionsPage"), "GlobalSessionsPage");
 const StudiesPage = page(() => import("../pages/StudiesPage"), "StudiesPage");
 // Multimodal additions
@@ -214,7 +214,7 @@ export const router = createBrowserRouter([
       { path: "reports", element: lazyRoute(<ReportsPage />) },
       // Governance & administration
       { path: "governance", element: lazyRoute(<GovernancePage />) },
-      { path: "audit", element: lazyRoute(<AuditPage />) },
+      { path: "audit", element: lazyRoute(<LogsAuditPage />) },
       { path: "settings", element: lazyRoute(<SettingsPage />) },
       // Unknown /app/* path: render 404 inside the shell so navigation survives.
       { path: "*", element: <NotFoundPage /> },

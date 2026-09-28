@@ -64,39 +64,39 @@ def test_update_and_archive_project(
 
 def test_delete_empty_project(
     client: TestClient,
-    normal_user_token_headers: dict,
+    superuser_token_headers: dict,
 ) -> None:
-    project = _create_project(client, normal_user_token_headers)
+    project = _create_project(client, superuser_token_headers)
 
-    response = client.delete(
+    response = client.request(
+        "DELETE",
         f"{settings.API_V1_STR}/projects/{project['id']}",
-        headers=normal_user_token_headers,
+        headers=superuser_token_headers,
+        json={"confirmation": project["name"], "justification": "Projeto criado por engano"},
     )
 
     assert response.status_code == 204
     get_response = client.get(
         f"{settings.API_V1_STR}/projects/{project['id']}",
-        headers=normal_user_token_headers,
+        headers=superuser_token_headers,
     )
     assert get_response.status_code == 404
 
 
-def test_delete_project_with_studies_requires_archive(
+def test_delete_project_requires_admin(
     client: TestClient,
     normal_user_token_headers: dict,
-    db,
 ) -> None:
     project = _create_project(client, normal_user_token_headers)
-    db.add(Study(project_id=UUID(project["id"]), name="Attached study", status="draft"))
-    db.commit()
 
-    response = client.delete(
+    response = client.request(
+        "DELETE",
         f"{settings.API_V1_STR}/projects/{project['id']}",
         headers=normal_user_token_headers,
+        json={"confirmation": project["name"], "justification": "Projeto criado por engano"},
     )
 
-    assert response.status_code == 409
-    assert "archive" in response.json()["detail"].lower()
+    assert response.status_code == 403
 
 
 def test_export_project_csv(
@@ -135,6 +135,7 @@ def test_export_project_csv(
 def test_project_mutations_are_scoped_to_current_organization(
     client: TestClient,
     normal_user_token_headers: dict,
+    superuser_token_headers: dict,
     db,
 ) -> None:
     other_user = create_random_user(db)
@@ -146,7 +147,12 @@ def test_project_mutations_are_scoped_to_current_organization(
         headers=normal_user_token_headers,
         json={"name": "Not allowed"},
     )
-    delete_response = client.delete(project_url, headers=normal_user_token_headers)
+    delete_response = client.request(
+        "DELETE",
+        project_url,
+        headers=superuser_token_headers,
+        json={"confirmation": foreign_project.name, "justification": "Tentativa entre organizações"},
+    )
     export_response = client.get(
         f"{project_url}/export",
         headers=normal_user_token_headers,

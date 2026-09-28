@@ -250,6 +250,8 @@ const participants = {
     history: 'View history',
     historyShort: 'History',
     historyOf: 'History of {{code}}',
+    delete: 'Delete participant',
+    deleteShort: 'Delete',
     copy: 'Copy code',
     copyCode: 'Copy code {{code}}',
     copied: 'Code copied',

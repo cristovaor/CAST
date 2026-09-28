@@ -152,4 +152,35 @@ class StorageService:
             print(f"Error deleting object: {e}")
             return False
 
+    def delete_objects(self, object_names: list[str]) -> int:
+        """Deletes keys in batches of 1000; returns how many failed."""
+        failed = 0
+        unique = sorted(set(object_names))
+        for start in range(0, len(unique), 1000):
+            batch = unique[start : start + 1000]
+            try:
+                response = self.s3.delete_objects(
+                    Bucket=self.bucket_name,
+                    Delete={"Objects": [{"Key": key} for key in batch], "Quiet": True},
+                )
+                failed += len(response.get("Errors", []))
+            except Exception as e:
+                print(f"Error deleting objects: {e}")
+                failed += len(batch)
+        return failed
+
+    def delete_prefix(self, prefix: str) -> int:
+        """Deletes every key under a prefix; returns how many failed."""
+        if not prefix or prefix == "/":
+            return 0
+        keys: list[str] = []
+        try:
+            paginator = self.s3.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
+                keys.extend(item["Key"] for item in page.get("Contents", []))
+        except Exception as e:
+            print(f"Error listing prefix {prefix}: {e}")
+            return 1
+        return self.delete_objects(keys)
+
 storage_service = StorageService()

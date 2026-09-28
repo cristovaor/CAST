@@ -3,9 +3,11 @@ import type { Translation } from '../../types';
 import acquisition from './acquisition';
 import analysis from './analysis';
 import annotations from './annotations';
+import audit from './audit';
 import auth from './auth';
 import common from './common';
 import dashboard from './dashboard';
+import deletion from './deletion';
 import domain from './domain';
 import nav from './nav';
 import participants from './participants';
@@ -21,9 +23,11 @@ export const en = {
   acquisition,
   analysis,
   annotations,
+  audit,
   auth,
   common,
   dashboard,
+  deletion,
   domain,
   nav,
   participants,

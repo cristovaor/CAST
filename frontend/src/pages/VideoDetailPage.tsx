@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { RotateCcw, PenLine, Info, FileDown, Download } from 'lucide-react';
+import { RotateCcw, PenLine, Info, FileDown, Download, Trash2 } from 'lucide-react';
+import { DeleteEntityDialog } from '@/features/deletion/DeleteEntityDialog';
+import { useMe } from '@/features/auth/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { QualityBadge } from '@/components/ui/QualityBadge';
@@ -94,6 +96,8 @@ export function VideoDetailPage() {
   const { t } = useTranslation('videos');
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
+  const role = useMe().data?.role;
+  const canDelete = role === 'admin' || role === 'researcher';
 
   const { data: videoAsset, isLoading: loadingVideo, isError: isVideoError } = useVideoDetails(videoId!);
   const { data: timelineData, isLoading: loadingTimeline, isError: isTimelineError } = useVideoTimeline(videoId!);
@@ -268,6 +272,18 @@ export function VideoDetailPage() {
               <PenLine size={13} aria-hidden="true" />
               {t('detail.annotate')}
             </button>
+            {canDelete && videoId && (
+              <DeleteEntityDialog
+                entityType="video"
+                entityId={videoId}
+                onDeleted={() => navigate('/app/videos', { replace: true })}
+              >
+                <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-surface border border-red-200 rounded-lg hover:bg-red-50 transition-colors dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40">
+                  <Trash2 size={13} aria-hidden="true" />
+                  {t('detail.delete')}
+                </button>
+              </DeleteEntityDialog>
+            )}
           </>
         }
       />

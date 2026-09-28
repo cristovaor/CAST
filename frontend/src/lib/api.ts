@@ -115,8 +115,9 @@ export const apiClient = {
   put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>('PUT', path, body, options),
 
-  delete: <T>(path: string, options?: RequestOptions) =>
-    request<T>('DELETE', path, undefined, options),
+  /** `body` carries the confirmation of the permanent-deletion endpoints. */
+  delete: <T>(path: string, options?: RequestOptions & { body?: unknown }) =>
+    request<T>('DELETE', path, options?.body, options),
 };
 
 export async function uploadApiForm<T>(path: string, formData: FormData): Promise<T> {

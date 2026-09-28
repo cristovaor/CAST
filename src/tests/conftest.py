@@ -6,7 +6,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.main import app
+from app.core.config import settings as app_settings
 from app.db.base import Base
+
+# Both middlewares talk to real infrastructure (Redis, the configured
+# Postgres); tests that exercise them opt back in explicitly.
+app_settings.RATE_LIMIT_ENABLED = False
+app_settings.REQUEST_LOG_ENABLED = False
 from app.api.deps import get_db
 from app.core.security import create_access_token
 from sqlalchemy.ext.compiler import compiles

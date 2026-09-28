@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
@@ -29,6 +29,9 @@ router = APIRouter(prefix="/studies", tags=["studies"])
 
 from app.api.deps import get_db, get_current_user
 from app.api.ownership import get_project, get_study as get_owned_study, studies_for_user
+from app.api.deletion import deletion_impact, perform_deletion, short_id
+from app.core.permissions import require_admin, require_researcher
+from app.schemas.deletion import DeletionImpact, DeletionRequest
 
 
 def _enrich_study_counts(db: Session, studies: List[StudyModel]) -> List[StudyModel]:
@@ -344,3 +347,42 @@ def export_study_data(
     response.headers["Content-Disposition"] = f"attachment; filename=export_study_{study_id}.csv"
     response.headers["Content-Type"] = "text/csv"
     return response
+
+
+@router.get("/{study_id}/deletion-impact", response_model=DeletionImpact)
+def get_study_deletion_impact(
+    study_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    study = get_owned_study(db, current_user, study_id)
+    return deletion_impact(
+        db,
+        "study",
+        study.id,
+        label=study.name,
+        confirmation_phrase=study.name,
+    )
+
+
+@router.delete("/{study_id}", status_code=204)
+def delete_study(
+    study_id: UUID,
+    payload: DeletionRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Permanently deletes the study with its participants, sessions, videos and derived data."""
+    study = get_owned_study(db, current_user, study_id)
+    perform_deletion(
+        db,
+        current_user,
+        "study",
+        study.id,
+        payload,
+        background_tasks,
+        label=study.name,
+        confirmation_phrase=study.name,
+    )
+    return None

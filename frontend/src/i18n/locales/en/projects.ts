@@ -37,11 +37,6 @@ const projects = {
     archive: 'Archive',
     delete: 'Delete',
   },
-  deleteDialog: {
-    title: 'Delete project',
-    body: 'This permanently deletes the project “{{name}}”. Projects that contain studies must be archived instead.',
-    confirm: 'Delete',
-  },
   detail: {
     loading: 'Loading project…',
     notFound: 'Project not found or unavailable.',
@@ -110,7 +105,6 @@ const projects = {
     created: 'Project created',
     updated: 'Project updated',
     archived: 'Project archived',
-    deleted: 'Project deleted',
     exportFailed: 'Project export failed',
     exported: 'Export complete',
     exportedDetail: 'The CSV download has started.',
