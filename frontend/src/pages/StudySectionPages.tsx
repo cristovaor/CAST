@@ -238,7 +238,7 @@ export function StudyAnalysisPage() {
     <SectionShell title="Análises do estudo" subtitle="Workspace sincronizado e análises configuráveis.">
       <div className="flex flex-wrap gap-3">
         <Link
-          to={firstSession ? `/app/sessions/${firstSession.id}/analysis` : `/app/studies/${studyId}/sessions`}
+          to={firstSession ? `/app/sessions/${firstSession.id}/explorer` : `/app/studies/${studyId}/sessions`}
           className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-3 hover:border-blue-300"
         >
           <LineChart size={16} className="text-text-muted" />
