@@ -111,6 +111,12 @@ class Organization(Base):
     __tablename__ = "organizations"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
+    # Short name shown in the app chrome; falls back to `name` when empty.
+    display_name = Column(String, nullable=True)
+    institution = Column(String, nullable=True)
+    contact_email = Column(String, nullable=True)
+    timezone = Column(String, nullable=False, default="America/Sao_Paulo")
+    default_locale = Column(String, nullable=False, default="pt-BR")
     plan = Column(String, nullable=False, default="standard")
     max_storage_gb = Column(Float, nullable=False, default=100.0)
     used_storage_gb = Column(Float, nullable=False, default=0.0)
@@ -992,12 +998,15 @@ class AuditAction(str, enum.Enum):
     delete = "delete"
     sync_decision = "sync_decision"
     dataset_freeze = "dataset_freeze"
+    login = "login"
+    login_failed = "login_failed"
 
 
 class AuditLog(Base):
     """Governance audit trail (docs §21). Records access to sensitive data,
     exports, consent changes and decisions, with justification."""
     __tablename__ = "audit_logs"
+    __table_args__ = (Index("ix_audit_logs_entity", "entity_type", "entity_id"),)
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id = Column(
         UUID(as_uuid=True),
@@ -1012,4 +1021,31 @@ class AuditLog(Base):
     entity_id = Column(String)
     justification = Column(Text)
     detail = Column(JSONB, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class ApiRequestLog(Base):
+    """Operational log of API calls: every write plus every denied request
+    (401/403/429). Bodies and query strings are never stored."""
+    __tablename__ = "api_request_logs"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    actor_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    actor_label = Column(String)
+    method = Column(String(10), nullable=False)
+    path = Column(String(512), nullable=False)
+    route = Column(String(512))
+    status_code = Column(Integer, nullable=False, index=True)
+    duration_ms = Column(Integer, nullable=False, default=0)
+    ip_address = Column(String(64))
+    user_agent = Column(String(256))
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

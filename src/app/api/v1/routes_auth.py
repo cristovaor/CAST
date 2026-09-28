@@ -11,7 +11,8 @@ from app.api.deps import get_db, get_current_user
 from app.core import security
 from app.core.config import settings
 from app.core.identity import IdentityVerificationError, get_identity_verifier
-from app.db.models import User, Organization, UserIdentity
+from app.db.models import AuditAction, User, Organization, UserIdentity
+from app.services.audit_service import record_audit
 from app.schemas.auth import (
     AuthProviders,
     ForgotPassword,
@@ -28,7 +29,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _issue_token(user: User) -> dict:
+def _audit_login(db: Session, user: User, method: str, *, failure: str | None = None) -> None:
+    """Records a sign-in attempt on a known account and commits it."""
+    record_audit(
+        db,
+        user,
+        AuditAction.login_failed if failure else AuditAction.login,
+        "user",
+        user.id,
+        snapshot={"method": method, **({"reason": failure} if failure else {})},
+    )
+    db.commit()
+
+
+def _issue_token(user: User, db: Session, method: str) -> dict:
+    _audit_login(db, user, method)
     expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {
         "access_token": security.create_access_token(user.id, expires_delta=expires),
@@ -48,18 +63,21 @@ def login_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordR
     # A federated-only account has no password hash; verify_password must never
     # be called with None, and such an account cannot log in with a password.
     if not user or not user.password_hash or not security.verify_password(form_data.password, user.password_hash):
+        if user is not None:
+            _audit_login(db, user, "password", failure="invalid_credentials")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
+        _audit_login(db, user, "password", failure="deactivated")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been deactivated.",
         )
 
-    return _issue_token(user)
+    return _issue_token(user, db, "password")
 
 
 @router.post("/google", response_model=Token)
@@ -98,6 +116,8 @@ def login_with_google(payload: GoogleLogin, db: Session = Depends(get_db)):
     if link is not None:
         user = db.query(User).filter(User.id == link.user_id).first()
         if user is None or not user.is_active:
+            if user is not None:
+                _audit_login(db, user, "google", failure="deactivated")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="This account has been deactivated.",
@@ -105,7 +125,7 @@ def login_with_google(payload: GoogleLogin, db: Session = Depends(get_db)):
         link.last_login_at = datetime.utcnow()
         link.email = identity.email
         db.commit()
-        return _issue_token(user)
+        return _issue_token(user, db, "google")
 
     # 2. Existing local account with the same verified e-mail → link it.
     #    Safe because the provider asserted email_verified, so this cannot be
@@ -145,6 +165,7 @@ def login_with_google(payload: GoogleLogin, db: Session = Depends(get_db)):
         db.flush()
         invitation_service.consume(db, invitation, user_id=user.id)
     elif not user.is_active:
+        _audit_login(db, user, "google", failure="deactivated")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been deactivated.",
@@ -185,7 +206,7 @@ def login_with_google(payload: GoogleLogin, db: Session = Depends(get_db)):
                 detail="This account has been deactivated.",
             )
 
-    return _issue_token(user)
+    return _issue_token(user, db, "google")
 
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: User = Depends(get_current_user)):

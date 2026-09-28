@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import String, cast, func
 from uuid import UUID
@@ -7,10 +7,14 @@ from pydantic import BaseModel
 
 from app.db.models import (
     Session as SessionModel, VideoAsset, EEGAsset, Participant, Synchronization,
-    SessionState, Study, Project, User,
+    SessionState, Study, Project, User, AuditAction,
 )
+from app.services.audit_service import build_changes, record_audit
 from app.api.deps import get_db, get_current_user
 from app.api.ownership import get_participant, get_session as get_owned_session
+from app.api.deletion import deletion_impact, perform_deletion, short_id
+from app.core.permissions import require_admin, require_researcher
+from app.schemas.deletion import DeletionImpact, DeletionRequest
 from app.schemas.multimodal import SessionCreate, SessionUpdate, SessionDetail
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -135,23 +139,15 @@ def update_session(
     assessments and sync decisions elsewhere in the API.
     """
     s = get_owned_session(db, current_user, session_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    changes = build_changes(s, update_data)
+    for field, value in update_data.items():
         setattr(s, field, value)
+    if changes:
+        record_audit(db, current_user, AuditAction.update, "session", s.id, changes=changes)
     db.commit()
     db.refresh(s)
     return _session_detail(s, db)
-
-
-@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_session(
-    session_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    db_obj = get_owned_session(db, current_user, session_id)
-    db.delete(db_obj)
-    db.commit()
-    return None
 
 
 class SessionListResponse(BaseModel):
@@ -216,3 +212,42 @@ def list_global_sessions(
             study_id=s.study_id,
         ) for s in sessions
     ]
+
+
+@router.get("/{session_id}/deletion-impact", response_model=DeletionImpact)
+def get_session_deletion_impact(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_researcher),
+):
+    s = get_owned_session(db, current_user, session_id)
+    return deletion_impact(
+        db,
+        "session",
+        s.id,
+        label=s.condition or short_id(s.id),
+        confirmation_phrase=short_id(s.id),
+    )
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session(
+    session_id: UUID,
+    payload: DeletionRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_researcher),
+):
+    """Permanently deletes the session with its video, EEG and derived data."""
+    s = get_owned_session(db, current_user, session_id)
+    perform_deletion(
+        db,
+        current_user,
+        "session",
+        s.id,
+        payload,
+        background_tasks,
+        label=s.condition or short_id(s.id),
+        confirmation_phrase=short_id(s.id),
+    )
+    return None

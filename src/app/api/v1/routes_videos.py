@@ -3,7 +3,7 @@ import hashlib
 import json
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -32,6 +32,9 @@ from cast.config.taxonomy import categories_for_api
 router = APIRouter(prefix="/videos", tags=["videos"])
 
 from app.api.deps import get_db, get_current_user
+from app.api.deletion import deletion_impact, perform_deletion, short_id
+from app.core.permissions import require_admin, require_researcher
+from app.schemas.deletion import DeletionImpact, DeletionRequest
 from app.api.ownership import (
     get_participant,
     get_session,
@@ -839,3 +842,46 @@ def list_global_videos(
             study_id=v.study_id
         ) for v in videos
     ]
+
+
+@router.get("/{video_id}/deletion-impact", response_model=DeletionImpact)
+def get_video_deletion_impact(
+    video_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_researcher),
+):
+    video = get_owned_video(db, current_user, video_id)
+    return deletion_impact(
+        db,
+        "video",
+        video.id,
+        label=video.filename or short_id(video.id),
+        confirmation_phrase=short_id(video.id),
+    )
+
+
+@router.delete("/{video_id}", status_code=204)
+def delete_video(
+    video_id: UUID,
+    payload: DeletionRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_researcher),
+):
+    """Permanently deletes the video with its landmarks, annotations and predictions; the session stays."""
+    video = get_owned_video(db, current_user, video_id)
+    session_id = video.session_id
+    perform_deletion(
+        db,
+        current_user,
+        "video",
+        video.id,
+        payload,
+        background_tasks,
+        label=video.filename or short_id(video.id),
+        confirmation_phrase=short_id(video.id),
+    )
+    from app.services.session_state_service import refresh_session_state
+    refresh_session_state(db, session_id)
+    db.commit()
+    return None

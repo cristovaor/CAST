@@ -9,6 +9,7 @@ from app.db.models import (
     LandmarkArtifact, LearningAssessment, AnnotationTask, AnnotationEvent,
     PredictionReview, AnalysisReport,
     ConsentTerm, Synchronization, SyncEvidence, SyncRun, ResearchVariable, Dataset, AuditLog,
+    ApiRequestLog,
 )
 from app.domains.acquisition.models import (
     ResearchBookmark,
@@ -26,7 +27,7 @@ from app.domains.gaze.models import GazeArtifact, GazeCalibration, GazeCalibrati
 from app.domains.pupil.models import PupilArtifact, PupilRun
 
 __all__ = [
-    "Base", "Organization", "User", "Project", "Study", "StudyGroup", "Participant",
+    "Base", "ApiRequestLog", "Organization", "User", "Project", "Study", "StudyGroup", "Participant",
     "Session", "VideoAsset", "EEGAsset", "EEGAssetFile", "EEGAnalysisRun",
     "EEGAnalysisArtifact", "ProcessingJob", "ModelVersion",
     "MicroActionModel", "Prediction", "LandmarkArtifact", "LearningAssessment",
