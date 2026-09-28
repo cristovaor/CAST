@@ -124,7 +124,11 @@ def get_dashboard_global(db: Session = Depends(get_db), current_user: User = Dep
         .all()
     )
     by_study: dict[str, dict[str, int]] = {}
+    from app.services.heuristic_suggestion_service import is_heuristic_prediction
+
     for pred, study_name in predictions:
+        if is_heuristic_prediction(pred):
+            continue
         counts = by_study.setdefault(study_name, {
             "OLHO_FECHADO": 0, "OLHANDO_CANTO": 0, "MEXEU_LABIOS": 0, "VIROU_ROSTO": 0,
             "MEXEU_SOBRANCELHA": 0,

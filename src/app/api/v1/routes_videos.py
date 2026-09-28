@@ -17,7 +17,6 @@ from app.db.models import (
     JobType,
     LandmarkArtifact,
     Participant as ParticipantModel,
-    Prediction,
     ProcessingJob,
     Project,
     Session as SessionModel,
@@ -177,12 +176,11 @@ def load_timeline_events(video_asset, db: Session):
     Shared by the timeline endpoint and the EEG co-activation analysis so both
     read events from the same source. Returns (events, model_version).
     """
-    prediction = (
-        db.query(Prediction)
-        .filter(Prediction.video_asset_id == video_asset.id)
-        .order_by(Prediction.created_at.desc())
-        .first()
-    )
+    from app.services.heuristic_suggestion_service import latest_model_prediction
+
+    # Landmark-rule suggestions are unreviewed, so they stay off the timeline;
+    # the ones an annotator accepts arrive below as annotation events.
+    prediction = latest_model_prediction(db, video_asset.id)
 
     events = []
     model_version = "unknown"
@@ -503,12 +501,11 @@ def get_annotation_context(
         )
         .first()
     )
-    prediction = (
-        db.query(Prediction)
-        .filter(Prediction.video_asset_id == video_id)
-        .order_by(Prediction.created_at.desc())
-        .first()
+    from app.services.heuristic_suggestion_service import (
+        latest_suggestion_prediction,
     )
+
+    prediction = latest_suggestion_prediction(db, video_id)
     jobs = (
         db.query(ProcessingJob)
         .filter(

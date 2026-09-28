@@ -36,8 +36,10 @@ def build_study_dataframe(study_id: UUID, db: Session) -> pd.DataFrame:
             
             video = session.video_asset
             if video:
+                from app.services.heuristic_suggestion_service import model_predictions
+
                 predictions = db.query(Prediction).filter(Prediction.video_asset_id == video.id).all()
-                for pred in predictions:
+                for pred in model_predictions(predictions):
                     if pred.summary:
                         for model_name, metrics in pred.summary.items():
                             row[f"freq_{model_name}"] = metrics.get("per_minute", 0.0)

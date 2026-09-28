@@ -901,14 +901,13 @@ def list_annotation_suggestions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from app.services.heuristic_suggestion_service import (
+        latest_suggestion_prediction,
+    )
+
     get_video(db, current_user, video_id)
     task = _task_for_video(db, current_user, video_id, task_id)
-    prediction = (
-        db.query(Prediction)
-        .filter(Prediction.video_asset_id == video_id)
-        .order_by(Prediction.created_at.desc())
-        .first()
-    )
+    prediction = latest_suggestion_prediction(db, video_id)
     if prediction is None:
         return {"predictionId": None, "modelVersion": None, "suggestions": []}
     events, model_version = _load_prediction_events(prediction)
