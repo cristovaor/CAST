@@ -42,15 +42,27 @@ O CAST não partilha a base de dados de outros projetos. Ligue-se ao Postgres
 partilhado e crie o role e a base dedicados:
 
 ```bash
-docker exec -it <container-postgres-partilhado> psql -U postgres
+# O utilizador admin do Postgres está em EasyPanel → postgres-shared → Credentials.
+docker exec -it $(docker ps -q -f name=doutorado_postgres-shared) psql -U postgres
 
 CREATE ROLE cast_user WITH LOGIN PASSWORD 'uma-password-forte';
 CREATE DATABASE cast_db OWNER cast_user;
 \q
 ```
 
-Use um índice de DB Redis dedicado (`/3` no exemplo do `.env`) para as filas
-Celery do CAST não colidirem com as de outro projeto.
+Gere a password com `openssl rand -hex 24`: hex não tem caracteres que
+precisem de escape numa URL.
+
+O Redis partilhado exige autenticação (utilizador `default`, password em
+EasyPanel → redis-shared → Credentials). Use um índice de DB dedicado (`/3`;
+o CSH-MARL usa `/0`) para as filas Celery não colidirem:
+
+```text
+REDIS_URL=redis://default:<password-do-redis>@doutorado_redis-shared:6379/3
+```
+
+Inclua `cast_db` nos backups do serviço Postgres no EasyPanel — os backups do
+CSH-MARL cobrem apenas a base dele.
 
 ## 3. Configurar o Firebase (login com Google)
 
