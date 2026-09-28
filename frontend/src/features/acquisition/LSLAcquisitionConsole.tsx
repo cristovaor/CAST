@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Loader2, Radio, Square } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
@@ -25,6 +26,7 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation('acquisition');
   const [token, setToken] = useState('');
   const [streams, setStreams] = useState<LSLStream[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -37,7 +39,7 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
       ...init,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
     });
-    if (!response.ok) throw new Error(`Agente local: HTTP ${response.status}`);
+    if (!response.ok) throw new Error(t('lsl.agentHttp', { status: response.status }));
     return response.json() as Promise<T>;
   };
 
@@ -55,7 +57,7 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
       setSelected([...new Set([...eeg, ...synchronized].map((stream) => stream.uid || stream.source_id))]);
       setPhase('ready');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Não foi possível parear o agente.');
+      setError(cause instanceof Error ? cause.message : t('lsl.pairFailed'));
       setPhase('idle');
     }
   };
@@ -78,7 +80,7 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
       setRecordingId(recording.id); setPhase('recording');
       await emitMarker('recording_start');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Falha ao iniciar LSL.');
+      setError(cause instanceof Error ? cause.message : t('lsl.startFailed'));
     }
   };
 
@@ -103,7 +105,7 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
       await apiClient.post(`/lsl-recordings/${recordingId}/complete`, completed);
       setPhase('processing');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Falha ao encerrar LSL.');
+      setError(cause instanceof Error ? cause.message : t('lsl.stopFailed'));
     }
   };
 
@@ -111,11 +113,11 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
     <Dialog open={open} onOpenChange={(next) => { if (!next && phase !== 'recording') onOpenChange(next); }}>
       <DialogContent className="max-w-2xl border-border bg-surface text-text-primary">
         <DialogHeader>
-          <DialogTitle>Gravação EEG/LSL</DialogTitle>
-          <DialogDescription>O LabRecorder permanece no computador de aquisição; o CAST recebe o XDF imutável somente ao encerrar.</DialogDescription>
+          <DialogTitle>{t('lsl.title')}</DialogTitle>
+          <DialogDescription>{t('lsl.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <label className="block text-xs font-medium text-text-primary">Token de pareamento do agente
+          <label className="block text-xs font-medium text-text-primary">{t('lsl.token')}
             <input type="password" value={token} onChange={(event) => setToken(event.target.value)} disabled={phase === 'recording'} className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
           </label>
           {streams.length > 0 && (
@@ -124,25 +126,25 @@ export function LSLAcquisitionConsole({ sessionId, open, onOpenChange }: {
                 const id = stream.uid || stream.source_id;
                 return <label key={id} className="flex items-center gap-3 rounded-lg border border-border bg-surface-muted p-3 text-xs">
                   <input type="checkbox" checked={selected.includes(id)} disabled={phase === 'recording'} onChange={(event) => setSelected((current) => event.target.checked ? [...current, id] : current.filter((item) => item !== id))} />
-                  <Radio size={14} className="text-cyan-600" />
+                  <Radio size={14} className="text-cyan-600" aria-hidden="true" />
                   <span className="font-semibold">{stream.name}</span>
-                  <span className="text-text-muted">{stream.type} · {stream.channel_count} canais · {stream.nominal_srate} Hz</span>
+                  <span className="text-text-muted">{t('lsl.streamDetail', { type: stream.type, channels: stream.channel_count, rate: stream.nominal_srate })}</span>
                 </label>;
               })}
             </div>
           )}
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            EEG é uma medida observada sujeita a artefatos. Sincronização e qualidade continuam exigindo revisão humana.
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            {t('lsl.caveat')}
           </div>
-          {error && <div className="flex gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700"><AlertTriangle size={15} />{error}</div>}
-          {phase === 'recording' && <div className="flex items-center gap-2 text-sm text-red-600"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />Gravando no LabRecorder local</div>}
-          {phase === 'processing' && <div className="flex gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-800"><CheckCircle2 size={15} />XDF confirmado; catálogo, EEG e evidência de sync estão em processamento.</div>}
+          {error && <div role="alert" className="flex gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-300"><AlertTriangle size={15} aria-hidden="true" />{error}</div>}
+          {phase === 'recording' && <div role="status" className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400"><span aria-hidden="true" className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />{t('lsl.recording')}</div>}
+          {phase === 'processing' && <div role="status" className="flex gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-950/40 dark:text-blue-200"><CheckCircle2 size={15} aria-hidden="true" />{t('lsl.processing')}</div>}
         </div>
         <DialogFooter>
-          {phase === 'idle' && <ActionButton variant="secondary" onClick={pair} disabled={!token}><Activity size={15} />Parear e descobrir</ActionButton>}
-          {phase === 'pairing' && <ActionButton variant="secondary" disabled><Loader2 size={15} className="animate-spin" />Descobrindo</ActionButton>}
-          {phase === 'ready' && <ActionButton variant="primary" onClick={start} disabled={selected.length === 0}><Radio size={15} />Iniciar LSL</ActionButton>}
-          {phase === 'recording' && <><ActionButton variant="secondary" onClick={() => emitMarker('manual_marker')}>Marker</ActionButton><ActionButton variant="danger" onClick={stop}><Square size={14} fill="currentColor" />Parar</ActionButton></>}
+          {phase === 'idle' && <ActionButton variant="secondary" onClick={pair} disabled={!token}><Activity size={15} aria-hidden="true" />{t('lsl.pair')}</ActionButton>}
+          {phase === 'pairing' && <ActionButton variant="secondary" disabled><Loader2 size={15} className="animate-spin" aria-hidden="true" />{t('lsl.discovering')}</ActionButton>}
+          {phase === 'ready' && <ActionButton variant="primary" onClick={start} disabled={selected.length === 0}><Radio size={15} aria-hidden="true" />{t('lsl.start')}</ActionButton>}
+          {phase === 'recording' && <><ActionButton variant="secondary" onClick={() => emitMarker('manual_marker')}>{t('lsl.marker')}</ActionButton><ActionButton variant="danger" onClick={stop}><Square size={14} fill="currentColor" aria-hidden="true" />{t('lsl.stop')}</ActionButton></>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

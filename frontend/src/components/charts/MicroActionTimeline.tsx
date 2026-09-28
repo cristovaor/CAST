@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useRef } from 'react';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import { getMicroActionConfig } from '@/lib/utils';
@@ -27,6 +28,7 @@ function formatClock(ms: number): string {
 }
 
 export function MicroActionTimeline({ events, videoDurationMs }: MicroActionTimelineProps) {
+  const { t } = useTranslation('ui');
   const laneRef = useRef<HTMLDivElement>(null);
   const currentTimeMs = usePlaybackStore((s) => s.currentTimeMs);
   const requestSeek = usePlaybackStore((s) => s.requestSeek);
@@ -82,7 +84,12 @@ export function MicroActionTimeline({ events, videoDurationMs }: MicroActionTime
                         outline: active ? `2px solid ${cfg.color}` : 'none',
                         outlineOffset: '1px',
                       }}
-                      title={`${cfg.label} · ${formatClock(evt.startMs)}–${formatClock(evt.endMs)} · conf. ${(evt.confidence * 100).toFixed(0)}%`}
+                      title={t('microActions.event', {
+                        label: cfg.label,
+                        start: formatClock(evt.startMs),
+                        end: formatClock(evt.endMs),
+                        confidence: (evt.confidence * 100).toFixed(0),
+                      })}
                     />
                   );
                 })}

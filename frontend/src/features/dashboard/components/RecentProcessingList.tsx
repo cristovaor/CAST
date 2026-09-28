@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, CheckCircle2, AlertTriangle, Clock, Activity, FileWarning } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -12,14 +13,15 @@ interface RecentProcessingListProps {
 }
 
 export function RecentProcessingList({ jobs }: RecentProcessingListProps) {
+  const { t } = useTranslation('dashboard');
   const navigate = useNavigate();
 
   return (
     <div className="card overflow-hidden flex flex-col h-full bg-surface shadow-sm ring-1 ring-border/50">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-muted/50">
         <div>
-          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">Processamentos recentes</h2>
-          <p className="text-[13px] text-text-secondary mt-0.5">Jobs de extração de landmarks e inferência</p>
+          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">{t('recentJobs.title')}</h2>
+          <p className="text-[13px] text-text-secondary mt-0.5">{t('recentJobs.subtitle')}</p>
         </div>
         <ActionButton 
           variant="ghost" 
@@ -27,13 +29,13 @@ export function RecentProcessingList({ jobs }: RecentProcessingListProps) {
           onClick={() => navigate('/app/processing')}
           className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 -mr-2"
         >
-          Ver todos <ExternalLink size={14} className="ml-1" />
+          {t('recentJobs.viewAll')} <ExternalLink size={14} className="ml-1" aria-hidden="true" />
         </ActionButton>
       </div>
       <div className="divide-y divide-border flex-1 overflow-y-auto">
         {jobs.length === 0 ? (
           <div className="p-8 text-center text-text-secondary text-sm">
-            Nenhum processamento recente.
+            {t('recentJobs.empty')}
           </div>
         ) : (
           jobs.map((job) => <RecentJobRow key={job.id} job={job} />)
@@ -44,6 +46,7 @@ export function RecentProcessingList({ jobs }: RecentProcessingListProps) {
 }
 
 function RecentJobRow({ job }: { job: ProcessingJob }) {
+  const { t } = useTranslation('dashboard');
   // Determine if it has quality issue derived from error message (mock logic)
   const isRejected = job.error_message?.toLowerCase().includes('rejeitado');
   
@@ -101,7 +104,7 @@ function RecentJobRow({ job }: { job: ProcessingJob }) {
           <span>&bull;</span>
           <span className="truncate max-w-[200px] text-text-secondary">{job.study_name}</span>
           <span>&bull;</span>
-          <span className="text-text-muted truncate max-w-[150px]">Mod: cast-lstm-v1</span>
+          <span className="text-text-muted truncate max-w-[150px]">{t('recentJobs.model', { name: 'cast-lstm-v1' })}</span>
         </div>
         
         {/* Error message discrete alert */}

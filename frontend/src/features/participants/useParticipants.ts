@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { toast } from '@/app/stores/useToastStore';
@@ -25,7 +26,7 @@ export function useCreateParticipant() {
     mutationFn: (data: ParticipantCreate) => apiClient.post<Participant>('/participants/', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['participants'] });
-      toast.success('Participante criado');
+      toast.success(i18n.t('participants:toasts.created'));
     },
   });
 }
@@ -40,7 +41,7 @@ export function useUpdateParticipant() {
       queryClient.invalidateQueries({ queryKey: ['participants'] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'participant', participant.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
-      toast.success('Participante atualizado');
+      toast.success(i18n.t('participants:toasts.updated'));
     },
   });
 }
@@ -55,7 +56,7 @@ export function useDeactivateParticipant() {
       queryClient.invalidateQueries({ queryKey: ['participants'] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'participant', participant.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
-      toast.success('Participante desativado');
+      toast.success(i18n.t('participants:toasts.deactivated'));
     },
   });
 }
@@ -70,7 +71,7 @@ export function useActivateParticipant() {
       queryClient.invalidateQueries({ queryKey: ['participants'] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'participant', participant.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
-      toast.success('Participante reativado');
+      toast.success(i18n.t('participants:toasts.reactivated'));
     },
   });
 }
@@ -79,7 +80,7 @@ export function useRequestParticipantDeletion() {
   return useMutation({
     mutationFn: (participantId: string) => apiClient.post(`/participants/${participantId}/deletion-request`),
     onSuccess: () => {
-      toast.success('Solicitação de exclusão registrada', 'A remoção será processada conforme a política de retenção.');
+      toast.success(i18n.t('participants:toasts.deletionRequested'), i18n.t('participants:toasts.deletionRequestedDetail'));
     },
   });
 }

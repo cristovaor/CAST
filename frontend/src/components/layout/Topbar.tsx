@@ -16,7 +16,12 @@ import { cn } from '@/lib/utils';
 import { useSidebarStore } from '@/app/stores/useSidebarStore';
 import { useEffect, useState } from 'react';
 import { ActionButton } from '@/components/ui/ActionButton';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { ThemeMenu } from '@/components/ui/ThemeSwitcher';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { roleLabel } from '@/lib/formatters';
+import { translate } from '@/i18n/labels';
 import { useLogout, useMe } from '@/features/auth/useAuth';
 import { useJobs } from '@/features/jobs/useJobActions';
 import { CommandPalette } from './CommandPalette';
@@ -24,38 +29,8 @@ import { CreateProjectDialog } from '@/features/projects/CreateProjectDialog';
 
 // ─── Breadcrumb generator ─────────────────────────────────────
 
-const PATH_LABELS: Record<string, string> = {
-  app:          'Dashboard',
-  projects:     'Projetos',
-  studies:      'Estudos',
-  sessions:     'Sessões',
-  videos:       'Vídeos',
-  processing:   'Processamentos',
-  models:       'Modelos',
-  annotations:  'Anotações',
-  reports:      'Relatórios',
-  audit:        'Auditoria',
-  settings:     'Administração',
-  analysis:     'Análises',
-  new:          'Novo',
-  overview:     'Visão Geral',
-  participants: 'Participantes',
-  timeline:     'Timeline',
-  acquisition:  'Aquisição',
-  datasets:     'Datasets',
-  governance:   'Governança',
-  variables:    'Variáveis',
-  protocol:     'Protocolo',
-  hypotheses:   'Hipóteses',
-  conditions:   'Condições',
-  quality:      'Qualidade',
-  sync:         'Sincronização',
-  eeg:          'EEG',
-  annotate:     'Anotar',
-  training:     'Treino',
-};
-
 function useBreadcrumbs() {
+  useTranslation('nav');
   const { pathname } = useLocation();
   const segments = pathname.split('/').filter(Boolean);
 
@@ -63,7 +38,10 @@ function useBreadcrumbs() {
     const path = '/' + segments.slice(0, i + 1).join('/');
     // If looks like a UUID/ID, show a shortened version
     const isId = /^[0-9a-f-]{8,}$/i.test(seg);
-    const label = isId ? `#${seg.slice(0, 6).toUpperCase()}` : (PATH_LABELS[seg] ?? seg);
+    const key = `nav:breadcrumbs.${seg}`;
+    const label = isId
+      ? `#${seg.slice(0, 6).toUpperCase()}`
+      : i18n.exists(key) ? translate(key) : seg;
     return { label, path, isLast: i === segments.length - 1 };
   });
 }
@@ -71,11 +49,12 @@ function useBreadcrumbs() {
 // ─── Environment badge ────────────────────────────────────────
 
 function EnvBadge() {
+  const { t } = useTranslation('nav');
   const env = (import.meta.env.VITE_ENV as string | undefined) ?? 'local';
   const config = {
-    local:      { label: 'Local',      cls: 'bg-surface-muted text-text-secondary border-border' },
-    staging:    { label: 'Staging',    cls: 'bg-amber-50  text-amber-700  border-amber-200' },
-    production: { label: 'Production', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    local:      { label: t('env.local'),      cls: 'bg-surface-muted text-text-secondary border-border' },
+    staging:    { label: t('env.staging'),    cls: 'bg-amber-50  text-amber-700  border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800' },
+    production: { label: t('env.production'), cls: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' },
   }[env] ?? { label: env, cls: 'bg-surface-muted text-text-secondary border-border' };
 
   return (
@@ -92,6 +71,7 @@ function EnvBadge() {
  * The count comes from the same polling `useJobs` query the queue page uses.
  */
 function NotificationsBell() {
+  const { t } = useTranslation('nav');
   const navigate = useNavigate();
   const { data: jobs } = useJobs();
 
@@ -102,8 +82,8 @@ function NotificationsBell() {
   const count = active + failed;
 
   const label = count === 0
-    ? 'Fila de processamento — nenhum job ativo'
-    : `Fila de processamento — ${active} em andamento, ${failed} com falha`;
+    ? t('topbar.notificationsIdle')
+    : t('topbar.notificationsActive', { active, failed });
 
   return (
     <button
@@ -131,14 +111,8 @@ function NotificationsBell() {
 
 // ─── User Menu ────────────────────────────────────────────────
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  researcher: 'Pesquisador',
-  annotator: 'Anotador',
-  viewer: 'Leitor',
-};
-
 function UserMenu() {
+  const { t } = useTranslation('nav');
   const navigate = useNavigate();
   const logout = useLogout();
   const { data: user } = useMe();
@@ -149,7 +123,8 @@ function UserMenu() {
     .map((part) => part[0])
     .join('')
     .toUpperCase() || 'U';
-  const roleLabel = ROLE_LABELS[user?.role ?? 'viewer'] ?? 'Leitor';
+  const role = roleLabel(user?.role);
+  const userName = user?.name ?? t('sidebar.user');
 
   const itemClass = cn(
     'flex items-center gap-2.5 w-full px-4 py-2 text-sm text-text-secondary cursor-pointer',
@@ -161,15 +136,15 @@ function UserMenu() {
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          aria-label="Menu do usuário"
+          aria-label={t('topbar.userMenu')}
           className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-surface-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
         >
           <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center">
             <span className="text-white font-semibold text-[10px]">{initials}</span>
           </div>
           <div className="hidden sm:block text-left">
-            <div className="text-[13px] font-semibold text-text-primary leading-tight">{user?.name ?? 'Usuário'}</div>
-            <div className="text-[11px] text-text-secondary font-medium">{roleLabel}</div>
+            <div className="text-[13px] font-semibold text-text-primary leading-tight">{userName}</div>
+            <div className="text-[11px] text-text-secondary font-medium">{role}</div>
           </div>
           <ChevronDown size={13} className="text-text-muted hidden sm:block" aria-hidden="true" />
         </button>
@@ -185,22 +160,22 @@ function UserMenu() {
           )}
         >
           <div className="px-4 py-3 border-b border-border">
-            <div className="text-sm font-semibold text-text-primary truncate">{user?.name ?? 'Usuário'}</div>
+            <div className="text-sm font-semibold text-text-primary truncate">{userName}</div>
             <div className="text-xs text-text-secondary mt-0.5 truncate">{user?.email ?? ''}</div>
           </div>
 
           <div className="py-1">
             <DropdownMenu.Item className={itemClass} onSelect={() => navigate('/app/settings')}>
               <User size={14} className="shrink-0 text-text-muted" aria-hidden="true" />
-              Meu Perfil
+              {t('topbar.profile')}
             </DropdownMenu.Item>
             <DropdownMenu.Item className={itemClass} onSelect={() => navigate('/app/settings')}>
               <Building2 size={14} className="shrink-0 text-text-muted" aria-hidden="true" />
-              Organização
+              {t('topbar.organization')}
             </DropdownMenu.Item>
             <DropdownMenu.Item className={itemClass} onSelect={() => navigate('/app/governance')}>
               <Settings size={14} className="shrink-0 text-text-muted" aria-hidden="true" />
-              Governança
+              {t('topbar.governance')}
             </DropdownMenu.Item>
           </div>
 
@@ -208,14 +183,14 @@ function UserMenu() {
 
           <div className="py-1">
             <DropdownMenu.Item
-              className={cn(itemClass, 'text-red-600 data-[highlighted]:bg-red-50 data-[highlighted]:text-red-700')}
+              className={cn(itemClass, 'text-red-600 data-[highlighted]:bg-red-50 data-[highlighted]:text-red-700 dark:text-red-400 dark:data-[highlighted]:bg-red-950/40 dark:data-[highlighted]:text-red-300')}
               onSelect={() => {
                 logout();
                 navigate('/login', { replace: true });
               }}
             >
               <LogOut size={14} className="shrink-0" aria-hidden="true" />
-              Sair
+              {t('topbar.signOut')}
             </DropdownMenu.Item>
           </div>
         </DropdownMenu.Content>
@@ -227,6 +202,7 @@ function UserMenu() {
 // ─── Topbar Component ─────────────────────────────────────────
 
 export function Topbar() {
+  const { t } = useTranslation('nav');
   const crumbs = useBreadcrumbs();
   const { setMobileOpen } = useSidebarStore();
   const navigate = useNavigate();
@@ -251,14 +227,14 @@ export function Topbar() {
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        aria-label="Abrir menu"
+        aria-label={t('topbar.openMenu')}
         className="lg:hidden p-1.5 rounded-md hover:bg-surface-muted text-text-secondary transition-colors"
       >
         <Menu size={18} aria-hidden="true" />
       </button>
 
       {/* ── Breadcrumbs ──────────────────────────────────── */}
-      <nav className="flex items-center gap-1 flex-1 min-w-0" aria-label="Breadcrumb">
+      <nav className="flex items-center gap-1 flex-1 min-w-0" aria-label={t('topbar.breadcrumb')}>
         {crumbs.map((crumb, i) => (
           <div key={crumb.path} className="flex items-center gap-1 min-w-0">
             {i > 0 && <ChevronRight size={13} className="text-text-disabled shrink-0" aria-hidden="true" />}
@@ -285,7 +261,7 @@ export function Topbar() {
         <button
           type="button"
           onClick={() => setPaletteOpen(true)}
-          aria-label="Busca global (Ctrl+K)"
+          aria-label={t('topbar.search')}
           className={cn(
             'hidden md:flex items-center gap-2 w-64 lg:w-80 pl-3 pr-2 py-1.5',
             'bg-surface-muted rounded-lg border border-border text-left',
@@ -293,7 +269,7 @@ export function Topbar() {
           )}
         >
           <Search size={14} className="text-text-muted shrink-0" aria-hidden="true" />
-          <span className="flex-1 truncate text-sm text-text-muted">Buscar seções...</span>
+          <span className="flex-1 truncate text-sm text-text-muted">{t('topbar.searchPlaceholder')}</span>
           <kbd className="shrink-0 rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-muted">
             Ctrl K
           </kbd>
@@ -304,7 +280,8 @@ export function Topbar() {
 
         <div className="w-px h-5 bg-border" />
 
-        <ThemeToggle />
+        <LanguageSwitcher compact />
+        <ThemeMenu />
 
         <div className="w-px h-5 bg-border" />
 
@@ -317,7 +294,7 @@ export function Topbar() {
             icon={Plus}
             onClick={() => setCreateProjectOpen(true)}
           >
-            Novo Projeto
+            {t('topbar.newProject')}
           </ActionButton>
         </div>
 

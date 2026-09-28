@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 import { router } from './app/routes'
 import { Providers } from './app/providers'
+// Initialises i18next before the first render so every screen has its strings.
+import './i18n'
 
 // Self-hosted fonts (latin subset). Loading these from a third-party CDN would
 // block first paint and leak every user's IP to that host — unacceptable for a

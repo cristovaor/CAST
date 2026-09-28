@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FaceLandmarker, FilesetResolver, type NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,6 +47,7 @@ function proxyFromLandmarks(points?: NormalizedLandmark[]): Proxy {
 }
 
 export function GazeCalibrationConsole({ sessionId, open, onOpenChange }: Props) {
+  const { t } = useTranslation('acquisition');
   const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -57,10 +59,12 @@ export function GazeCalibrationConsole({ sessionId, open, onOpenChange }: Props)
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CalibrationDetail | null>(null);
   const protocol = useMemo<ProtocolPoint[]>(() => [
-    ...shuffle(GRID).map((point, index) => ({ ...point, phase: 'fit' as const, label: `grade A${index + 1}` })),
-    ...shuffle(GRID).map((point, index) => ({ ...point, phase: 'fit' as const, label: `grade B${index + 1}` })),
-    ...shuffle(VALIDATION).map((point, index) => ({ ...point, phase: 'validation' as const, label: `validação ${index + 1}` })),
-    { x: 0.5, y: 0.5, phase: 'drift' as const, label: 'drift final' },
+    ...shuffle(GRID).map((point, index) => ({ ...point, phase: 'fit' as const, label: t('gaze.points.gridA', { n: index + 1 }) })),
+    ...shuffle(GRID).map((point, index) => ({ ...point, phase: 'fit' as const, label: t('gaze.points.gridB', { n: index + 1 }) })),
+    ...shuffle(VALIDATION).map((point, index) => ({ ...point, phase: 'validation' as const, label: t('gaze.points.validation', { n: index + 1 }) })),
+    { x: 0.5, y: 0.5, phase: 'drift' as const, label: t('gaze.points.drift') },
+  // The protocol is shuffled once per open; a language switch mid-run must not reshuffle it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   ], []);
 
   const cleanup = useCallback(() => {
@@ -77,7 +81,7 @@ export function GazeCalibrationConsole({ sessionId, open, onOpenChange }: Props)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, frameRate: 30 }, audio: false });
       streamRef.current = stream;
-      if (!videoRef.current) throw new Error('Elemento de vídeo indisponível.');
+      if (!videoRef.current) throw new Error(t('gaze.errors.noVideo'));
       videoRef.current.srcObject = stream; await videoRef.current.play();
       const resolver = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
       landmarkerRef.current = await FaceLandmarker.createFromOptions(resolver, {
@@ -121,31 +125,31 @@ export function GazeCalibrationConsole({ sessionId, open, onOpenChange }: Props)
         await new Promise((resolve) => window.setTimeout(resolve, 1500));
         completed = await apiClient.get<CalibrationDetail>(`/gaze-calibrations/${calibration.id}`);
       }
-      if (!['ready','no_go'].includes(completed.status)) throw new Error(completed.status === 'failed' ? 'Worker de gaze falhou.' : 'Tempo limite aguardando calibração.');
+      if (!['ready','no_go'].includes(completed.status)) throw new Error(completed.status === 'failed' ? t('gaze.errors.workerFailed') : t('gaze.errors.timeout'));
       setResult(completed); setState('done'); cleanup();
       await queryClient.invalidateQueries({ queryKey: ['explorer-manifest', sessionId] });
     } catch (cause) {
-      cleanup(); setError(cause instanceof Error ? cause.message : 'Falha na calibração.'); setState('error');
+      cleanup(); setError(cause instanceof Error ? cause.message : t('gaze.errors.failed')); setState('error');
     }
   };
 
   if (!open) return null;
   const point = protocol[pointIndex];
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-950 text-white" role="dialog" aria-modal="true" aria-label="Calibração experimental de gaze">
+    <div className="fixed inset-0 z-[100] bg-slate-950 text-white" role="dialog" aria-modal="true" aria-label={t('gaze.title')}>
       <video ref={videoRef} muted playsInline className="absolute bottom-4 right-4 h-28 rounded-lg border border-white/20 opacity-60" />
-      <button type="button" onClick={() => onOpenChange(false)} className="absolute right-5 top-5 z-10 rounded-full bg-white/10 p-2"><X /></button>
+      <button type="button" onClick={() => onOpenChange(false)} aria-label={t('gaze.close')} title={t('gaze.close')} className="absolute right-5 top-5 z-10 rounded-full bg-white/10 p-2"><X aria-hidden="true" /></button>
       {state === 'running' && point ? (
         <>
-          <div className="absolute left-5 top-5 text-sm text-white/70">{pointIndex + 1}/{protocol.length} · {point.label} · {collecting ? 'coletando' : 'estabilize'}</div>
+          <div className="absolute left-5 top-5 text-sm text-white/70">{pointIndex + 1}/{protocol.length} · {point.label} · {collecting ? t('gaze.collecting') : t('gaze.stabilize')}</div>
           <div className={`absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white shadow-[0_0_30px_white] ${collecting ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} />
         </>
       ) : (
         <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center p-8 text-center">
-          {state === 'intro' && <><h2 className="text-2xl font-semibold">Calibração experimental de gaze</h2><p className="mt-4 text-sm text-white/70">Grade 3×3 em duas repetições, cinco pontos de validação e drift final. Mantenha a cabeça estável e olhe para cada alvo. Resultado não representa atenção.</p><button type="button" onClick={start} className="mt-7 rounded-lg bg-blue-500 px-5 py-3 font-semibold">Iniciar em tela cheia</button></>}
-          {(state === 'loading' || state === 'uploading') && <><Loader2 className="animate-spin"/><p className="mt-3">{state === 'loading' ? 'Preparando câmera e MediaPipe…' : 'Preservando amostras e iniciando validação…'}</p></>}
-          {state === 'done' && <><h2 className="text-xl font-semibold">Calibração concluída</h2><p className="mt-3 text-white/70">Veredito: {result?.verdict ?? result?.status}. Erro mediano: {typeof result?.metrics?.median_error_deg === 'number' ? `${result.metrics.median_error_deg.toFixed(2)}°` : '—'}. O Explorer foi atualizado.</p></>}
-          {state === 'error' && <><AlertTriangle className="text-amber-400"/><p className="mt-3">{error}</p><button type="button" onClick={start} className="mt-5 rounded-lg bg-white/10 px-4 py-2">Tentar novamente</button></>}
+          {state === 'intro' && <><h2 className="text-2xl font-semibold">{t('gaze.title')}</h2><p className="mt-4 text-sm text-white/70">{t('gaze.intro')}</p><button type="button" onClick={start} className="mt-7 rounded-lg bg-blue-500 px-5 py-3 font-semibold">{t('gaze.start')}</button></>}
+          {(state === 'loading' || state === 'uploading') && <><Loader2 className="animate-spin" aria-hidden="true"/><p role="status" className="mt-3">{state === 'loading' ? t('gaze.loading') : t('gaze.uploading')}</p></>}
+          {state === 'done' && <><h2 className="text-xl font-semibold">{t('gaze.done')}</h2><p className="mt-3 text-white/70">{t('gaze.doneDetail', { verdict: result?.verdict ?? result?.status, error: typeof result?.metrics?.median_error_deg === 'number' ? `${result.metrics.median_error_deg.toFixed(2)}°` : '—' })}</p></>}
+          {state === 'error' && <><AlertTriangle className="text-amber-400" aria-hidden="true"/><p role="alert" className="mt-3">{error}</p><button type="button" onClick={start} className="mt-5 rounded-lg bg-white/10 px-4 py-2">{t('gaze.retry')}</button></>}
         </div>
       )}
     </div>

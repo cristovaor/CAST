@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import type { ChartMeta } from '@/types/research';
 
@@ -24,6 +25,7 @@ function MetaItem({ label, value }: { label: string; value?: string | number }) 
 }
 
 export function ChartFrame({ meta, children, className, footerExtra }: ChartFrameProps) {
+  const { t } = useTranslation('ui');
   return (
     <figure className={cn('rounded-xl border border-border bg-surface', className)}>
       <figcaption className="px-4 pt-4 pb-2 border-b border-border">
@@ -37,17 +39,17 @@ export function ChartFrame({ meta, children, className, footerExtra }: ChartFram
 
       <div className="px-4 py-2.5 border-t border-border bg-app-bg rounded-b-xl">
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] leading-tight">
-          <MetaItem label="Fonte" value={meta.source} />
-          <MetaItem label="Unidade" value={meta.unit} />
-          <MetaItem label="n (part.)" value={meta.sampleSize} />
-          <MetaItem label="Sessões" value={meta.sessionCount} />
-          <MetaItem label="Granularidade" value={meta.granularity} />
-          <MetaItem label="Modalidade" value={meta.modality} />
-          <MetaItem label="Dataset" value={meta.datasetVersion} />
-          <MetaItem label="Pipeline" value={meta.pipelineVersion} />
-          <MetaItem label="Modelo" value={meta.modelVersion} />
-          <MetaItem label="Ausentes" value={meta.missingData} />
-          {meta.filters?.length ? <MetaItem label="Filtros" value={meta.filters.join(', ')} /> : null}
+          <MetaItem label={t('chart.source')} value={meta.source} />
+          <MetaItem label={t('chart.unit')} value={meta.unit} />
+          <MetaItem label={t('chart.sampleSize')} value={meta.sampleSize} />
+          <MetaItem label={t('chart.sessions')} value={meta.sessionCount} />
+          <MetaItem label={t('chart.granularity')} value={meta.granularity} />
+          <MetaItem label={t('chart.modality')} value={meta.modality} />
+          <MetaItem label={t('chart.dataset')} value={meta.datasetVersion} />
+          <MetaItem label={t('chart.pipeline')} value={meta.pipelineVersion} />
+          <MetaItem label={t('chart.model')} value={meta.modelVersion} />
+          <MetaItem label={t('chart.missing')} value={meta.missingData} />
+          {meta.filters?.length ? <MetaItem label={t('chart.filters')} value={meta.filters.join(', ')} /> : null}
           {meta.params &&
             Object.entries(meta.params).map(([k, v]) => <MetaItem key={k} label={k} value={v} />)}
         </div>

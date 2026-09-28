@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useRef } from "react";
 import { UploadCloud, FileVideo, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,8 @@ interface VideoUploadCardProps {
 }
 
 export function VideoUploadCard({ participantId, sessionId, onUploadCompleted, maxSizeBytes = 500 * 1024 * 1024 }: VideoUploadCardProps) {
+  const { t } = useTranslation("ui");
+  const sizeLimit = `${Math.round(maxSizeBytes / (1024 * 1024))}MB`;
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [progress, setProgress] = useState(0);
   const [file, setFile] = useState<File | null>(null);
@@ -25,12 +28,12 @@ export function VideoUploadCard({ participantId, sessionId, onUploadCompleted, m
     if (e.target.files && e.target.files[0]) {
       const selected = e.target.files[0];
       if (!selected.type.startsWith('video/')) {
-        setErrorMsg("Por favor, selecione um arquivo de vídeo válido.");
+        setErrorMsg(t("upload.invalidType"));
         setUploadState('rejected');
         return;
       }
       if (selected.size > maxSizeBytes) {
-        setErrorMsg("O arquivo excede o limite de tamanho (500MB).");
+        setErrorMsg(t("upload.tooLarge", { limit: sizeLimit }));
         setUploadState('rejected');
         return;
       }
@@ -43,7 +46,7 @@ export function VideoUploadCard({ participantId, sessionId, onUploadCompleted, m
   const executeUpload = async () => {
     if (!file) return;
     if (!participantId) {
-      setErrorMsg("ID do participante não encontrado. Preencha a primeira etapa.");
+      setErrorMsg(t("upload.missingParticipant"));
       setUploadState('rejected');
       return;
     }
@@ -57,7 +60,7 @@ export function VideoUploadCard({ participantId, sessionId, onUploadCompleted, m
       setUploadState('upload_complete');
       onUploadCompleted(result.video_asset_id, result.session_id);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Erro no upload via proxy");
+      setErrorMsg(err instanceof Error ? err.message : t("upload.failed"));
       setUploadState('failed');
     }
   };
@@ -73,8 +76,8 @@ export function VideoUploadCard({ participantId, sessionId, onUploadCompleted, m
           )}
         >
           <UploadCloud className={cn("h-10 w-10 mx-auto mb-4", (uploadState === 'rejected' || uploadState === 'failed') ? "text-destructive" : "text-muted-foreground")} />
-          <h3 className="font-medium">Clique para selecionar ou arraste o vídeo</h3>
-          <p className="text-sm text-muted-foreground mt-1">MP4, WebM (Max 500MB)</p>
+          <h3 className="font-medium">{t("upload.dropzone")}</h3>
+          <p className="text-sm text-muted-foreground mt-1">{t("upload.formats", { limit: sizeLimit })}</p>
           <input 
             type="file" 
             className="hidden" 
@@ -94,8 +97,13 @@ export function VideoUploadCard({ participantId, sessionId, onUploadCompleted, m
               <p className="text-xs text-muted-foreground">{(file!.size / (1024 * 1024)).toFixed(2)} MB</p>
             </div>
             {uploadState === 'selecting_file' && (
-              <button onClick={() => setUploadState('idle')} className="text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
+              <button
+                type="button"
+                onClick={() => setUploadState('idle')}
+                aria-label={t("upload.remove")}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
             {uploadState === 'upload_complete' && (
@@ -107,7 +115,7 @@ export function VideoUploadCard({ participantId, sessionId, onUploadCompleted, m
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-medium">
                 <span className="text-primary">
-                  Enviando (Proxy Backend)...
+                  {t("upload.uploading")}
                 </span>
                 <span>{progress}%</span>
               </div>
@@ -125,7 +133,7 @@ export function VideoUploadCard({ participantId, sessionId, onUploadCompleted, m
               onClick={executeUpload}
               className="w-full inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              Iniciar Upload
+              {t("upload.start")}
             </button>
           )}
         </div>

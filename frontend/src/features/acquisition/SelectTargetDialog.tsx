@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { statusLabel } from '@/lib/formatters';
 import { useMemo, useState, type ReactNode } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import {
@@ -29,9 +31,10 @@ export function SelectTargetDialog({
   target,
   title,
   description,
-  confirmLabel = 'Continuar',
+  confirmLabel,
   onSelect,
 }: SelectTargetDialogProps) {
+  const { t } = useTranslation('acquisition');
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const studiesQuery = useStudies();
@@ -44,15 +47,15 @@ export function SelectTargetDialog({
       return (studiesQuery.data ?? []).map((study) => ({
         id: study.id,
         label: study.name,
-        detail: study.status,
+        detail: statusLabel(study.status),
       }));
     }
     return (sessionsQuery.data ?? []).map((session) => ({
       id: session.id,
-      label: `Sessão ${shortId(session.id)}`,
-      detail: `Estudo ${shortId(session.study_id)} · participante ${shortId(session.participant_id)}`,
+      label: t('select.sessionLabel', { id: shortId(session.id) }),
+      detail: t('select.sessionDetail', { study: shortId(session.study_id), participant: shortId(session.participant_id) }),
     }));
-  }, [sessionsQuery.data, studiesQuery.data, target]);
+  }, [sessionsQuery.data, studiesQuery.data, t, target]);
 
   const handleConfirm = () => {
     if (!selectedId) return;
@@ -76,29 +79,27 @@ export function SelectTargetDialog({
         <div className="py-2">
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-8 text-sm text-text-secondary">
-              <Loader2 size={18} className="animate-spin" />
-              Carregando opções…
+              <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+              {t('select.loading')}
             </div>
           ) : isError ? (
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <AlertCircle size={17} />
-              Não foi possível carregar as opções.
+            <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+              <AlertCircle size={17} aria-hidden="true" />
+              {t('select.loadFailed')}
             </div>
           ) : options.length === 0 ? (
             <p className="rounded-lg border border-border bg-surface-muted p-4 text-sm text-text-secondary">
-              {target === 'study'
-                ? 'Nenhum estudo disponível. Crie um estudo antes de continuar.'
-                : 'Nenhuma sessão disponível. Crie uma sessão antes de continuar.'}
+              {target === 'study' ? t('select.noStudies') : t('select.noSessions')}
             </p>
           ) : (
             <label className="block space-y-2 text-sm font-medium text-text-primary">
-              {target === 'study' ? 'Estudo' : 'Sessão'}
+              {target === 'study' ? t('select.study') : t('select.session')}
               <select
                 value={selectedId}
                 onChange={(event) => setSelectedId(event.target.value)}
                 className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Selecione…</option>
+                <option value="">{t('select.placeholder')}</option>
                 {options.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.label} — {option.detail}
@@ -111,7 +112,7 @@ export function SelectTargetDialog({
 
         <DialogFooter>
           <ActionButton type="button" variant="ghost" onClick={() => setOpen(false)}>
-            Cancelar
+            {t('select.cancel')}
           </ActionButton>
           <ActionButton
             type="button"
@@ -119,7 +120,7 @@ export function SelectTargetDialog({
             disabled={!selectedId || isLoading}
             onClick={handleConfirm}
           >
-            {confirmLabel}
+            {confirmLabel ?? t('select.continue')}
           </ActionButton>
         </DialogFooter>
       </DialogContent>

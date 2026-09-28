@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Cpu } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export function ModelVersionBadge({
   active,
   className,
 }: ModelVersionBadgeProps) {
+  const { t } = useTranslation('ui');
   return (
     <span
       className={cn(
@@ -24,7 +26,7 @@ export function ModelVersionBadge({
         'bg-app-bg text-text-secondary border-border',
         className,
       )}
-      aria-label={`Modelo: ${name ?? ''} v${version} (${framework})${active ? ', ativo' : ''}`}
+      aria-label={t(active ? 'badges.modelActive' : 'badges.model', { name: name ?? '', version, framework })}
     >
       <Cpu size={10} className="text-violet-500 shrink-0" />
       {name && <span className="text-text-secondary font-semibold">{name}</span>}

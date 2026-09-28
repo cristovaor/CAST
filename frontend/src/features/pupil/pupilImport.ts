@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 export interface PupilObservationInput {
   source_time_us: number;
   source_clock_id: string;
@@ -24,7 +25,7 @@ export function parsePupilObservations(text: string): PupilObservationInput[] {
   const numberOrNull = (value: unknown) => value === '' || value == null ? null : Number(value);
   return rows.map((row, index) => {
     const sourceTime = Number(row.source_time_us); const pupil = numberOrNull(row.pupil_diameter_px); const iris = numberOrNull(row.iris_diameter_px);
-    if (!Number.isFinite(sourceTime) || (pupil != null && !Number.isFinite(pupil)) || (iris != null && !Number.isFinite(iris))) throw new Error(`Linha ${index + 1} contém medida inválida.`);
+    if (!Number.isFinite(sourceTime) || (pupil != null && !Number.isFinite(pupil)) || (iris != null && !Number.isFinite(iris))) throw new Error(i18n.t('acquisition:imports.invalidRow', { row: index + 1 }));
     return {
       source_time_us: Math.round(sourceTime), source_clock_id: String(row.source_clock_id || 'video-pts'),
       canonical_time_us: numberOrNull(row.canonical_time_us), uncertainty_us: Number(row.uncertainty_us || 0),

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, AlertCircle, Info, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -13,13 +14,14 @@ interface QualityAlertsPanelProps {
 }
 
 export function QualityAlertsPanel({ alerts }: QualityAlertsPanelProps) {
+  const { t } = useTranslation('dashboard');
   if (!alerts || alerts.length === 0) return null;
 
   return (
     <div className="card bg-surface shadow-sm ring-1 ring-border/50 flex flex-col h-full">
       <div className="px-5 py-4 border-b border-border flex items-center gap-2">
         <ShieldAlert size={16} className="text-text-secondary" />
-        <h2 className="text-[14px] font-semibold text-text-primary tracking-tight">Alertas de Qualidade</h2>
+        <h2 className="text-[14px] font-semibold text-text-primary tracking-tight">{t('alerts.title')}</h2>
       </div>
       <div className="p-3 flex flex-col gap-2 flex-1 overflow-y-auto">
         {alerts.map(alert => (

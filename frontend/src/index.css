@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* `dark:` utilities follow the theme the user picked (useApplyTheme sets
+   data-theme on <html>), not only the OS preference. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* Font faces are imported from main.tsx (see the @fontsource imports there):
    Tailwind v4 inlines CSS @import before Vite can rewrite the relative
    ./files/*.woff2 URLs, which silently leaves the fonts unresolved. */
@@ -224,6 +228,11 @@
   .animate-slide-bottom { animation: slideInFromBottom 0.2s ease-out; }
   .animate-scale-in     { animation: scaleIn 0.15s ease-out; }
   .animate-spin-slow    { animation: spin 1.5s linear infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in, .animate-slide-left, .animate-slide-top,
+    .animate-slide-bottom, .animate-scale-in { animation: none; }
+  }
 
   /* Skeleton shimmer */
   .skeleton {

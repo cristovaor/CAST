@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 interface Step {
@@ -12,8 +13,9 @@ interface StepperProps {
 }
 
 export function Stepper({ steps, currentStep }: StepperProps) {
+  const { t } = useTranslation("ui");
   return (
-    <nav aria-label="Progress">
+    <nav aria-label={t("stepper.label")}>
       <ol role="list" className="space-y-4 md:flex md:space-y-0 md:space-x-8">
         {steps.map((step, index) => {
           const isCompleted = currentStep > index;

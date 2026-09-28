@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useMemo } from 'react';
 import {
   Area, XAxis, YAxis, CartesianGrid,
@@ -16,6 +17,7 @@ interface ProcessingTooltipEntry {
 }
 
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: ProcessingTooltipEntry[]; label?: string }) {
+  const { t } = useTranslation('dashboard');
   if (!active || !payload?.length) return null;
   
   const value = payload.find(p => p.dataKey === 'value')?.value;
@@ -28,7 +30,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-blue-600" />
-          <span className="font-medium text-text-secondary">Processados</span>
+          <span className="font-medium text-text-secondary">{t('volume.processed')}</span>
           </div>
         <span className="font-semibold text-text-primary">{value}</span>
         </div>
@@ -36,7 +38,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-0.5 bg-slate-400" />
-          <span className="text-text-secondary">Média móvel</span>
+          <span className="text-text-secondary">{t('volume.movingAverage')}</span>
             </div>
         <span className="text-text-secondary">{avg?.toFixed(1)}</span>
           </div>
@@ -47,6 +49,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export function ProcessingVolumeChart({ data, isLoading }: ProcessingVolumeChartProps) {
+  const { t } = useTranslation('dashboard');
   // Calculate a simple moving average (SMA) of 3 points for illustration
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -79,8 +82,8 @@ export function ProcessingVolumeChart({ data, isLoading }: ProcessingVolumeChart
   if (!data || data.length === 0) {
     return (
     <div className="card p-6 xl:col-span-3 flex flex-col items-center justify-center h-full min-h-[300px] text-text-secondary">
-        <p className="text-sm font-medium">Nenhum dado de processamento disponível.</p>
-      <p className="text-xs text-text-muted mt-1">O volume aparecerá aqui quando os vídeos forem processados.</p>
+        <p className="text-sm font-medium">{t('volume.empty')}</p>
+      <p className="text-xs text-text-muted mt-1">{t('volume.emptyHint')}</p>
       </div>
     );
   }
@@ -89,16 +92,16 @@ export function ProcessingVolumeChart({ data, isLoading }: ProcessingVolumeChart
     <div className="card p-6 xl:col-span-3 flex flex-col h-full bg-surface shadow-sm ring-1 ring-border/50">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 gap-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">Volume de processamento</h2>
-          <p className="text-[13px] text-text-secondary mt-1">Vídeos analisados pelo pipeline nas últimas 12 semanas</p>
+          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">{t('volume.title')}</h2>
+          <p className="text-[13px] text-text-secondary mt-1">{t('volume.subtitle')}</p>
         </div>
         <div className="flex flex-col sm:items-end gap-1.5 shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-2xl font-bold text-text-primary leading-none">{totalPeriod}</span>
-            <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">Total</span>
+            <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">{t('volume.total')}</span>
           </div>
           <span className="inline-flex items-center text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-            ↑ 12% vs. período anterior
+            {t('volume.trend')}
           </span>
         </div>
       </div>
@@ -151,11 +154,11 @@ export function ProcessingVolumeChart({ data, isLoading }: ProcessingVolumeChart
       <div className="flex items-center justify-center gap-6 mt-4">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded bg-blue-600/80" />
-          <span className="text-[11px] font-medium text-text-secondary">Vídeos processados</span>
+          <span className="text-[11px] font-medium text-text-secondary">{t('volume.videosProcessed')}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-0.5 bg-slate-400" />
-          <span className="text-[11px] font-medium text-text-secondary">Média móvel</span>
+          <span className="text-[11px] font-medium text-text-secondary">{t('volume.movingAverage')}</span>
         </div>
       </div>
     </div>

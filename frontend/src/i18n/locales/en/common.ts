@@ -1,0 +1,82 @@
+import type ptCommon from '../pt-BR/common';
+import type { Translation } from '../../types';
+
+const common = {
+  meta: {
+    title: 'CAST Pro — Cognitive Action & Study Tracking',
+    description:
+      'CAST Pro — Enterprise platform for managing studies and analysing facial micro-actions and cognitive load in multimedia learning environments.',
+  },
+  brand: {
+    name: 'CAST Pro',
+    tagline: 'Cognitive Analysis System',
+  },
+  theme: {
+    label: 'Theme',
+    light: 'Light',
+    dark: 'Dark',
+    system: 'System',
+    change: 'Change theme (current: {{theme}})',
+  },
+  language: {
+    label: 'Language',
+    change: 'Change language (current: {{language}})',
+    'pt-BR': 'Português (BR)',
+    en: 'English',
+  },
+  actions: {
+    save: 'Save',
+    saving: 'Saving...',
+    cancel: 'Cancel',
+    close: 'Close',
+    confirm: 'Confirm',
+    edit: 'Edit',
+    delete: 'Delete',
+    remove: 'Remove',
+    create: 'Create',
+    creating: 'Creating...',
+    back: 'Back',
+    next: 'Next',
+    previous: 'Previous',
+    retry: 'Try again',
+    refresh: 'Refresh',
+    search: 'Search',
+    filter: 'Filter',
+    clearFilters: 'Clear filters',
+    export: 'Export',
+    download: 'Download',
+    upload: 'Upload',
+    view: 'View',
+    viewAll: 'View all',
+    open: 'Open',
+    add: 'Add',
+    continue: 'Continue',
+    finish: 'Finish',
+    apply: 'Apply',
+    reset: 'Reset',
+    copy: 'Copy',
+    copied: 'Copied',
+    select: 'Select',
+    history: 'History',
+  },
+  states: {
+    loading: 'Loading...',
+    empty: 'No items found.',
+    error: 'Something went wrong.',
+    noResults: 'No results for the current filters.',
+    notAvailable: 'Not available',
+    none: 'None',
+    yes: 'Yes',
+    no: 'No',
+    all: 'All',
+    unknown: 'Unknown',
+  },
+  errors: {
+    actionFailed: 'The action could not be completed',
+    generic: 'An unexpected error occurred. Please try again.',
+    sessionExpired: 'Your session has expired. Please sign in again.',
+    googleNotConfigured: 'Google sign-in is not configured on this installation.',
+  },
+} satisfies Translation<typeof ptCommon>;
+
+export default common;

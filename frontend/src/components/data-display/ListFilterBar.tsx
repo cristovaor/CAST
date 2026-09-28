@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { RotateCcw, Search } from 'lucide-react';
 
 export interface ListFilterOption {
@@ -28,13 +29,19 @@ interface ListFilterBarProps {
 export function ListFilterBar({
   searchValue,
   onSearchChange,
-  searchPlaceholder = 'Buscar...',
+  searchPlaceholder,
   filters = [],
   resultCount,
   totalCount,
-  resultLabel = 'resultado',
+  resultLabel,
   resultLabelPlural,
 }: ListFilterBarProps) {
+  const { t } = useTranslation('ui');
+  // Callers may name what is being counted ("projeto"/"projetos"); otherwise
+  // the generic, pluralised "resultado(s)" is used.
+  const countLabel = resultLabel
+    ? `${resultCount} ${resultCount === 1 ? resultLabel : (resultLabelPlural ?? `${resultLabel}s`)}`
+    : t('filterBar.result', { count: resultCount });
   const hasActiveFilters = searchValue.trim() !== '' || filters.some((filter) => filter.value !== '');
 
   const clearFilters = () => {
@@ -48,7 +55,7 @@ export function ListFilterBar({
     <div className="rounded-xl border border-border bg-surface p-3 shadow-sm">
       <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center">
         <label className="relative min-w-0 flex-1 2xl:max-w-md">
-          <span className="sr-only">Buscar</span>
+          <span className="sr-only">{t('filterBar.search')}</span>
           <Search
             size={16}
             aria-hidden="true"
@@ -58,7 +65,7 @@ export function ListFilterBar({
             type="search"
             value={searchValue}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={searchPlaceholder}
+            placeholder={searchPlaceholder ?? t('filterBar.placeholder')}
             className="h-10 w-full rounded-lg border border-border-strong bg-surface pl-9 pr-3 text-sm text-text-primary outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
           />
         </label>
@@ -89,15 +96,15 @@ export function ListFilterBar({
               onClick={clearFilters}
               className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
             >
-              <RotateCcw size={14} />
-              Limpar
+              <RotateCcw size={14} aria-hidden="true" />
+              {t('filterBar.clear')}
             </button>
           )}
         </div>
 
         <p className="ml-auto whitespace-nowrap text-right text-xs text-text-muted" role="status">
-          {resultCount} {resultCount === 1 ? resultLabel : (resultLabelPlural ?? `${resultLabel}s`)}
-          {resultCount !== totalCount ? ` de ${totalCount}` : ''}
+          {countLabel}
+          {resultCount !== totalCount ? t('filterBar.ofTotal', { total: totalCount }) : ''}
         </p>
       </div>
     </div>

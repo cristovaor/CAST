@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Trash2, Play, Sparkles, Pencil, Check, X } from 'lucide-react';
 import { useAnnotationStore } from '../store/useAnnotationStore';
@@ -37,6 +38,7 @@ export function AnnotationSidebarList({
   categories,
   fps,
 }: AnnotationSidebarListProps) {
+  const { t } = useTranslation('annotations');
   const events = useAnnotationStore((state) => state.events);
   const requestSeek = usePlaybackStore((state) => state.requestSeek);
   const [correctionEvent, setCorrectionEvent] = useState<AnnotationEvent | null>(null);
@@ -99,14 +101,14 @@ export function AnnotationSidebarList({
   return (
     <div className="w-80 border-l border-border bg-app-bg flex flex-col h-full">
       <div className="h-14 border-b border-border flex items-center px-4 shrink-0">
-        <h2 className="font-semibold text-text-primary">Anotações ({events.length})</h2>
+        <h2 className="font-semibold text-text-primary">{t('sidebar.title', { count: events.length })}</h2>
       </div>
 
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
           {sortedEvents.length === 0 ? (
             <p className="text-sm text-text-muted text-center p-4 italic">
-              A lista está vazia.
+              {t('sidebar.empty')}
             </p>
           ) : (
             sortedEvents.map((event) => {
@@ -122,24 +124,26 @@ export function AnnotationSidebarList({
                       {event.actionLabel}
                     </span>
                     {!isEditing && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-text-muted hover:text-primary hover:bg-primary-light"
                           onClick={() => requestSeek(event.startTime * 1000)}
-                          title="Ir para o tempo"
+                          title={t('sidebar.seek')}
+                          aria-label={t('sidebar.seek')}
                         >
-                          <Play className="h-3 w-3" />
+                          <Play className="h-3 w-3" aria-hidden="true" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-text-muted hover:text-primary hover:bg-primary-light"
                           onClick={() => startEditing(event)}
-                          title="Editar"
+                          title={t('sidebar.edit')}
+                          aria-label={t('sidebar.edit')}
                         >
-                          <Pencil className="h-3 w-3" />
+                          <Pencil className="h-3 w-3" aria-hidden="true" />
                         </Button>
                         {event.confidence !== null && (
                           <Button
@@ -147,9 +151,10 @@ export function AnnotationSidebarList({
                             size="icon"
                             className="h-6 w-6 text-text-muted hover:text-accent hover:bg-accent-light"
                             onClick={() => setCorrectionEvent(event)}
-                            title="Corrigir predição"
+                            title={t('sidebar.correct')}
+                            aria-label={t('sidebar.correct')}
                           >
-                            <Sparkles className="h-3 w-3" />
+                            <Sparkles className="h-3 w-3" aria-hidden="true" />
                           </Button>
                         )}
                         <Button
@@ -158,9 +163,10 @@ export function AnnotationSidebarList({
                           className="h-6 w-6 text-text-muted hover:text-danger hover:bg-danger-light"
                           disabled={deleteAnnotation.isPending}
                           onClick={() => deleteAnnotation.mutate(event.id)}
-                          title="Excluir"
+                          title={t('sidebar.delete')}
+                          aria-label={t('sidebar.delete')}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3 w-3" aria-hidden="true" />
                         </Button>
                       </div>
                     )}
@@ -183,7 +189,7 @@ export function AnnotationSidebarList({
                       </select>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="text-[10px] text-text-muted">
-                          Quadro inicial
+                          {t('sidebar.startFrame')}
                           <input
                             type="number"
                             min={0}
@@ -195,7 +201,7 @@ export function AnnotationSidebarList({
                           />
                         </label>
                         <label className="text-[10px] text-text-muted">
-                          Quadro final
+                          {t('sidebar.endFrame')}
                           <input
                             type="number"
                             min={edit.startFrame}
@@ -210,7 +216,7 @@ export function AnnotationSidebarList({
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="text-[10px] text-text-muted">
-                          Lado
+                          {t('page.side')}
                           <select
                             value={edit.side}
                             onChange={(event) =>
@@ -221,16 +227,16 @@ export function AnnotationSidebarList({
                             }
                             className="mt-0.5 w-full rounded border border-border bg-surface px-2 py-1 text-xs text-text-primary"
                           >
-                            <option value="both">Ambos</option>
-                            <option value="right">Direito</option>
-                            <option value="left">Esquerdo</option>
-                            <option value="center">Centro</option>
-                            <option value="whole">Rosto inteiro</option>
-                            <option value="unspecified">Não informado</option>
+                            <option value="both">{t('sides.both')}</option>
+                            <option value="right">{t('sides.right')}</option>
+                            <option value="left">{t('sides.left')}</option>
+                            <option value="center">{t('sides.center')}</option>
+                            <option value="whole">{t('sides.whole')}</option>
+                            <option value="unspecified">{t('sides.unspecified')}</option>
                           </select>
                         </label>
                         <label className="text-[10px] text-text-muted">
-                          Região
+                          {t('sidebar.region')}
                           <input
                             value={edit.region}
                             onChange={(event) =>
@@ -242,7 +248,8 @@ export function AnnotationSidebarList({
                       </div>
                       <input
                         type="text"
-                        placeholder="Notas (opcional)"
+                        placeholder={t('sidebar.notes')}
+                        aria-label={t('sidebar.notes')}
                         value={edit.notes}
                         onChange={(e) => setEdit({ ...edit, notes: e.target.value })}
                         className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-text-primary"
@@ -253,9 +260,10 @@ export function AnnotationSidebarList({
                           size="icon"
                           className="h-6 w-6 text-text-muted hover:text-text-primary"
                           onClick={cancelEditing}
-                          title="Cancelar"
+                          title={t('sidebar.cancel')}
+                          aria-label={t('sidebar.cancel')}
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-3 w-3" aria-hidden="true" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -263,9 +271,10 @@ export function AnnotationSidebarList({
                           disabled={updateAnnotation.isPending}
                           className="h-6 w-6 text-success hover:bg-success-light"
                           onClick={() => saveEditing(event)}
-                          title="Salvar"
+                          title={t('sidebar.save')}
+                          aria-label={t('sidebar.save')}
                         >
-                          <Check className="h-3 w-3" />
+                          <Check className="h-3 w-3" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -277,7 +286,7 @@ export function AnnotationSidebarList({
                       </div>
                       {event.side && event.side !== 'unspecified' && (
                         <div className="mt-1.5 text-[10px] text-text-muted">
-                          {event.region ?? 'região facial'} · {event.side}
+                          {event.region ?? t('sidebar.faceRegion')} · {t(`sides.${event.side}`, { defaultValue: event.side })}
                         </div>
                       )}
                     </>

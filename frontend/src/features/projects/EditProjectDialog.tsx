@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { statusLabel } from '@/lib/formatters';
 import { useState, type ReactNode } from 'react';
 import {
   Dialog,
@@ -24,6 +26,7 @@ export function EditProjectDialog({
   open: controlledOpen,
   onOpenChange,
 }: EditProjectDialogProps) {
+  const { t } = useTranslation('projects');
   const [internalOpen, setInternalOpen] = useState(false);
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description ?? '');
@@ -55,12 +58,12 @@ export function EditProjectDialog({
       {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent className="bg-surface border-border text-text-primary">
         <DialogHeader>
-          <DialogTitle className="text-text-primary">Editar projeto</DialogTitle>
+          <DialogTitle className="text-text-primary">{t('form.editTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-primary" htmlFor={`project-name-${project.id}`}>
-              Nome do projeto
+              {t('form.name')}
             </label>
             <input
               id={`project-name-${project.id}`}
@@ -72,7 +75,7 @@ export function EditProjectDialog({
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-primary" htmlFor={`project-status-${project.id}`}>
-              Status
+              {t('form.status')}
             </label>
             <select
               id={`project-status-${project.id}`}
@@ -80,15 +83,15 @@ export function EditProjectDialog({
               onChange={(event) => setStatus(event.target.value as StudyStatus)}
               className="w-full px-3 py-2 bg-surface text-text-primary border border-border rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
-              <option value="draft">Rascunho</option>
-              <option value="active">Ativo</option>
-              <option value="completed">Concluído</option>
-              <option value="archived">Arquivado</option>
+              <option value="draft">{statusLabel('draft')}</option>
+              <option value="active">{statusLabel('active')}</option>
+              <option value="completed">{statusLabel('completed')}</option>
+              <option value="archived">{statusLabel('archived')}</option>
             </select>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-primary" htmlFor={`project-description-${project.id}`}>
-              Descrição
+              {t('form.description')}
             </label>
             <textarea
               id={`project-description-${project.id}`}
@@ -99,7 +102,7 @@ export function EditProjectDialog({
             />
           </div>
           {updateProject.isError && (
-            <p className="text-sm text-red-600" role="alert">
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
               {(updateProject.error as Error).message}
             </p>
           )}
@@ -110,14 +113,14 @@ export function EditProjectDialog({
               type="button"
               disabled={updateProject.isPending}
             >
-              Cancelar
+              {t('form.cancel')}
             </ActionButton>
             <ActionButton
               variant="primary"
               type="submit"
               disabled={updateProject.isPending || !name.trim()}
             >
-              {updateProject.isPending ? 'Salvando...' : 'Salvar alterações'}
+              {updateProject.isPending ? t('form.saving') : t('form.save')}
             </ActionButton>
           </DialogFooter>
         </form>

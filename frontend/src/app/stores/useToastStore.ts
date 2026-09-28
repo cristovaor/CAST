@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { create } from 'zustand';
 
 export type ToastTone = 'success' | 'error' | 'warning' | 'info';
@@ -81,8 +82,8 @@ export const toast = {
 };
 
 /** Normalizes unknown throwables into a displayable message. */
-export function toErrorMessage(error: unknown, fallback = 'Erro inesperado.'): string {
+export function toErrorMessage(error: unknown, fallback?: string): string {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === 'string' && error) return error;
-  return fallback;
+  return fallback ?? i18n.t('ui:toaster.unexpected');
 }

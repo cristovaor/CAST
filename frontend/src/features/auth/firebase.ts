@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 /**
  * Google sign-in via Firebase Auth.
  *
@@ -45,7 +46,7 @@ const CANCELLATION_CODES = new Set([
  */
 export async function obtainGoogleIdToken(): Promise<string> {
   if (!isFirebaseConfigured) {
-    throw new Error("Login com Google não está configurado nesta instalação.");
+    throw new Error(i18n.t("common:errors.googleNotConfigured"));
   }
 
   const [{ initializeApp, getApps }, firebaseAuth] = await Promise.all([

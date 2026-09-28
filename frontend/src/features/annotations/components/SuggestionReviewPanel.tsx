@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Check, EyeOff, Filter, Pencil, X } from 'lucide-react';
 import type {
@@ -44,6 +45,7 @@ export function SuggestionReviewPanel({
   onReview,
   pending,
 }: SuggestionReviewPanelProps) {
+  const { t } = useTranslation('annotations');
   const [correcting, setCorrecting] = useState<string | null>(null);
   const [actionCode, setActionCode] = useState('');
   const [startFrame, setStartFrame] = useState(0);
@@ -103,7 +105,7 @@ export function SuggestionReviewPanel({
   if (!predictionId) {
     return (
       <div className="p-4 text-sm text-text-muted">
-        Nenhum modelo disponível. A anotação manual continua ativa.
+        {t('suggestions.noModel')}
       </div>
     );
   }
@@ -112,43 +114,43 @@ export function SuggestionReviewPanel({
     <div className="space-y-3 p-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-text-primary">Sugestões do modelo</h3>
-          <p className="text-xs text-text-muted">{pendingSuggestions.length} pendentes</p>
+          <h3 className="text-sm font-semibold text-text-primary">{t('suggestions.title')}</h3>
+          <p className="text-xs text-text-muted">{t('suggestions.pending', { count: pendingSuggestions.length })}</p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => onVisibleChange(!visible)}>
-          <EyeOff className="mr-1 h-4 w-4" />
-          {visible ? 'Ocultar' : 'Mostrar'}
+          <EyeOff className="mr-1 h-4 w-4" aria-hidden="true" />
+          {visible ? t('suggestions.hide') : t('suggestions.show')}
         </Button>
       </div>
 
       <div className="space-y-2 rounded-lg border border-border bg-app-bg p-2">
         <p className="flex items-center gap-1 text-xs font-medium text-text-secondary">
-          <Filter className="h-3.5 w-3.5" /> Filtros
+          <Filter className="h-3.5 w-3.5" aria-hidden="true" /> {t('suggestions.filters')}
         </p>
         <div className="grid grid-cols-2 gap-2">
           <select
-            aria-label="Filtrar por ação"
+            aria-label={t('suggestions.filterAction')}
             value={actionFilter}
             onChange={(event) => setActionFilter(event.target.value)}
             className="rounded border border-border bg-surface px-2 py-1.5 text-xs"
           >
-            <option value="all">Todas as ações</option>
+            <option value="all">{t('suggestions.allActions')}</option>
             {categories.map((item) => (
               <option key={item.code} value={item.code}>{item.label}</option>
             ))}
           </select>
           <select
-            aria-label="Filtrar por status"
+            aria-label={t('suggestions.filterStatus')}
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as 'pending' | 'all')}
             className="rounded border border-border bg-surface px-2 py-1.5 text-xs"
           >
-            <option value="pending">Somente pendentes</option>
-            <option value="all">Todos os estados</option>
+            <option value="pending">{t('suggestions.onlyPending')}</option>
+            <option value="all">{t('suggestions.allStates')}</option>
           </select>
         </div>
         <label className="block text-xs text-text-muted">
-          Confiança mínima: {Math.round(minConfidence * 100)}%
+          {t('suggestions.minConfidence', { value: Math.round(minConfidence * 100) })}
           <input
             type="range"
             min={0}
@@ -170,7 +172,7 @@ export function SuggestionReviewPanel({
                 )
               }
             >
-              Aprovar filtradas
+              {t('suggestions.approveFiltered')}
             </Button>
             <Button
               size="sm"
@@ -182,7 +184,7 @@ export function SuggestionReviewPanel({
                 )
               }
             >
-              Descartar filtradas
+              {t('suggestions.discardFiltered')}
             </Button>
           </div>
         )}
@@ -210,31 +212,31 @@ export function SuggestionReviewPanel({
                   {category?.label ?? suggestion.actionCode}
                 </p>
                 <p className="text-xs text-text-muted">
-                  quadros {suggestion.startFrame}–{suggestion.endFrame} ·{' '}
+                  {t('suggestions.frames', { start: suggestion.startFrame, end: suggestion.endFrame })} ·{' '}
                   {Math.round(suggestion.confidence * 100)}% ·{' '}
-                  {suggestion.modelVersion ?? 'versão desconhecida'}
+                  {suggestion.modelVersion ?? t('suggestions.unknownVersion')}
                 </p>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {suggestion.side && suggestion.side !== 'unspecified' && (
-                    <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-700">
+                    <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-700 dark:text-blue-300">
                       {suggestion.side}
                     </span>
                   )}
                   {direction && (
-                    <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-[10px] text-violet-700">
+                    <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-[10px] text-violet-700 dark:text-violet-300">
                       {direction}
                     </span>
                   )}
                   {suggestion.subtype && (
-                    <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-700">
+                    <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-300">
                       {suggestion.subtype}
                     </span>
                   )}
                 </div>
                 {(lowCoverage || suggestion.quality?.directionAmbiguous) && (
                   <p className="mt-1 flex items-center gap-1 text-[10px] text-warning">
-                    <AlertTriangle className="h-3 w-3" />
-                    {lowCoverage ? 'Baixa cobertura facial' : 'Direção ambígua'}
+                    <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                    {lowCoverage ? t('suggestions.lowCoverage') : t('suggestions.ambiguous')}
                   </p>
                 )}
               </div>
@@ -252,7 +254,7 @@ export function SuggestionReviewPanel({
                   ))}
                 </select>
                 <input
-                  aria-label="Quadro inicial"
+                  aria-label={t('sidebar.startFrame')}
                   type="number"
                   min={0}
                   value={startFrame}
@@ -260,7 +262,7 @@ export function SuggestionReviewPanel({
                   className="rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-primary"
                 />
                 <input
-                  aria-label="Quadro final"
+                  aria-label={t('sidebar.endFrame')}
                   type="number"
                   min={startFrame}
                   value={endFrame}
@@ -286,7 +288,7 @@ export function SuggestionReviewPanel({
                     setCorrecting(null);
                   }}
                 >
-                  Salvar
+                  {t('sidebar.save')}
                 </Button>
               </div>
             )}
@@ -300,7 +302,7 @@ export function SuggestionReviewPanel({
                     submitReview(suggestion, 'accepted')
                   }
                 >
-                  <Check className="mr-1 h-3.5 w-3.5" /> Aceitar
+                  <Check className="mr-1 h-3.5 w-3.5" aria-hidden="true" /> {t('suggestions.accept')}
                 </Button>
                 <Button
                   size="sm"
@@ -313,7 +315,7 @@ export function SuggestionReviewPanel({
                     setEndFrame(suggestion.endFrame);
                   }}
                 >
-                  <Pencil className="mr-1 h-3.5 w-3.5" /> Corrigir
+                  <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" /> {t('suggestions.correct')}
                 </Button>
                 <Button
                   size="sm"
@@ -323,7 +325,7 @@ export function SuggestionReviewPanel({
                     submitReview(suggestion, 'rejected')
                   }
                 >
-                  <X className="mr-1 h-3.5 w-3.5" /> Rejeitar
+                  <X className="mr-1 h-3.5 w-3.5" aria-hidden="true" /> {t('suggestions.reject')}
                 </Button>
               </div>
             )}

@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiClient, API_BASE_URL } from '@/lib/api';
 import { toast } from '@/app/stores/useToastStore';
@@ -40,12 +41,12 @@ export function useProxyVideoUpload() {
         headers,
         body: formData,
       }).then(async res => {
-        if (!res.ok) throw new Error("Upload failed");
+        if (!res.ok) throw new Error(i18n.t('videos:toasts.uploadFailed'));
         return res.json() as Promise<{ video_asset_id: string; session_id: string }>;
       });
     },
     onSuccess: (_, variables) => {
-      toast.success('Vídeo enviado', variables.file.name);
+      toast.success(i18n.t('videos:toasts.uploaded'), variables.file.name);
     },
   });
 }
@@ -61,7 +62,7 @@ export function useProcessVideo() {
   return useMutation({
     mutationFn: (videoId: string) => apiClient.post<VideoProcessResponse>(`/videos/${videoId}/process`),
     onSuccess: () => {
-      toast.success('Processamento iniciado', 'Acompanhe o progresso na fila de processamento.');
+      toast.success(i18n.t('videos:toasts.processingStarted'), i18n.t('videos:toasts.processingStartedDetail'));
     },
   });
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, Users, Video } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -12,14 +13,15 @@ interface RecentStudiesListProps {
 }
 
 export function RecentStudiesList({ studies }: RecentStudiesListProps) {
+  const { t } = useTranslation('dashboard');
   const navigate = useNavigate();
 
   return (
     <div className="card overflow-hidden flex flex-col h-full bg-surface shadow-sm ring-1 ring-border/50">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-muted/50">
         <div>
-          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">Estudos recentes</h2>
-          <p className="text-[13px] text-text-secondary mt-0.5">Projetos de pesquisa com atividade recente</p>
+          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">{t('recentStudies.title')}</h2>
+          <p className="text-[13px] text-text-secondary mt-0.5">{t('recentStudies.subtitle')}</p>
         </div>
         <ActionButton 
           variant="ghost" 
@@ -27,13 +29,13 @@ export function RecentStudiesList({ studies }: RecentStudiesListProps) {
           onClick={() => navigate('/app/studies')}
           className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 -mr-2"
         >
-          Ver todos <ExternalLink size={14} className="ml-1" />
+          {t('recentStudies.viewAll')} <ExternalLink size={14} className="ml-1" aria-hidden="true" />
         </ActionButton>
       </div>
       <div className="divide-y divide-border flex-1 overflow-y-auto">
         {studies.length === 0 ? (
           <div className="p-8 text-center text-text-secondary text-sm">
-            Nenhum estudo recente.
+            {t('recentStudies.empty')}
           </div>
         ) : (
           studies.map((study) => <RecentStudyRow key={study.id} study={study} />)
@@ -44,6 +46,7 @@ export function RecentStudiesList({ studies }: RecentStudiesListProps) {
 }
 
 function RecentStudyRow({ study }: { study: Study }) {
+  const { t } = useTranslation('dashboard');
   const navigate = useNavigate();
 
   return (
@@ -62,14 +65,14 @@ function RecentStudyRow({ study }: { study: Study }) {
         <div className="flex items-center flex-wrap gap-x-4 gap-y-1.5 text-[12px] text-text-muted font-medium">
           <div className="flex items-center gap-1.5 text-text-secondary">
             <Users size={12} className="text-text-muted" />
-            {study.participant_count} participantes
+            {t('recentStudies.participants', { count: study.participant_count ?? 0 })}
           </div>
           <div className="flex items-center gap-1.5 text-text-secondary">
             <Video size={12} className="text-text-muted" />
-            {study.video_count} vídeos
+            {t('recentStudies.videos', { count: study.video_count ?? 0 })}
           </div>
           <span className="text-text-disabled">|</span>
-          <span>Última sessão: {formatRelativeTime(study.created_at)}</span>
+          <span>{t('recentStudies.lastSession', { when: formatRelativeTime(study.created_at) })}</span>
         </div>
       </div>
 
@@ -77,7 +80,7 @@ function RecentStudyRow({ study }: { study: Study }) {
       <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0 mt-2 sm:mt-0">
         {study.average_quality !== undefined && study.average_quality > 0 && (
           <div className="flex flex-col items-start sm:items-end gap-1">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Qualidade</span>
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('recentStudies.quality')}</span>
             <QualityBadge
               level={scoreToQuality(study.average_quality)}
               score={study.average_quality}
@@ -91,7 +94,7 @@ function RecentStudyRow({ study }: { study: Study }) {
           className="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={() => navigate(`/app/studies/${study.id}/overview`)}
         >
-          Abrir
+          {t('recentStudies.open')}
         </ActionButton>
       </div>
     </div>

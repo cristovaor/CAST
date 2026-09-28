@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useRef, useState, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, Maximize2, SkipBack, SkipForward, Scan } from 'lucide-react';
 import { LandmarkOverlay } from '@/features/annotations/components/LandmarkOverlay';
@@ -29,6 +30,7 @@ export function MultimodalPlayer({
   landmarkArtifactId,
   landmarkChunkSizeFrames,
 }: MultimodalPlayerProps) {
+  const { t } = useTranslation('analysis');
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -195,30 +197,34 @@ export function MultimodalPlayer({
           step="any"
           value={currentTimeMs / 1000}
           onChange={handleSeek}
+          aria-label={t('player.seek')}
           className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
         />
         <div className="flex items-center justify-between text-text-disabled">
           <div className="flex items-center gap-4">
             <button
+              type="button"
               onClick={() => stepFrame(-1)}
+              aria-label={t('player.previousFrame')}
               className="hover:text-white transition-colors"
-              title={`Frame anterior (1/${effectiveFps}s)`}
+              title={t('player.previousFrameHint', { fps: effectiveFps })}
             >
-              <SkipBack size={18} />
+              <SkipBack size={18} aria-hidden="true" />
             </button>
-            <button type="button" onClick={togglePlay} aria-label={isPlaying ? 'Pausar' : 'Reproduzir'} className="hover:text-white transition-colors">
-              {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+            <button type="button" onClick={togglePlay} aria-label={isPlaying ? t('player.pause') : t('player.play')} className="hover:text-white transition-colors">
+              {isPlaying ? <Pause size={20} aria-hidden="true" /> : <Play size={20} aria-hidden="true" />}
             </button>
             <button
+              type="button"
               onClick={() => stepFrame(1)}
-              aria-label="Próximo frame"
+              aria-label={t('player.nextFrame')}
               className="hover:text-white transition-colors"
-              title={`Próximo frame (1/${effectiveFps}s)`}
+              title={t('player.nextFrameHint', { fps: effectiveFps })}
             >
-              <SkipForward size={18} />
+              <SkipForward size={18} aria-hidden="true" />
             </button>
-            <button type="button" onClick={toggleMute} aria-label={isMuted ? 'Ativar som' : 'Silenciar'} className="hover:text-white transition-colors">
-              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            <button type="button" onClick={toggleMute} aria-label={isMuted ? t('player.unmute') : t('player.mute')} className="hover:text-white transition-colors">
+              {isMuted ? <VolumeX size={20} aria-hidden="true" /> : <Volume2 size={20} aria-hidden="true" />}
             </button>
             <div className="text-sm font-mono opacity-80">
               {formatTime(currentTimeMs)} / {formatTime(durationMs)}
@@ -227,27 +233,28 @@ export function MultimodalPlayer({
           <div className="flex items-center gap-4">
             {canShowLandmarks && (
               <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
-                <Scan size={13} className="ml-1 text-text-muted" />
+                <Scan size={13} className="ml-1 text-text-muted" aria-hidden="true" />
                 {(['off', 'roi', 'mesh'] as const).map((mode) => (
                   <button
                     key={mode}
                     type="button"
+                    aria-pressed={landmarkMode === mode}
                     onClick={() => setLandmarkMode(mode)}
                     className={`rounded px-2 py-1 text-[11px] font-medium transition-colors ${
                       landmarkMode === mode
                         ? 'bg-blue-600 text-white'
                         : 'text-text-muted hover:text-slate-200'
                     }`}
-                    title={mode === 'off' ? 'Landmarks desligados' : mode === 'roi' ? 'Pontos de interesse' : 'Malha completa'}
+                    title={t(`player.landmarks.${mode}.title`)}
                   >
-                    {mode === 'off' ? 'Off' : mode === 'roi' ? 'ROI' : 'Malha'}
+                    {t(`player.landmarks.${mode}.label`)}
                   </button>
                 ))}
               </div>
             )}
             <EEGSyncControl eegId={eegId} />
-            <button onClick={toggleFullscreen} className="hover:text-white transition-colors">
-              <Maximize2 size={20} />
+            <button type="button" onClick={toggleFullscreen} aria-label={t('player.fullscreen')} title={t('player.fullscreen')} className="hover:text-white transition-colors">
+              <Maximize2 size={20} aria-hidden="true" />
             </button>
           </div>
         </div>
