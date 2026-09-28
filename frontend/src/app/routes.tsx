@@ -156,7 +156,7 @@ export const router = createBrowserRouter([
       { path: "sessions/:sessionId/eeg", element: lazyRoute(<EEGQualityPage />) },
       { path: "sessions/:sessionId/sync", element: lazyRoute(<SyncPage />) },
       { path: "sessions/:sessionId/explorer", element: lazyRoute(<AnalysisWorkspacePage />) },
-      { path: "sessions/:sessionId/analysis", element: <Navigate to="../explorer" replace /> },
+      { path: "sessions/:sessionId/analysis", element: <Navigate to="../explorer" relative="path" replace /> },
       { path: "sessions/:sessionId/annotate", element: lazyRoute(<SessionAnnotationRedirectPage />) },
       // Acquisition
       { path: "acquisition", element: lazyRoute(<AcquisitionPage />) },

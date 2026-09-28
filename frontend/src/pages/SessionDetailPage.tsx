@@ -204,7 +204,7 @@ export function SessionDetailPage() {
             </div>
           </button>
           <button
-            onClick={() => navigate(`/app/sessions/${sessionId}/analysis`)}
+            onClick={() => navigate(`/app/sessions/${sessionId}/explorer`)}
             className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left hover:border-blue-300 transition-colors"
           >
             <div className="h-9 w-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><Cpu size={17} /></div>

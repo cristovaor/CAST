@@ -99,7 +99,7 @@ export function AnalysisIndexPage() {
         description="Escolha um estudo e uma sessão para acessar apenas as análises compatíveis com os dados disponíveis."
         actions={selectedSession ? (
           <Link
-            to={`/app/sessions/${selectedSession.id}/analysis`}
+            to={`/app/sessions/${selectedSession.id}/explorer`}
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
           >
             Abrir workspace
@@ -259,7 +259,7 @@ export function AnalysisIndexPage() {
                   return availability.available && selectedSession ? (
                     <Link
                       key={category.key}
-                      to={`/app/sessions/${selectedSession.id}/analysis?category=${category.key}`}
+                      to={`/app/sessions/${selectedSession.id}/explorer?category=${category.key}`}
                       className="rounded-xl border border-border bg-surface p-4 transition hover:border-blue-300 hover:shadow-card"
                     >
                       {content}
