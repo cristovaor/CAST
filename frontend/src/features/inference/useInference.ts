@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { toast } from '@/app/stores/useToastStore';
@@ -16,9 +17,9 @@ export function useStartInference() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { videoId: string, modelId?: string, modelVersion?: string, actions?: string[] }) => 
+    mutationFn: (data: { videoId: string, modelId?: string, modelVersion?: string, actions?: string[] }) =>
       apiClient.post<{ job_id: string, video_id: string, status: string, message: string }>(
-        `/videos/${data.videoId}/infer`, 
+        `/videos/${data.videoId}/infer`,
         {
           model_id: data.modelId || 'cast-lstm-v6',
           model_version: data.modelVersion,
@@ -27,7 +28,7 @@ export function useStartInference() {
       ),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['inferenceJobs', variables.videoId] });
-      toast.success('Inferência iniciada', 'Os resultados aparecerão na timeline ao concluir.');
+      toast.success(i18n.t('analysis:toasts.inferenceStarted'), i18n.t('analysis:toasts.inferenceStartedDetail'));
     },
   });
 }
@@ -73,7 +74,7 @@ export function useCancelJob() {
     onSuccess: (_, jobId) => {
       queryClient.invalidateQueries({ queryKey: ['inferenceJob', jobId] });
       queryClient.invalidateQueries({ queryKey: ['inferenceJobs'] });
-      toast.info('Inferência cancelada');
+      toast.info(i18n.t('analysis:toasts.inferenceCancelled'));
     },
   });
 }

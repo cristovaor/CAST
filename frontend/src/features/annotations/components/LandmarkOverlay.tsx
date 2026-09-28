@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { translate } from '@/i18n/labels';
 import {
   useCallback,
   useEffect,
@@ -85,27 +87,27 @@ const CLICKABLE_REGIONS: Array<Omit<FacialRegionSelection, 'side'> & {
 
 const ACTION_OVERLAY_STYLES: Record<string, ActionOverlayStyle> = {
   OF: {
-    label: 'Olhos fechados',
+    get label() { return translate('annotations:overlay.actions.OF'); },
     color: '#22d3ee',
     regions: ['rightEye', 'leftEye'],
   },
   OC: {
-    label: 'Olhar de canto',
+    get label() { return translate('annotations:overlay.actions.OC'); },
     color: '#a78bfa',
     regions: ['rightIris', 'leftIris'],
   },
   ML: {
-    label: 'Movimento dos lábios',
+    get label() { return translate('annotations:overlay.actions.ML'); },
     color: '#fb923c',
     regions: ['lips'],
   },
   VR: {
-    label: 'Movimento do rosto',
+    get label() { return translate('annotations:overlay.actions.VR'); },
     color: '#34d399',
     regions: ['face'],
   },
   MSO: {
-    label: 'Movimento das sobrancelhas',
+    get label() { return translate('annotations:overlay.actions.MSO'); },
     color: '#f472b6',
     regions: ['rightEyebrow', 'leftEyebrow'],
   },
@@ -194,6 +196,7 @@ export function LandmarkOverlay({
   opacity,
   events = [],
 }: LandmarkOverlayProps) {
+  const { t } = useTranslation('annotations');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hitRegionsRef = useRef<HitRegion[]>([]);
   const currentTimeMs = usePlaybackStore((state) => state.currentTimeMs);
@@ -444,7 +447,7 @@ export function LandmarkOverlay({
       }
 
       if (labelAnchor) {
-        const prefix = actionActive ? 'Marcando' : 'Área';
+        const prefix = actionActive ? translate('annotations:overlay.marking') : translate('annotations:overlay.area');
         const label = `${prefix}: ${actionLabel ?? focusedStyle.label}`;
         context.save();
         context.font = '600 12px Inter, system-ui, sans-serif';
@@ -523,7 +526,7 @@ export function LandmarkOverlay({
         regions = regions.filter((region) => region.startsWith('left'));
       }
       const eventLabel =
-        code === 'OF' && regions.length === 1 ? 'Piscada' : style.label;
+        code === 'OF' && regions.length === 1 ? translate('annotations:overlay.blink') : style.label;
 
       regions.forEach((region, regionIndex) => {
         const regionPoints = FACIAL_REGION_POINTS[region]
@@ -568,7 +571,7 @@ export function LandmarkOverlay({
 
         if (regionIndex !== 0) return;
         const confidence = Math.round(event.confidence_mean * 100);
-        const source = event.origin === 'model' ? 'modelo' : 'anotação';
+        const source = event.origin === 'model' ? translate('annotations:overlay.model') : translate('annotations:overlay.annotation');
         const label = `${eventLabel} · ${confidence}% · ${source}`;
         context.save();
         context.font = '600 12px Inter, system-ui, sans-serif';
@@ -667,17 +670,17 @@ export function LandmarkOverlay({
             ? 'pointer-events-auto cursor-crosshair'
             : 'pointer-events-none'
         }`}
-        aria-label="Landmarks faciais"
+        aria-label={t('overlay.label')}
         onClick={handleCanvasClick}
         title={
           mode === 'area' && onRegionSelect
-            ? 'Clique em uma região facial para iniciar a anotação'
+            ? t('overlay.clickHint')
             : undefined
         }
       />
       {faceMissing && (mode !== 'off' || events.length > 0) && (
         <div className="absolute bottom-3 left-3 rounded-md border border-amber-400/30 bg-amber-950/85 px-2.5 py-1.5 text-xs text-amber-200">
-          Face não detectada neste quadro
+          {t('overlay.faceMissing')}
         </div>
       )}
     </>

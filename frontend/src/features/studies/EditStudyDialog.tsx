@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { statusLabel } from '@/lib/formatters';
 import { useState, type ReactNode } from 'react';
 import {
   Dialog,
@@ -12,6 +14,7 @@ import type { Study, StudyStatus } from '@/types/domain';
 import { useUpdateStudy } from './useStudies';
 
 export function EditStudyDialog({ study, children }: { study: Study; children: ReactNode }) {
+  const { t } = useTranslation('studies');
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(study.name);
   const [description, setDescription] = useState(study.description ?? '');
@@ -46,40 +49,40 @@ export function EditStudyDialog({ study, children }: { study: Study; children: R
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar estudo</DialogTitle>
+          <DialogTitle>{t('edit.title')}</DialogTitle>
           <DialogDescription>
-            Nome, descrição, situação e protocolo serão versionados no histórico.
+            {t('edit.description')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <label className="block text-sm font-medium text-text-primary">
-            Nome
+            {t('edit.name')}
             <input required value={name} onChange={(event) => setName(event.target.value)} className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2" />
           </label>
           <label className="block text-sm font-medium text-text-primary">
-            Descrição
+            {t('edit.descriptionLabel')}
             <textarea rows={3} value={description} onChange={(event) => setDescription(event.target.value)} className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2" />
           </label>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-medium text-text-primary">
-              Status
+              {t('edit.status')}
               <select value={status} onChange={(event) => setStatus(event.target.value as StudyStatus)} className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2">
-                <option value="draft">Rascunho</option>
-                <option value="active">Ativo</option>
-                <option value="completed">Concluído</option>
-                <option value="archived">Arquivado</option>
+                <option value="draft">{statusLabel('draft')}</option>
+                <option value="active">{statusLabel('active')}</option>
+                <option value="completed">{statusLabel('completed')}</option>
+                <option value="archived">{statusLabel('archived')}</option>
               </select>
             </label>
             <label className="block text-sm font-medium text-text-primary">
-              Versão do protocolo
+              {t('edit.protocolVersion')}
               <input value={protocolVersion} onChange={(event) => setProtocolVersion(event.target.value)} placeholder="1.0" className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2" />
             </label>
           </div>
-          {updateStudy.isError && <p role="alert" className="text-sm text-red-600">{(updateStudy.error as Error).message}</p>}
+          {updateStudy.isError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{(updateStudy.error as Error).message}</p>}
           <DialogFooter>
-            <button type="button" onClick={() => setOpen(false)} className="rounded-lg px-4 py-2 text-sm text-text-secondary hover:bg-surface-muted">Cancelar</button>
+            <button type="button" onClick={() => setOpen(false)} className="rounded-lg px-4 py-2 text-sm text-text-secondary hover:bg-surface-muted">{t('edit.cancel')}</button>
             <button disabled={updateStudy.isPending || !name.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              {updateStudy.isPending ? 'Salvando...' : 'Salvar alterações'}
+              {updateStudy.isPending ? t('edit.saving') : t('edit.save')}
             </button>
           </DialogFooter>
         </form>

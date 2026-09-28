@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   MoreHorizontal, ArrowUpRight, Users, Video, FlaskConical,
@@ -18,6 +19,7 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCardProps) {
+  const { t } = useTranslation('ui');
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -31,7 +33,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
       className="card card-hover flex flex-col h-full animate-fade-in cursor-pointer group"
       onClick={() => navigate(`/app/projects/${project.id}`)}
       role="article"
-      aria-label={`Projeto: ${project.name}`}
+      aria-label={t('projectCard.label', { name: project.name })}
     >
       {/* Header */}
       <div className="p-5 border-b border-border">
@@ -51,7 +53,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
           {/* Actions menu */}
           <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
             <button
-              aria-label="Ações do projeto"
+              aria-label={t('projectCard.actions')}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
               className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-muted transition-colors"
@@ -66,15 +68,15 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
                     onClick={() => { navigate(`/app/projects/${project.id}`); setMenuOpen(false); }}
                     className="flex items-center gap-2 w-full px-3 py-2 text-sm text-text-secondary hover:bg-app-bg transition-colors"
                   >
-                    <ArrowUpRight size={13} />
-                    Abrir projeto
+                    <ArrowUpRight size={13} aria-hidden="true" />
+                    {t('projectCard.open')}
                   </button>
                   {onEdit && (
                     <button
                       onClick={() => { onEdit(project.id); setMenuOpen(false); }}
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm text-text-secondary hover:bg-app-bg transition-colors"
                     >
-                      Editar
+                      {t('projectCard.edit')}
                     </button>
                   )}
                   {onArchive && (
@@ -82,15 +84,15 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
                       onClick={() => { onArchive(project.id); setMenuOpen(false); }}
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm text-text-secondary hover:bg-app-bg transition-colors"
                     >
-                      Arquivar
+                      {t('projectCard.archive')}
                     </button>
                   )}
                   {onDelete && (
                     <button
                       onClick={() => { onDelete(project.id); setMenuOpen(false); }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 transition-colors"
                     >
-                      Excluir
+                      {t('projectCard.delete')}
                     </button>
                   )}
                 </div>
@@ -109,9 +111,9 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
 
       {/* Stats */}
       <div className="px-5 py-3.5 grid grid-cols-3 gap-3 border-b border-border">
-        <Stat icon={FlaskConical} label="Estudos"  value={project.study_count   ?? 0} />
-        <Stat icon={Users}        label="Sessões"  value={project.session_count ?? 0} />
-        <Stat icon={Video}        label="Vídeos"   value={project.video_count   ?? 0} />
+        <Stat icon={FlaskConical} label={t('projectCard.studies')}  value={project.study_count   ?? 0} />
+        <Stat icon={Users}        label={t('projectCard.sessions')} value={project.session_count ?? 0} />
+        <Stat icon={Video}        label={t('projectCard.videos')}   value={project.video_count   ?? 0} />
       </div>
 
       {/* Quality bar */}
@@ -119,7 +121,7 @@ export function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCar
         <div className="px-5 py-3 border-b border-border">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-              Qualidade média
+              {t('projectCard.averageQuality')}
             </span>
             <span className={cn(
               'text-[11px] font-semibold',

@@ -1,3 +1,4 @@
+import { useLocale } from '@/i18n/useLocale';
 import { cn, getMicroActionConfig } from '@/lib/utils';
 import type { MicroAction } from '@/types/domain';
 
@@ -14,6 +15,7 @@ export function MicroActionBadge({
   size = 'md',
   className,
 }: MicroActionBadgeProps) {
+  useLocale();
   const config = getMicroActionConfig(action);
 
   const sizes = {

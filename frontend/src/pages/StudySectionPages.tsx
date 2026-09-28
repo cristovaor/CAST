@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '@/i18n/useLocale';
 import { Link, useParams } from 'react-router-dom';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
 import { EXPERIMENTAL_DESIGNS, MODALITIES } from '@/types/research';
@@ -13,8 +15,10 @@ import { useSessions } from '@/features/sessions/useSessions';
 // Each surfaces the study's REAL persisted config (no hardcoded values), with a
 // graceful hint when a field wasn't configured.
 
-const DESIGN_LABEL = Object.fromEntries(EXPERIMENTAL_DESIGNS.map((d) => [d.value, d.label]));
-const MODALITY_LABEL = Object.fromEntries(MODALITIES.map((m) => [m.value, m.label]));
+const designLabel = (value: string) =>
+  EXPERIMENTAL_DESIGNS.find((d) => d.value === value)?.label ?? value;
+const modalityLabel = (value: string) =>
+  MODALITIES.find((m) => m.value === value)?.label ?? value;
 
 function SectionShell({ title, subtitle, children }: { title: string; subtitle?: string; children?: React.ReactNode }) {
   return (
@@ -29,42 +33,45 @@ function SectionShell({ title, subtitle, children }: { title: string; subtitle?:
 }
 
 function NotConfigured({ what }: { what: string }) {
+  const { t } = useTranslation('studies');
   return (
     <div className="rounded-lg border border-dashed border-border-strong bg-app-bg p-4 text-[13px] text-text-muted">
-      {what} não foi configurado para este estudo. Defina no{' '}
-      <Link to="/app/studies/new" className="text-blue-600 hover:text-blue-700">assistente de estudo</Link>.
+      {t('sections.notConfigured', { what })}{' '}
+      <Link to="/app/studies/new" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">{t('sections.wizardLink')}</Link>.
     </div>
   );
 }
 
 export function StudyProtocolPage() {
+  const { t } = useTranslation('studies');
   const { studyId } = useParams();
   const { data: study } = useStudy(studyId ?? '');
   const cfg = study?.config;
 
   return (
-    <SectionShell title="Protocolo" subtitle="Definição operacional do estudo: desenho, modalidades e grupos.">
+    <SectionShell title={t('sections.protocol.title')} subtitle={t('sections.protocol.subtitle')}>
       {cfg?.design || cfg?.modalities?.length ? (
         <div className="rounded-xl border border-border bg-surface p-4 space-y-2 text-[13px]">
-          <Row k="Desenho" v={cfg?.design ? DESIGN_LABEL[cfg.design] ?? cfg.design : '—'} />
-          <Row k="Modalidades" v={(cfg?.modalities ?? []).map((m) => MODALITY_LABEL[m] ?? m).join(' + ') || '—'} />
-          {cfg?.groups && <Row k="Grupos / condições" v={cfg.groups} />}
-          {cfg?.program && <Row k="Programa" v={cfg.program} />}
+          <Row k={t('sections.protocol.design')} v={cfg?.design ? designLabel(cfg.design) : '—'} />
+          <Row k={t('sections.protocol.modalities')} v={(cfg?.modalities ?? []).map(modalityLabel).join(' + ') || '—'} />
+          {cfg?.groups && <Row k={t('sections.protocol.groups')} v={cfg.groups} />}
+          {cfg?.program && <Row k={t('sections.protocol.program')} v={cfg.program} />}
         </div>
       ) : (
-        <NotConfigured what="O protocolo" />
+        <NotConfigured what={t('sections.protocol.what')} />
       )}
     </SectionShell>
   );
 }
 
 export function StudyHypothesesPage() {
+  const { t } = useTranslation('studies');
   const { studyId } = useParams();
   const { data: study } = useStudy(studyId ?? '');
   const hypotheses = study?.config?.hypotheses ?? [];
 
   return (
-    <SectionShell title="Hipóteses" subtitle="Hipóteses são opcionais e podem ser exploratórias.">
+    <SectionShell title={t('sections.hypotheses.title')} subtitle={t('sections.hypotheses.subtitle')}>
       {hypotheses.length > 0 ? (
         <>
           <div className="space-y-2">
@@ -80,31 +87,33 @@ export function StudyHypothesesPage() {
           <ScientificCaveat variant="association" compact />
         </>
       ) : (
-        <NotConfigured what="Nenhuma hipótese" />
+        <NotConfigured what={t('sections.hypotheses.what')} />
       )}
     </SectionShell>
   );
 }
 
 export function StudyConditionsPage() {
+  const { t } = useTranslation('studies');
   const { studyId } = useParams();
   const { data: study } = useStudy(studyId ?? '');
   const groups = study?.config?.groups;
 
   return (
-    <SectionShell title="Condições experimentais" subtitle="Grupos, condições, estímulos e tarefas.">
+    <SectionShell title={t('sections.conditions.title')} subtitle={t('sections.conditions.subtitle')}>
       {groups ? (
         <div className="rounded-xl border border-border bg-surface p-4">
           <p className="text-[13px] text-text-secondary whitespace-pre-line">{groups}</p>
         </div>
       ) : (
-        <NotConfigured what="As condições experimentais" />
+        <NotConfigured what={t('sections.conditions.what')} />
       )}
     </SectionShell>
   );
 }
 
 export function StudyQualityPage() {
+  const { t } = useTranslation('studies');
   const { studyId } = useParams();
   const {
     data: quality,
@@ -113,45 +122,44 @@ export function StudyQualityPage() {
   } = useStudyQualitySummary(studyId ?? '');
 
   return (
-    <SectionShell title="Qualidade" subtitle="Vídeo e EEG avaliados de forma independente.">
+    <SectionShell title={t('sections.quality.title')} subtitle={t('sections.quality.subtitle')}>
       {isLoading && (
         <div className="flex justify-center py-10">
           <div
             className="h-7 w-7 animate-spin rounded-full border-4 border-border border-t-blue-600"
             role="status"
-            aria-label="Carregando qualidade"
+            aria-label={t('sections.quality.loading')}
           />
         </div>
       )}
       {isError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Não foi possível carregar o resumo de qualidade deste estudo.
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {t('sections.quality.loadFailed')}
         </div>
       )}
       {quality && (
         <>
           <div className="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-text-secondary">
-            {quality.sessions_count} {quality.sessions_count === 1 ? 'sessão vinculada' : 'sessões vinculadas'} ao estudo.
-            As médias abaixo consideram somente ativos com métricas persistidas.
+            {t('sections.quality.linkedSessions', { count: quality.sessions_count })}
           </div>
           <div className="grid gap-3 lg:grid-cols-2">
             <QualitySummaryCard
-              title="Vídeo"
+              title={t('sections.quality.video')}
               icon={Video}
               summary={quality.video}
-              metricLabel="frames válidos"
-              secondaryMetricLabel="detecção facial"
+              metricLabel={t('sections.quality.validFrames')}
+              secondaryMetricLabel={t('sections.quality.faceDetection')}
             />
             <QualitySummaryCard
-              title="EEG"
+              title={t('sections.quality.eeg')}
               icon={Activity}
               summary={quality.eeg}
-              metricLabel="registro válido"
+              metricLabel={t('sections.quality.validRecording')}
             />
           </div>
           {quality.video.total_assets === 0 && quality.eeg.total_assets === 0 && (
             <div className="rounded-lg border border-dashed border-border-strong bg-app-bg p-4 text-[13px] text-text-muted">
-              Ainda não há ativos de vídeo ou EEG vinculados às sessões deste estudo.
+              {t('sections.quality.noAssets')}
             </div>
           )}
         </>
@@ -174,6 +182,8 @@ function QualitySummaryCard({
   metricLabel: string;
   secondaryMetricLabel?: string;
 }) {
+  const { t } = useTranslation('studies');
+  const locale = useLocale();
   const approved = (summary.verdicts.approved ?? 0)
     + (summary.verdicts.approved_with_caveats ?? 0);
   const needsAttention = (summary.verdicts.review_required ?? 0)
@@ -187,55 +197,57 @@ function QualitySummaryCard({
           {title}
         </p>
         <span className="text-[11px] text-text-muted">
-          {summary.assessed_assets} de {summary.total_assets} avaliados
+          {t('sections.quality.assessed', { assessed: summary.assessed_assets, total: summary.total_assets })}
         </span>
       </div>
       <p className="mt-2 text-3xl font-bold tabular-nums text-text-primary">
-        {formatQualityRatio(summary.average_valid_ratio)}
+        {formatQualityRatio(summary.average_valid_ratio, locale)}
       </p>
-      <p className="text-[11px] text-text-muted">{metricLabel} (média dos ativos medidos)</p>
+      <p className="text-[11px] text-text-muted">{t('sections.quality.averageHint', { metric: metricLabel })}</p>
       {secondaryMetricLabel && (
         <p className="mt-2 text-xs text-text-muted">
-          {secondaryMetricLabel}: <span className="font-semibold text-text-secondary">{formatQualityRatio(summary.average_face_detection_rate)}</span>
+          {secondaryMetricLabel}: <span className="font-semibold text-text-secondary">{formatQualityRatio(summary.average_face_detection_rate, locale)}</span>
         </p>
       )}
       <div className="mt-4 flex flex-wrap gap-3 border-t border-border pt-3 text-[11px]">
-        <span className="inline-flex items-center gap-1 text-emerald-700">
-          <CheckCircle2 size={13} /> {approved} aprovados
+        <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+          <CheckCircle2 size={13} aria-hidden="true" /> {t('sections.quality.approved', { count: approved })}
         </span>
-        <span className="inline-flex items-center gap-1 text-amber-700">
-          <AlertTriangle size={13} /> {needsAttention} requerem atenção
+        <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
+          <AlertTriangle size={13} aria-hidden="true" /> {t('sections.quality.attention', { count: needsAttention })}
         </span>
-        <span className="text-text-muted">{summary.findings_count} achados</span>
+        <span className="text-text-muted">{t('sections.quality.findings', { count: summary.findings_count })}</span>
       </div>
     </div>
   );
 }
 
-function formatQualityRatio(value: number | null) {
+function formatQualityRatio(value: number | null, locale: string) {
   return value == null
     ? '—'
-    : `${(value * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+    : `${(value * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}%`;
 }
 
 export function StudyDatasetsPage() {
+  const { t } = useTranslation('studies');
   return (
-    <SectionShell title="Datasets do estudo" subtitle="Versões reprodutíveis geradas a partir das sessões.">
+    <SectionShell title={t('sections.datasets.title')} subtitle={t('sections.datasets.subtitle')}>
       <Link to="/app/datasets" className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-3 hover:border-blue-300">
         <Database size={16} className="text-text-muted" />
-        <span className="text-sm font-medium text-text-secondary">Abrir gestão de datasets</span>
+        <span className="text-sm font-medium text-text-secondary">{t('sections.datasets.open')}</span>
       </Link>
     </SectionShell>
   );
 }
 
 export function StudyAnalysisPage() {
+  const { t } = useTranslation('studies');
   const { studyId } = useParams();
   const { data: sessions = [], isLoading } = useSessions(studyId);
   const firstSession = sessions[0];
 
   return (
-    <SectionShell title="Análises do estudo" subtitle="Workspace sincronizado e análises configuráveis.">
+    <SectionShell title={t('sections.analysis.title')} subtitle={t('sections.analysis.subtitle')}>
       <div className="flex flex-wrap gap-3">
         <Link
           to={firstSession ? `/app/sessions/${firstSession.id}/explorer` : `/app/studies/${studyId}/sessions`}
@@ -243,11 +255,11 @@ export function StudyAnalysisPage() {
         >
           <LineChart size={16} className="text-text-muted" />
           <span className="text-sm font-medium text-text-primary">
-            {isLoading ? 'Carregando sessões…' : firstSession ? 'Workspace sincronizado' : 'Adicionar uma sessão'}
+            {isLoading ? t('sections.analysis.loadingSessions') : firstSession ? t('sections.analysis.workspace') : t('sections.analysis.addSession')}
           </span>
         </Link>
         <Link to={`/app/studies/${studyId}/sync`} className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-3 hover:border-blue-300">
-          <Waypoints size={16} className="text-text-muted" /><span className="text-sm font-medium text-text-primary">Sincronização</span>
+          <Waypoints size={16} className="text-text-muted" /><span className="text-sm font-medium text-text-primary">{t('sections.analysis.sync')}</span>
         </Link>
       </div>
     </SectionShell>
@@ -255,8 +267,9 @@ export function StudyAnalysisPage() {
 }
 
 export function StudySettingsPage() {
+  const { t } = useTranslation('studies');
   return (
-    <SectionShell title="Configurações do estudo" subtitle="Governança, retenção e responsáveis.">
+    <SectionShell title={t('sections.settings.title')} subtitle={t('sections.settings.subtitle')}>
       <ScientificCaveat variant="privacy" />
     </SectionShell>
   );

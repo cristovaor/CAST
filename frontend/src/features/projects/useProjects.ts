@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL, apiClient } from '@/lib/api';
 import { toast } from '@/app/stores/useToastStore';
@@ -32,7 +33,7 @@ export function useCreateProject() {
       apiClient.post<Project>('/projects', data),
     onSuccess: (project) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Projeto criado', project.name);
+      toast.success(i18n.t('projects:toasts.created'), project.name);
     },
   });
 }
@@ -48,7 +49,7 @@ export function useUpdateProject() {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'project', project.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
-      toast.success('Projeto atualizado', project.name);
+      toast.success(i18n.t('projects:toasts.updated'), project.name);
     },
   });
 }
@@ -62,7 +63,7 @@ export function useArchiveProject() {
     onSuccess: (project) => {
       queryClient.setQueryData(['projects', project.id], project);
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Projeto arquivado', project.name);
+      toast.success(i18n.t('projects:toasts.archived'), project.name);
     },
   });
 }
@@ -75,7 +76,7 @@ export function useDeleteProject() {
     onSuccess: (_, id) => {
       queryClient.removeQueries({ queryKey: ['projects', id] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Projeto excluído');
+      toast.success(i18n.t('projects:toasts.deleted'));
     },
   });
 }
@@ -89,7 +90,7 @@ export function useExportProject() {
 
       const response = await fetch(`${API_BASE_URL}/projects/${projectId}/export`, { headers });
       if (!response.ok) {
-        let message = 'Erro na exportação do projeto';
+        let message = i18n.t('projects:toasts.exportFailed');
         try {
           const payload = await response.json() as { detail?: string };
           message = payload.detail ?? message;
@@ -110,7 +111,7 @@ export function useExportProject() {
       window.URL.revokeObjectURL(url);
     },
     onSuccess: () => {
-      toast.success('Exportação concluída', 'O download do CSV foi iniciado.');
+      toast.success(i18n.t('projects:toasts.exported'), i18n.t('projects:toasts.exportedDetail'));
     },
   });
 }

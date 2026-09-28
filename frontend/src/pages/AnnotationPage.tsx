@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Download, Loader2, RefreshCw, Upload } from 'lucide-react';
@@ -64,6 +65,7 @@ function regionForAction(
 }
 
 export function AnnotationPage() {
+  const { t } = useTranslation('annotations');
   const { videoId = '' } = useParams();
   const [searchParams] = useSearchParams();
   const taskId = searchParams.get('taskId') ?? undefined;
@@ -493,7 +495,7 @@ export function AnnotationPage() {
       const text = await file.text();
       const { rows, errors } = parseAnnotationCsv(text);
       if (rows.length === 0) {
-        setMessage(errors[0] ?? 'Nenhuma linha válida encontrada no CSV.');
+        setMessage(errors[0] ?? t('page.csvNoRows'));
         return;
       }
       setImporting(true);
@@ -516,12 +518,12 @@ export function AnnotationPage() {
         }
       }
       setImporting(false);
-      const parts = [`${created} anotações importadas`];
-      if (failed > 0) parts.push(`${failed} falharam`);
-      if (errors.length > 0) parts.push(`${errors.length} linhas inválidas ignoradas`);
+      const parts = [t('page.imported', { count: created })];
+      if (failed > 0) parts.push(t('page.importFailed', { count: failed }));
+      if (errors.length > 0) parts.push(t('page.invalidRows', { count: errors.length }));
       setMessage(parts.join(' · '));
     },
-    [categories, createAnnotation],
+    [categories, createAnnotation, t],
   );
 
   const review = (
@@ -567,19 +569,19 @@ export function AnnotationPage() {
   };
 
   if (!videoId) {
-    return <div className="p-8 text-text-primary">Vídeo não informado.</div>;
+    return <div className="p-8 text-text-primary">{t('page.noVideo')}</div>;
   }
   if (contextQuery.isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 role="status" aria-label={t('page.loading')} className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
   if (contextQuery.isError || !context) {
     return (
       <div className="m-8 rounded-lg border border-danger-border bg-danger-light p-5 text-danger">
-        Não foi possível abrir o contexto de anotação.
+        {t('page.contextFailed')}
       </div>
     );
   }
@@ -594,10 +596,10 @@ export function AnnotationPage() {
     <div className="flex h-[calc(100vh-theme(spacing.16))] flex-col bg-app-bg text-text-primary">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div>
-          <h1 className="text-base font-semibold">Anotação · {context.video.filename}</h1>
+          <h1 className="text-base font-semibold">{t('page.title', { file: context.video.filename })}</h1>
           <p className="text-xs text-text-muted">
-            {fps.toFixed(2)} fps · quadro {timeToFrame(currentTimeMs, fps)}
-            {context.task ? ` · tarefa ${context.task.id.slice(0, 8)}` : ''}
+            {t('page.frameInfo', { fps: fps.toFixed(2), frame: timeToFrame(currentTimeMs, fps) })}
+            {context.task ? t('page.taskInfo', { id: context.task.id.slice(0, 8) }) : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -617,24 +619,24 @@ export function AnnotationPage() {
             size="sm"
             disabled={importing}
             onClick={triggerImport}
-            title="Importar anotações de um CSV"
+            title={t('page.importTitle')}
           >
             {importing ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Upload className="mr-2 h-4 w-4" />
+              <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
             )}
-            Importar CSV
+            {t('page.importCsv')}
           </Button>
           <Button
             variant="outline"
             size="sm"
             disabled={events.length === 0}
             onClick={exportCsv}
-            title="Exportar anotações para CSV"
+            title={t('page.exportTitle')}
           >
-            <Download className="mr-2 h-4 w-4" />
-            Exportar CSV
+            <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+            {t('page.exportCsv')}
           </Button>
           {!artifact && (
             <Button
@@ -651,18 +653,18 @@ export function AnnotationPage() {
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              {extracting ? 'Processando landmarks' : 'Processar landmarks'}
+              {extracting ? t('page.extracting') : t('page.extract')}
             </Button>
           )}
         </div>
       </header>
 
       {message && (
-        <div className="flex items-center justify-between border-b border-warning-border bg-warning-light px-5 py-2 text-xs text-warning">
+        <div role="status" className="flex items-center justify-between border-b border-warning-border bg-warning-light px-5 py-2 text-xs text-warning">
           <span className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" /> {message}
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" /> {message}
           </span>
-          <button type="button" onClick={() => setMessage(null)}>Fechar</button>
+          <button type="button" onClick={() => setMessage(null)}>{t('page.close')}</button>
         </div>
       )}
 
@@ -687,7 +689,7 @@ export function AnnotationPage() {
 
             <div className="mt-3 flex w-full max-w-5xl flex-wrap items-center gap-3 text-xs text-text-secondary">
               <label>
-                Ação/área{' '}
+                {t('page.actionArea')}{' '}
                 <select
                   value={effectiveSelectedAction}
                   onChange={(event) => {
@@ -706,7 +708,7 @@ export function AnnotationPage() {
               </label>
               {BILATERAL_ACTIONS.has(effectiveSelectedAction) && (
                 <label>
-                  Lado{' '}
+                  {t('page.side')}{' '}
                   <select
                     value={selectedSide}
                     onChange={(event) =>
@@ -714,14 +716,14 @@ export function AnnotationPage() {
                     }
                     className="rounded border border-border bg-surface px-2 py-1 text-text-primary"
                   >
-                    <option value="both">Ambos</option>
-                    <option value="right">Direito</option>
-                    <option value="left">Esquerdo</option>
+                    <option value="both">{t('sides.both')}</option>
+                    <option value="right">{t('sides.right')}</option>
+                    <option value="left">{t('sides.left')}</option>
                   </select>
                 </label>
               )}
               <label>
-                Tamanho{' '}
+                {t('page.pointSize')}{' '}
                 <input
                   type="range"
                   min={1}
@@ -732,7 +734,7 @@ export function AnnotationPage() {
                 />
               </label>
               <label>
-                Opacidade{' '}
+                {t('page.opacity')}{' '}
                 <input
                   type="range"
                   min={0.2}
@@ -750,20 +752,20 @@ export function AnnotationPage() {
                     setShowMotionVectors(event.target.checked)
                   }
                 />
-                Vetores de movimento
+                {t('page.motionVectors')}
               </label>
               <span className="ml-auto">
                 {selectedCategory?.label ?? effectiveSelectedAction}
                 {effectiveOverlayMode === 'area'
-                  ? ' · área acompanha o rosto'
+                  ? t('page.areaFollowsFace')
                   : ''}
-                {' · '}número marca · Shift+número cria ponto
+                {t('page.shortcutsHint')}
               </span>
             </div>
             {analyzeInterval.isPending && (
               <div className="mt-3 flex w-full max-w-5xl items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-muted">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                Analisando movimento e qualidade do intervalo…
+                <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
+                {t('page.analyzing')}
               </div>
             )}
             {intervalProposal && (

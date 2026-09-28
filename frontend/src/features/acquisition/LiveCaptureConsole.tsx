@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Camera, CheckCircle2, HardDrive, Loader2, RotateCcw, Square } from 'lucide-react';
 import {
@@ -34,6 +35,7 @@ interface QualityState {
 }
 
 export function LiveCaptureConsole({ sessionId, open, onOpenChange }: LiveCaptureConsoleProps) {
+  const { t } = useTranslation('acquisition');
   const videoRef = useRef<HTMLVideoElement>(null);
   const { phase, stream, progress, error, pending, start, stop, retry, discard } = useLiveCapture(sessionId);
   const [storage, setStorage] = useState<{ quota: number; usage: number } | null>(null);
@@ -117,9 +119,9 @@ export function LiveCaptureConsole({ sessionId, open, onOpenChange }: LiveCaptur
     >
       <DialogContent className="max-w-3xl border-border bg-surface text-text-primary">
         <DialogHeader>
-          <DialogTitle className="text-text-primary">Captura de vídeo ao vivo</DialogTitle>
+          <DialogTitle className="text-text-primary">{t('capture.title')}</DialogTitle>
           <DialogDescription className="text-text-secondary">
-            A gravação fica persistida localmente até o servidor confirmar o upload e iniciar a validação.
+            {t('capture.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -129,35 +131,35 @@ export function LiveCaptureConsole({ sessionId, open, onOpenChange }: LiveCaptur
               <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                <Camera className="mr-2" size={18} /> Prévia da câmera
+                <Camera className="mr-2" size={18} aria-hidden="true" /> {t('capture.preview')}
               </div>
             )}
           </div>
 
           <div className="space-y-2 text-xs">
             <StatusRow
-              label="Câmera"
-              value={settings ? `${settings.width ?? '?'}×${settings.height ?? '?'} · ${settings.frameRate ?? '?'} fps` : 'Aguardando permissão'}
+              label={t('capture.camera')}
+              value={settings ? `${settings.width ?? '?'}×${settings.height ?? '?'} · ${settings.frameRate ?? '?'} fps` : t('capture.awaitingPermission')}
               ok={Boolean(settings)}
             />
             <StatusRow
-              label="Iluminação"
-              value={quality.luminance == null ? 'Aguardando amostra' : `${Math.round(quality.luminance)}/255`}
+              label={t('capture.lighting')}
+              value={quality.luminance == null ? t('capture.awaitingSample') : `${Math.round(quality.luminance)}/255`}
               ok={quality.luminance == null ? null : quality.luminance >= 45 && quality.luminance <= 220}
             />
             <StatusRow
-              label="Face presente"
-              value={quality.facePresent == null ? 'Validação no processamento' : quality.facePresent ? 'Detectada' : 'Não detectada'}
+              label={t('capture.facePresent')}
+              value={quality.facePresent == null ? t('capture.validatedLater') : quality.facePresent ? t('capture.detected') : t('capture.notDetected')}
               ok={quality.facePresent}
             />
             <StatusRow
-              label="Enquadramento"
-              value={quality.framingOk == null ? 'Validação no processamento' : quality.framingOk ? 'Adequado' : 'Ajustar posição'}
+              label={t('capture.framing')}
+              value={quality.framingOk == null ? t('capture.validatedLater') : quality.framingOk ? t('capture.framingOk') : t('capture.adjustPosition')}
               ok={quality.framingOk}
             />
             <StatusRow
-              label="Armazenamento local"
-              value={storage ? `${formatBytes(Math.max(storage.quota - storage.usage, 0))} livres` : 'Estimativa indisponível'}
+              label={t('capture.storage')}
+              value={storage ? t('capture.storageFree', { size: formatBytes(Math.max(storage.quota - storage.usage, 0)) }) : t('capture.storageUnknown')}
               ok={storage ? storage.quota - storage.usage > 100 * 1024 * 1024 : null}
               icon="storage"
             />
@@ -167,7 +169,7 @@ export function LiveCaptureConsole({ sessionId, open, onOpenChange }: LiveCaptur
         {(phase === 'uploading' || phase === 'validating') && (
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-text-secondary">
-              <span>{phase === 'uploading' ? 'Enviando partes verificadas' : 'Validando e normalizando no servidor'}</span>
+              <span>{phase === 'uploading' ? t('capture.uploadingParts') : t('capture.validating')}</span>
               <span>{progress}%</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
@@ -177,45 +179,45 @@ export function LiveCaptureConsole({ sessionId, open, onOpenChange }: LiveCaptur
         )}
 
         {pending && phase === 'idle' && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            Há uma captura interrompida preservada neste navegador. Você pode retomar o envio sem gravar novamente.
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            {t('capture.pending')}
           </div>
         )}
         {error && (
-          <div className="flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            <AlertTriangle size={17} className="mt-0.5 shrink-0" /> {error}
+          <div role="alert" className="flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+            <AlertTriangle size={17} className="mt-0.5 shrink-0" aria-hidden="true" /> {error}
           </div>
         )}
         {phase === 'validating' && (
-          <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-            <CheckCircle2 size={17} className="mt-0.5 shrink-0" /> Upload confirmado. O bruto foi preservado e a validação assíncrona foi agendada.
+          <div role="status" className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+            <CheckCircle2 size={17} className="mt-0.5 shrink-0" aria-hidden="true" /> {t('capture.confirmed')}
           </div>
         )}
 
         <DialogFooter>
           {pending && phase !== 'recording' && phase !== 'validating' && (
             <ActionButton type="button" variant="ghost" onClick={discard} disabled={busy}>
-              Descartar
+              {t('capture.discard')}
             </ActionButton>
           )}
           {(phase === 'idle' || phase === 'error') && pending && (
             <ActionButton type="button" variant="secondary" onClick={retry} disabled={busy}>
-              <RotateCcw size={16} /> Retomar envio
+              <RotateCcw size={16} aria-hidden="true" /> {t('capture.resume')}
             </ActionButton>
           )}
           {(phase === 'idle' || phase === 'error') && !pending && (
             <ActionButton type="button" variant="primary" onClick={start} disabled={!sessionId || busy}>
-              <Camera size={16} /> Iniciar captura
+              <Camera size={16} aria-hidden="true" /> {t('capture.start')}
             </ActionButton>
           )}
           {phase === 'recording' && (
             <ActionButton type="button" variant="danger" onClick={stop}>
-              <Square size={15} fill="currentColor" /> Parar e enviar
+              <Square size={15} fill="currentColor" aria-hidden="true" /> {t('capture.stop')}
             </ActionButton>
           )}
           {busy && (
             <ActionButton type="button" variant="primary" disabled>
-              <Loader2 size={16} className="animate-spin" /> Processando
+              <Loader2 size={16} className="animate-spin" aria-hidden="true" /> {t('capture.processing')}
             </ActionButton>
           )}
         </DialogFooter>
@@ -233,9 +235,9 @@ function StatusRow({ label, value, ok, icon }: {
   return (
     <div className="rounded-lg border border-border bg-surface-muted p-2.5">
       <div className="flex items-center gap-1.5 font-medium text-text-primary">
-        {icon === 'storage' && <HardDrive size={13} />}
+        {icon === 'storage' && <HardDrive size={13} aria-hidden="true" />}
         {label}
-        <span className={`ml-auto h-2 w-2 rounded-full ${ok == null ? 'bg-slate-300' : ok ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+        <span aria-hidden="true" className={`ml-auto h-2 w-2 rounded-full ${ok == null ? 'bg-slate-300' : ok ? 'bg-emerald-500' : 'bg-amber-500'}`} />
       </div>
       <div className="mt-1 text-text-secondary">{value}</div>
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, AlertTriangle, Loader2 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
@@ -18,6 +19,7 @@ export function FaceFeaturePanel({ videoId, artifactId, cursorMs }: {
   artifactId: string;
   cursorMs: number;
 }) {
+  const { t } = useTranslation('analysis');
   const windowStartUs = Math.max(0, Math.round((cursorMs - 5000) * 1000));
   const windowEndUs = Math.round((cursorMs + 5000) * 1000);
   const query = useQuery({
@@ -35,30 +37,30 @@ export function FaceFeaturePanel({ videoId, artifactId, cursorMs }: {
   return (
     <section className="rounded-xl border border-border bg-surface p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
-        <Activity size={17} className="text-violet-600" />
+        <Activity size={17} className="text-violet-600" aria-hidden="true" />
         <div>
           <h2 className="text-sm font-semibold text-text-primary">Face Landmarker v2</h2>
-          <p className="text-xs text-text-muted">Estimativas/model output no PTS mais próximo do cursor</p>
+          <p className="text-xs text-text-muted">{t('explorer.face.subtitle')}</p>
         </div>
-        <span className="ml-auto rounded bg-violet-50 px-2 py-1 text-[9px] font-bold uppercase text-violet-700">estimativa</span>
+        <span className="ml-auto rounded bg-violet-50 px-2 py-1 text-[9px] font-bold uppercase text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">{t('explorer.face.estimate')}</span>
       </div>
       {query.isLoading ? (
-        <div className="flex h-16 items-center justify-center text-xs text-text-secondary"><Loader2 size={15} className="mr-2 animate-spin" />Carregando janela…</div>
+        <div className="flex h-16 items-center justify-center text-xs text-text-secondary"><Loader2 size={15} className="mr-2 animate-spin" aria-hidden="true" />{t('explorer.face.loading')}</div>
       ) : query.isError ? (
-        <div className="flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800"><AlertTriangle size={15} />Este track falhou isoladamente; os demais continuam ativos.</div>
+        <div role="alert" className="flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"><AlertTriangle size={15} aria-hidden="true" />{t('explorer.face.failed')}</div>
       ) : nearest ? (
         <div className="grid gap-2 sm:grid-cols-5">
           <Metric label="Yaw" value={angle(nearest.head_yaw_deg)} />
           <Metric label="Pitch" value={angle(nearest.head_pitch_deg)} />
           <Metric label="Roll" value={angle(nearest.head_roll_deg)} />
-          <Metric label="Olho E" value={ratio(nearest.eye_openness_left)} />
-          <Metric label="Olho D" value={ratio(nearest.eye_openness_right)} />
+          <Metric label={t('explorer.face.leftEye')} value={ratio(nearest.eye_openness_left)} />
+          <Metric label={t('explorer.face.rightEye')} value={ratio(nearest.eye_openness_right)} />
           {nearest.quality_flags.length > 0 && (
-            <p className="col-span-full text-[10px] text-amber-700">Flags: {nearest.quality_flags.join(', ')}</p>
+            <p className="col-span-full text-[10px] text-amber-700 dark:text-amber-400">{t('explorer.face.flags', { list: nearest.quality_flags.join(', ') })}</p>
           )}
         </div>
       ) : (
-        <p className="rounded-lg bg-surface-muted p-3 text-xs text-text-secondary">Sem face válida nesta janela temporal.</p>
+        <p className="rounded-lg bg-surface-muted p-3 text-xs text-text-secondary">{t('explorer.face.noFace')}</p>
       )}
     </section>
   );

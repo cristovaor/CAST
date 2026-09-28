@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 interface ConfirmDialogProps {
@@ -21,13 +22,14 @@ export function ConfirmDialog({
   onConfirm,
   title,
   description,
-  confirmLabel = 'Confirmar',
-  cancelLabel = 'Cancelar',
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   isLoading = false,
 }: ConfirmDialogProps) {
   // Unique per instance: a static id would make aria-labelledby resolve to the
   // wrong heading when two dialogs are mounted at once.
+  const { t } = useTranslation('ui');
   const titleId = useId();
   const descriptionId = useId();
 
@@ -102,7 +104,7 @@ export function ConfirmDialog({
             disabled={isLoading}
             className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-muted rounded-lg transition-colors disabled:opacity-50"
           >
-            {cancelLabel}
+            {cancelLabel ?? t('dialog.cancel')}
           </button>
           <button
             type="button"
@@ -117,7 +119,7 @@ export function ConfirmDialog({
             {isLoading ? (
               <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
             ) : (
-              confirmLabel
+              confirmLabel ?? t('dialog.confirm')
             )}
           </button>
         </div>
@@ -126,7 +128,7 @@ export function ConfirmDialog({
         <button
           onClick={onClose}
           disabled={isLoading}
-          aria-label="Fechar diálogo"
+          aria-label={t('dialog.close')}
           className="absolute top-4 right-4 p-1 rounded-md text-text-muted hover:bg-surface-muted hover:text-text-secondary transition-colors disabled:opacity-50"
         >
           <X size={16} />

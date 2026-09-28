@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 // ─── API Client ───────────────────────────────────────────────
 // Typed fetch wrapper. Base URL from env or localhost default.
 // Auth header injection prepared for JWT.
@@ -88,7 +90,7 @@ async function request<T>(
     // session is torn down here rather than at the next route change.
     if (res.status === 401 && !options.skipAuthRedirect) {
       handleUnauthorized();
-      throw new ApiError('Sessão expirada. Faça login novamente.', 401);
+      throw new ApiError(i18n.t('common:errors.sessionExpired'), 401);
     }
 
     throw new ApiError(message, res.status);
@@ -136,7 +138,7 @@ export async function uploadApiForm<T>(path: string, formData: FormData): Promis
     }
     if (response.status === 401) {
       handleUnauthorized();
-      throw new ApiError('Sessão expirada. Faça login novamente.', 401);
+      throw new ApiError(i18n.t('common:errors.sessionExpired'), 401);
     }
     throw new ApiError(message, response.status);
   }
@@ -158,7 +160,7 @@ export async function downloadApiFile(path: string, fallbackName: string) {
     }
     if (response.status === 401) {
       handleUnauthorized();
-      throw new ApiError('Sessão expirada. Faça login novamente.', 401);
+      throw new ApiError(i18n.t('common:errors.sessionExpired'), 401);
     }
     throw new ApiError(message, response.status);
   }

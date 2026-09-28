@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import type { AnnotationEvent } from '@/types/annotation';
 
 const CSV_COLUMNS = [
@@ -127,7 +128,7 @@ export function parseAnnotationCsv(text: string): AnnotationCsvParseResult {
   const errors: string[] = [];
   if (actionCodeIdx === -1 || startFrameIdx === -1 || endFrameIdx === -1) {
     errors.push(
-      'Cabeçalho inválido: são obrigatórias as colunas actionCode, startFrame e endFrame.',
+      i18n.t('annotations:csv.invalidHeader'),
     );
     return { rows: [], errors };
   }
@@ -141,25 +142,25 @@ export function parseAnnotationCsv(text: string): AnnotationCsvParseResult {
     const endFrameRaw = line[endFrameIdx]?.trim();
 
     if (!actionCode) {
-      errors.push(`Linha ${rowNumber}: actionCode vazio.`);
+      errors.push(i18n.t('annotations:csv.emptyAction', { row: rowNumber }));
       continue;
     }
     const startFrame = Number(startFrameRaw);
     const endFrame = Number(endFrameRaw);
     if (!Number.isFinite(startFrame) || !Number.isFinite(endFrame)) {
-      errors.push(`Linha ${rowNumber}: startFrame/endFrame inválidos.`);
+      errors.push(i18n.t('annotations:csv.invalidFrames', { row: rowNumber }));
       continue;
     }
     const kindRaw = kindIdx !== -1 ? line[kindIdx]?.trim() : '';
     const kind: 'interval' | 'point' = kindRaw === 'point' ? 'point' : 'interval';
     if (kind === 'point' && startFrame !== endFrame) {
       errors.push(
-        `Linha ${rowNumber}: anotações do tipo "point" exigem startFrame == endFrame.`,
+        i18n.t('annotations:csv.pointFrames', { row: rowNumber }),
       );
       continue;
     }
     if (kind === 'interval' && endFrame < startFrame) {
-      errors.push(`Linha ${rowNumber}: endFrame deve ser >= startFrame.`);
+      errors.push(i18n.t('annotations:csv.endBeforeStart', { row: rowNumber }));
       continue;
     }
 

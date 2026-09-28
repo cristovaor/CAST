@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { AlertCircle, CheckCircle2, UploadCloud } from 'lucide-react';
 import {
@@ -23,6 +24,7 @@ interface UploadAssetDialogProps {
 }
 
 export function UploadAssetDialog({ children, kind, onUploaded }: UploadAssetDialogProps) {
+  const { t } = useTranslation('acquisition');
   const [open, setOpen] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -32,7 +34,7 @@ export function UploadAssetDialog({ children, kind, onUploaded }: UploadAssetDia
   const videoUpload = useProxyVideoUpload();
   const eegUpload = useUploadEEG();
   const mutation = kind === 'video' ? videoUpload : eegUpload;
-  const label = kind === 'video' ? 'vídeo' : 'EEG';
+  const label = kind === 'video' ? t('upload.video') : 'EEG';
 
   const reset = () => {
     setSessionId('');
@@ -62,7 +64,7 @@ export function UploadAssetDialog({ children, kind, onUploaded }: UploadAssetDia
       setSuccess(true);
       onUploaded?.(session.id);
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : `Falha no upload de ${label}.`);
+      setError(uploadError instanceof Error ? uploadError.message : t('upload.failed', { label }));
     }
   };
 
@@ -71,15 +73,15 @@ export function UploadAssetDialog({ children, kind, onUploaded }: UploadAssetDia
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="bg-surface text-text-primary border-border">
         <DialogHeader>
-          <DialogTitle className="text-text-primary">Importar {label}</DialogTitle>
+          <DialogTitle className="text-text-primary">{t('upload.title', { label })}</DialogTitle>
           <DialogDescription className="text-text-secondary">
-            Escolha a sessão de destino e envie o arquivo para a API do CAST.
+            {t('upload.description')}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block space-y-2 text-sm font-medium text-text-primary">
-            Sessão de destino
+            {t('upload.session')}
             <select
               required
               value={sessionId}
@@ -87,21 +89,21 @@ export function UploadAssetDialog({ children, kind, onUploaded }: UploadAssetDia
               disabled={sessions.isLoading || mutation.isPending}
               className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Selecione…</option>
+              <option value="">{t('select.placeholder')}</option>
               {(sessions.data ?? []).map((session) => (
                 <option key={session.id} value={session.id}>
-                  Sessão {shortId(session.id)} — estudo {shortId(session.study_id)}
+                  {t('upload.sessionOption', { id: shortId(session.id), study: shortId(session.study_id) })}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="block space-y-2 text-sm font-medium text-text-primary">
-            Arquivo
+            {t('upload.file')}
             <span className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-surface-muted px-4 py-5 text-text-secondary hover:border-blue-400">
-              <UploadCloud size={20} />
+              <UploadCloud size={20} aria-hidden="true" />
               <span className="min-w-0 truncate">
-                {file?.name ?? (kind === 'video' ? 'Selecionar MP4, WebM ou outro vídeo' : 'Selecionar XDF, EDF, CSV, FIF ou BrainVision')}
+                {file?.name ?? (kind === 'video' ? t('upload.pickVideo') : t('upload.pickEeg'))}
               </span>
               <input
                 required
@@ -119,24 +121,24 @@ export function UploadAssetDialog({ children, kind, onUploaded }: UploadAssetDia
           </label>
 
           {sessions.isError && (
-            <p className="flex items-center gap-2 text-sm text-red-600">
-              <AlertCircle size={16} /> Não foi possível carregar as sessões.
+            <p role="alert" className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+              <AlertCircle size={16} aria-hidden="true" /> {t('upload.sessionsFailed')}
             </p>
           )}
           {error && (
-            <p className="flex items-center gap-2 text-sm text-red-600">
-              <AlertCircle size={16} /> {error}
+            <p role="alert" className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+              <AlertCircle size={16} aria-hidden="true" /> {error}
             </p>
           )}
           {success && (
-            <p className="flex items-center gap-2 text-sm text-emerald-600">
-              <CheckCircle2 size={16} /> Upload concluído e vinculado à sessão.
+            <p role="status" className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 size={16} aria-hidden="true" /> {t('upload.success')}
             </p>
           )}
 
           <DialogFooter>
             <ActionButton type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
-              {success ? 'Fechar' : 'Cancelar'}
+              {success ? t('upload.close') : t('select.cancel')}
             </ActionButton>
             {!success && (
               <ActionButton
@@ -144,7 +146,7 @@ export function UploadAssetDialog({ children, kind, onUploaded }: UploadAssetDia
                 variant="primary"
                 disabled={!sessionId || !file || mutation.isPending}
               >
-                {mutation.isPending ? 'Enviando e processando…' : `Enviar ${label}`}
+                {mutation.isPending ? t('upload.submitting') : t('upload.submit', { label })}
               </ActionButton>
             )}
           </DialogFooter>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn, getQualityClasses, scoreToQuality } from '@/lib/utils';
 import { qualityLabel } from '@/lib/formatters';
 import type { QualityLevel } from '@/types/domain';
@@ -26,6 +27,7 @@ export function QualityBadge({
   size = 'md',
   className,
 }: QualityBadgeProps) {
+  const { t } = useTranslation('ui');
   const resolvedLevel: QualityLevel = level ?? (score !== undefined ? scoreToQuality(score) : 'good');
   const { bg, text, border } = getQualityClasses(resolvedLevel);
   const Icon = ICONS[resolvedLevel];
@@ -45,7 +47,9 @@ export function QualityBadge({
         sizes[size],
         className,
       )}
-      aria-label={`Qualidade: ${qualityLabel(resolvedLevel)}${displayScore ? ` (${displayScore})` : ''}`}
+      aria-label={displayScore
+        ? t('badges.qualityScore', { label: qualityLabel(resolvedLevel), score: displayScore })
+        : t('badges.quality', { label: qualityLabel(resolvedLevel) })}
     >
       <Icon size={10} className="shrink-0" />
       {qualityLabel(resolvedLevel)}

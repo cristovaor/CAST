@@ -1,0 +1,151 @@
+import type ptUi from '../pt-BR/ui';
+import type { Translation } from '../../types';
+
+const ui = {
+  emptyState: {
+    empty: { title: 'No items found', description: 'Get started by creating the first item.' },
+    noResults: { title: 'No results', description: 'Try adjusting the filters or search terms.' },
+    error: { title: 'Failed to load', description: 'The data could not be loaded. Please try again.' },
+    noAccess: { title: 'Restricted access', description: 'You do not have permission to view this content.' },
+  },
+  errorBoundary: {
+    title: 'Something went wrong on this screen',
+    description:
+      'An unexpected error occurred while rendering this page. Your data has not been lost — you can try again or go back to the start.',
+    retry: 'Try again',
+    home: 'Go to start',
+  },
+  errorState: {
+    title: 'An error occurred',
+    message: 'The operation could not be completed. Please try again.',
+    code: 'Code: {{code}}',
+    retry: 'Try again',
+    report: 'Report a problem',
+  },
+  loading: 'Loading',
+  dialog: {
+    close: 'Close dialog',
+    confirm: 'Confirm',
+    cancel: 'Cancel',
+  },
+  toaster: {
+    close: 'Dismiss notification',
+    unexpected: 'Unexpected error.',
+  },
+  dataTable: {
+    label: 'Data table',
+    empty: 'No results found',
+    range: '{{from}}–{{to}} of {{total}}',
+    previous: 'Previous page',
+    next: 'Next page',
+    rowActions: 'Actions for row {{id}}',
+  },
+  filterBar: {
+    search: 'Search',
+    placeholder: 'Search...',
+    clear: 'Clear',
+    result_one: '{{count}} result',
+    result_other: '{{count}} results',
+    ofTotal: ' of {{total}}',
+  },
+  stepper: {
+    label: 'Progress',
+  },
+  caveat: {
+    association: {
+      title: 'Scientific interpretation',
+      body: 'Temporal coincidences between video and EEG indicate association, not causation. Results depend on the protocol and selected parameters and require validation by the researcher.',
+    },
+    privacy: {
+      title: 'Sensitive data',
+      body: 'Facial video and EEG are sensitive personal data. Access is logged, limited to the consented purpose and subject to the study retention policy.',
+    },
+    model: {
+      title: 'Model estimate',
+      body: 'Model outputs are probabilities assigned to events, not diagnoses. They depend on the training dataset, device and protocol, and may not generalise to other populations.',
+    },
+    quality: {
+      title: 'Data quality',
+      body: 'Video and EEG quality are assessed independently. A single score does not replace inspection by channel, segment and explicit criterion.',
+    },
+  },
+  chart: {
+    source: 'Source',
+    unit: 'Unit',
+    sampleSize: 'n (part.)',
+    sessions: 'Sessions',
+    granularity: 'Granularity',
+    modality: 'Modality',
+    dataset: 'Dataset',
+    pipeline: 'Pipeline',
+    model: 'Model',
+    missing: 'Missing',
+    filters: 'Filters',
+  },
+  microActions: {
+    perMinute: '{{value}} occurrences/min',
+    summary: {
+      OLHO_FECHADO: 'Eyes Closed',
+      OLHANDO_CANTO: 'Looking Aside',
+      MEXEU_LABIOS: 'Lip Movement',
+      VIROU_ROSTO: 'Head Turn',
+      MEXEU_SOBRANCELHA: 'Eyebrow Movement',
+    },
+    event: '{{label}} · {{start}}–{{end}} · conf. {{confidence}}%',
+  },
+  quality: {
+    noFindings: 'No quality issues recorded.',
+    reprocessable: 'Reprocessable',
+    evidence: 'Evidence',
+    impact: 'Probable impact',
+    recommendation: 'Recommended action',
+    tone: {
+      info: 'Informational',
+      warning: 'Warning',
+      danger: 'Critical',
+      success: 'OK',
+      neutral: '—',
+    },
+    notAssessed: 'Quality not assessed yet — available once the video has been processed.',
+    videoTitle: 'Video quality',
+    videoSubtitle: 'Actual assessment derived from processing, with explicit criteria.',
+    faceDetection: 'Face detection',
+    validFrames: 'Valid frames',
+    resolution: 'Resolution',
+    fps: 'FPS',
+    noIssues: 'No quality issues found.',
+    criteria: 'Criteria: {{list}}',
+  },
+  badges: {
+    status: 'Status: {{label}}',
+    quality: 'Quality: {{label}}',
+    qualityScore: 'Quality: {{label}} ({{score}})',
+    model: 'Model: {{name}} v{{version}} ({{framework}})',
+    modelActive: 'Model: {{name}} v{{version}} ({{framework}}), active',
+  },
+  projectCard: {
+    label: 'Project: {{name}}',
+    actions: 'Project actions',
+    open: 'Open project',
+    edit: 'Edit',
+    archive: 'Archive',
+    delete: 'Delete',
+    studies: 'Studies',
+    sessions: 'Sessions',
+    videos: 'Videos',
+    averageQuality: 'Average quality',
+  },
+  upload: {
+    invalidType: 'Select a valid video file.',
+    tooLarge: 'The file exceeds the size limit ({{limit}}).',
+    missingParticipant: 'Participant ID not found. Complete the first step.',
+    failed: 'The video could not be uploaded.',
+    dropzone: 'Click to select or drag the video here',
+    formats: 'MP4, WebM (max {{limit}})',
+    uploading: 'Uploading...',
+    start: 'Start upload',
+    remove: 'Remove file',
+  },
+} satisfies Translation<typeof ptUi>;
+
+export default ui;

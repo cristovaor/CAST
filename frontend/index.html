@@ -2,15 +2,42 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="CAST Pro — Plataforma enterprise para gestão de estudos, análise de microações faciais e carga cognitiva em ambientes de aprendizagem multimídia." />
-    <meta name="theme-color" content="#0F172A" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F8FAFC" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B1120" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <!--
       Fonts are self-hosted and bundled from src/main.tsx (@fontsource/*).
       No third-party font CDN is contacted: that would block first paint and
       disclose every user's IP to an external host (LGPD).
     -->
+    <!--
+      Applies the saved theme and language before the bundle loads, so the page
+      never flashes light before switching to dark (or pt-BR before English).
+      Mirrors useApplyTheme and src/i18n; the React side takes over on mount.
+    -->
+    <script>
+      (function () {
+        var root = document.documentElement;
+        try {
+          var saved = JSON.parse(localStorage.getItem('cast-theme') || '{}');
+          var mode = (saved.state && saved.state.mode) || 'system';
+          var dark = mode === 'dark' ||
+            (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          root.setAttribute('data-theme', dark ? 'dark' : 'light');
+          root.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) {}
+        try {
+          var lang = localStorage.getItem('cast-locale');
+          if (!lang) lang = /^pt/i.test(navigator.language || '') ? 'pt-BR' : 'en';
+          if (lang === 'pt-BR' || lang === 'en') root.lang = lang;
+        } catch (e) {}
+      })();
+    </script>
     <title>CAST Pro — Cognitive Action &amp; Study Tracking</title>
   </head>
   <body>

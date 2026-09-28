@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Pause,
   Play,
@@ -37,6 +38,7 @@ export function AnnotationToolbar({
   onUndo,
   onRedo,
 }: AnnotationToolbarProps) {
+  const { t } = useTranslation('annotations');
   const draft = useAnnotationStore((state) => state.draft);
   const {
     isPlaying,
@@ -63,18 +65,20 @@ export function AnnotationToolbar({
   return (
     <div className="flex w-full flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={() => stepFrame(-1)}>
-          <SkipBack className="h-4 w-4" />
+        <Button variant="outline" size="icon" onClick={() => stepFrame(-1)} aria-label={t('toolbar.previousFrame')} title={t('toolbar.previousFrame')}>
+          <SkipBack className="h-4 w-4" aria-hidden="true" />
         </Button>
         <Button
           variant="outline"
           size="icon"
           onClick={() => setIsPlaying(!isPlaying)}
+          aria-label={isPlaying ? t('toolbar.pause') : t('toolbar.play')}
+          title={isPlaying ? t('toolbar.pause') : t('toolbar.play')}
         >
-          {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+          {isPlaying ? <Pause className="h-5 w-5" aria-hidden="true" /> : <Play className="h-5 w-5" aria-hidden="true" />}
         </Button>
-        <Button variant="outline" size="icon" onClick={() => stepFrame(1)}>
-          <SkipForward className="h-4 w-4" />
+        <Button variant="outline" size="icon" onClick={() => stepFrame(1)} aria-label={t('toolbar.nextFrame')} title={t('toolbar.nextFrame')}>
+          <SkipForward className="h-4 w-4" aria-hidden="true" />
         </Button>
         <Button
           variant="outline"
@@ -84,6 +88,7 @@ export function AnnotationToolbar({
             setPlaybackRate(rates[(index + 1) % rates.length]);
           }}
           className="w-16 font-mono"
+          aria-label={t('toolbar.speed', { rate: playbackRate })}
         >
           {playbackRate}x
         </Button>
@@ -93,18 +98,20 @@ export function AnnotationToolbar({
           size="icon"
           disabled={!canUndo || historyPending}
           onClick={onUndo}
-          title="Desfazer última edição (Ctrl+Z)"
+          title={t('toolbar.undo')}
+          aria-label={t('toolbar.undo')}
         >
-          <Undo2 className="h-4 w-4" />
+          <Undo2 className="h-4 w-4" aria-hidden="true" />
         </Button>
         <Button
           variant="outline"
           size="icon"
           disabled={!canRedo || historyPending}
           onClick={onRedo}
-          title="Refazer edição (Ctrl+Y)"
+          title={t('toolbar.redo')}
+          aria-label={t('toolbar.redo')}
         >
-          <Redo2 className="h-4 w-4" />
+          <Redo2 className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
 
@@ -113,6 +120,7 @@ export function AnnotationToolbar({
           <button
             key={mode}
             type="button"
+            aria-pressed={annotationMode === mode}
             onClick={() => onAnnotationModeChange(mode)}
             className={`rounded px-3 py-1.5 text-xs ${
               annotationMode === mode
@@ -120,7 +128,7 @@ export function AnnotationToolbar({
                 : 'text-text-muted hover:text-text-primary'
             }`}
           >
-            {mode === 'interval' ? 'Intervalo' : 'Ponto'}
+            {mode === 'interval' ? t('toolbar.interval') : t('toolbar.point')}
           </button>
         ))}
       </div>
@@ -131,6 +139,7 @@ export function AnnotationToolbar({
             key={mode}
             type="button"
             disabled={!canShowLandmarks && mode !== 'off'}
+            aria-pressed={overlayMode === mode}
             onClick={() => onOverlayModeChange(mode)}
             className={`rounded px-2.5 py-1.5 text-xs disabled:opacity-30 ${
               overlayMode === mode
@@ -138,21 +147,15 @@ export function AnnotationToolbar({
                 : 'text-text-muted hover:text-text-primary'
             }`}
           >
-            {mode === 'off'
-              ? 'Desligado'
-              : mode === 'roi'
-                ? 'Pontos'
-                : mode === 'area'
-                  ? 'Área'
-                  : 'Malha'}
+            {t(`toolbar.overlay.${mode}`)}
           </button>
         ))}
       </div>
 
       {draft ? (
-        <Badge variant="destructive">Intervalo em aberto</Badge>
+        <Badge variant="destructive">{t('toolbar.openInterval')}</Badge>
       ) : (
-        <Badge variant="secondary">Aguardando</Badge>
+        <Badge variant="secondary">{t('toolbar.waiting')}</Badge>
       )}
     </div>
   );

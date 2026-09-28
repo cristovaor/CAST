@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useParams, Link } from 'react-router-dom';
 import { FlaskConical, Video, Activity, Target, ListChecks, Users, ShieldCheck } from 'lucide-react';
 import { useStudy } from '@/features/studies/useStudies';
@@ -7,17 +8,15 @@ import { EXPERIMENTAL_DESIGNS, MODALITIES } from '@/types/research';
 // Study overview — renders the configurable design persisted by the wizard
 // (docs §7): research question, objectives, hypotheses, design, modalities.
 
-const DESIGN_LABEL = Object.fromEntries(EXPERIMENTAL_DESIGNS.map((d) => [d.value, d.label]));
-const MODALITY_LABEL = Object.fromEntries(MODALITIES.map((m) => [m.value, m.label]));
-
 export function StudyOverviewPage() {
+  const { t } = useTranslation('studies');
   const { studyId } = useParams();
   const { data: study, isLoading } = useStudy(studyId ?? '');
 
   if (isLoading) {
     return (
       <div className="flex justify-center p-12">
-        <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
+        <div role="status" aria-label={t('overview.loading')} className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
       </div>
     );
   }
@@ -30,10 +29,10 @@ export function StudyOverviewPage() {
       {!hasConfig && (
         <div className="rounded-xl border border-dashed border-border-strong bg-app-bg p-6 text-center">
           <FlaskConical className="mx-auto mb-2 text-text-disabled" size={32} />
-          <p className="text-sm font-medium text-text-secondary">Estudo sem configuração científica</p>
-          <p className="text-[12px] text-text-muted mt-1">Este estudo foi criado sem o desenho detalhado. Recrie-o pelo assistente para definir questão, hipóteses e modalidades.</p>
+          <p className="text-sm font-medium text-text-secondary">{t('overview.noConfigTitle')}</p>
+          <p className="text-[12px] text-text-muted mt-1">{t('overview.noConfigDescription')}</p>
           <Link to="/app/studies/new" className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
-            Abrir assistente de estudo
+            {t('overview.openWizard')}
           </Link>
         </div>
       )}
@@ -44,31 +43,31 @@ export function StudyOverviewPage() {
           <div className="flex flex-wrap items-center gap-2">
             {cfg.design && (
               <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-[12px] font-medium text-text-secondary">
-                <FlaskConical size={13} className="text-text-muted" /> {DESIGN_LABEL[cfg.design] ?? cfg.design}
+                <FlaskConical size={13} className="text-text-muted" /> {EXPERIMENTAL_DESIGNS.find((d) => d.value === cfg.design)?.label ?? cfg.design}
               </span>
             )}
             {(cfg.modalities ?? []).map((m) => (
               <span key={m} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-[12px] font-medium text-text-secondary">
                 {m === 'video' && <Video size={13} className="text-blue-500" />}
                 {m === 'eeg' && <Activity size={13} className="text-cyan-500" />}
-                {MODALITY_LABEL[m] ?? m}
+                {MODALITIES.find((option) => option.value === m)?.label ?? m}
               </span>
             ))}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             {cfg.researchQuestion && (
-              <Block icon={Target} title="Questão de pesquisa">
+              <Block icon={Target} title={t('overview.researchQuestion')}>
                 <p className="text-sm text-text-secondary">{cfg.researchQuestion}</p>
               </Block>
             )}
             {cfg.generalObjective && (
-              <Block icon={ListChecks} title="Objetivo geral">
+              <Block icon={ListChecks} title={t('overview.generalObjective')}>
                 <p className="text-sm text-text-secondary">{cfg.generalObjective}</p>
               </Block>
             )}
             {cfg.specificObjectives && cfg.specificObjectives.length > 0 && (
-              <Block icon={ListChecks} title="Objetivos específicos">
+              <Block icon={ListChecks} title={t('overview.specificObjectives')}>
                 <ul className="space-y-1">
                   {cfg.specificObjectives.map((o, i) => (
                     <li key={i} className="flex gap-2 text-sm text-text-secondary"><span className="text-text-disabled">•</span>{o}</li>
@@ -77,7 +76,7 @@ export function StudyOverviewPage() {
               </Block>
             )}
             {cfg.hypotheses && cfg.hypotheses.length > 0 && (
-              <Block icon={FlaskConical} title="Hipóteses">
+              <Block icon={FlaskConical} title={t('overview.hypotheses')}>
                 <ul className="space-y-1.5">
                   {cfg.hypotheses.map((h, i) => (
                     <li key={i} className="text-sm text-text-secondary">
@@ -89,20 +88,20 @@ export function StudyOverviewPage() {
               </Block>
             )}
             {cfg.groups && (
-              <Block icon={Users} title="Grupos / condições">
+              <Block icon={Users} title={t('overview.groups')}>
                 <p className="text-sm text-text-secondary whitespace-pre-line">{cfg.groups}</p>
               </Block>
             )}
             {cfg.variables && (
-              <Block icon={ListChecks} title="Variáveis & desfechos">
+              <Block icon={ListChecks} title={t('overview.variables')}>
                 <p className="text-sm text-text-secondary whitespace-pre-line">{cfg.variables}</p>
               </Block>
             )}
             {(cfg.retentionPolicy || cfg.ethicsApprovalRef || cfg.purpose) && (
-              <Block icon={ShieldCheck} title="Governança">
+              <Block icon={ShieldCheck} title={t('overview.governance')}>
                 {cfg.purpose && <p className="text-sm text-text-secondary mb-1">{cfg.purpose}</p>}
-                {cfg.retentionPolicy && <p className="text-[12px] text-text-muted">Retenção: {cfg.retentionPolicy}</p>}
-                {cfg.ethicsApprovalRef && <p className="text-[12px] text-text-muted">Aprovação ética: {cfg.ethicsApprovalRef}</p>}
+                {cfg.retentionPolicy && <p className="text-[12px] text-text-muted">{t('overview.retention', { value: cfg.retentionPolicy })}</p>}
+                {cfg.ethicsApprovalRef && <p className="text-[12px] text-text-muted">{t('overview.ethics', { value: cfg.ethicsApprovalRef })}</p>}
               </Block>
             )}
           </div>

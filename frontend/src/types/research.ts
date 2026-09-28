@@ -11,6 +11,8 @@
 // The UI must never turn a temporal association into a causal claim.
 // ============================================================
 
+import { lazyLabels, lazyMeta, lazyOptions } from '@/i18n/labels';
+
 // ─── Study design ────────────────────────────────────────────
 
 // Experimental designs are open — never limited to pre/post-test.
@@ -29,21 +31,16 @@ export type ExperimentalDesign =
   | 'replication'
   | 'custom';
 
-export const EXPERIMENTAL_DESIGNS: { value: ExperimentalDesign; label: string; hint: string }[] = [
-  { value: 'observational', label: 'Observacional', hint: 'Sem manipulação de variáveis independentes.' },
-  { value: 'experimental', label: 'Experimental', hint: 'Manipulação controlada com atribuição a condições.' },
-  { value: 'quasi_experimental', label: 'Quase-experimental', hint: 'Grupos sem randomização completa.' },
-  { value: 'cross_sectional', label: 'Transversal', hint: 'Medição em um único momento.' },
-  { value: 'longitudinal', label: 'Longitudinal', hint: 'Múltiplos momentos ao longo do tempo.' },
-  { value: 'within_subject', label: 'Intraindivíduo', hint: 'Cada participante passa por todas as condições.' },
-  { value: 'between_groups', label: 'Intergrupos', hint: 'Grupos distintos por condição.' },
-  { value: 'crossover', label: 'Crossover', hint: 'Ordem de condições contrabalanceada.' },
-  { value: 'pilot', label: 'Piloto', hint: 'Estudo preliminar de viabilidade.' },
-  { value: 'exploratory', label: 'Exploratório', hint: 'Sem hipótese confirmatória pré-registrada.' },
-  { value: 'validation', label: 'Validação', hint: 'Avaliação de instrumento, modelo ou protocolo.' },
-  { value: 'replication', label: 'Replicação', hint: 'Reprodução de um estudo anterior.' },
-  { value: 'custom', label: 'Customizado', hint: 'Desenho definido livremente pelo pesquisador.' },
-];
+// Labels and hints live in the `domain` locale namespace (design.<value>).
+export const EXPERIMENTAL_DESIGNS = lazyOptions<ExperimentalDesign, 'label' | 'hint'>(
+  'domain:design',
+  ['label', 'hint'],
+  [
+    'observational', 'experimental', 'quasi_experimental', 'cross_sectional',
+    'longitudinal', 'within_subject', 'between_groups', 'crossover', 'pilot',
+    'exploratory', 'validation', 'replication', 'custom',
+  ].map((value) => ({ value: value as ExperimentalDesign })),
+);
 
 // The phenomenon under study is open — the UI must not assume it.
 export type StudyFocus =
@@ -65,15 +62,19 @@ export type Modality =
   | 'behavioral'
   | 'auxiliary';
 
-export const MODALITIES: { value: Modality; label: string; description: string; core: boolean }[] = [
-  { value: 'video', label: 'Vídeo', description: 'Vídeo facial ou comportamental.', core: true },
-  { value: 'eeg', label: 'EEG', description: 'Sinais de eletroencefalografia.', core: true },
-  { value: 'events', label: 'Eventos experimentais', description: 'Marcadores, triggers e estímulos.', core: false },
-  { value: 'tests', label: 'Testes', description: 'Tarefas cognitivas e testes de desempenho.', core: false },
-  { value: 'questionnaires', label: 'Questionários / escalas', description: 'Instrumentos psicométricos.', core: false },
-  { value: 'behavioral', label: 'Respostas comportamentais', description: 'Respostas, latências, escolhas.', core: false },
-  { value: 'auxiliary', label: 'Dados auxiliares', description: 'Demografia controlada e outras variáveis.', core: false },
-];
+export const MODALITIES = lazyOptions<Modality, 'label' | 'description', { core: boolean }>(
+  'domain:modality',
+  ['label', 'description'],
+  [
+    { value: 'video', core: true },
+    { value: 'eeg', core: true },
+    { value: 'events', core: false },
+    { value: 'tests', core: false },
+    { value: 'questionnaires', core: false },
+    { value: 'behavioral', core: false },
+    { value: 'auxiliary', core: false },
+  ],
+);
 
 // ─── Variables (§14) ─────────────────────────────────────────
 
@@ -175,20 +176,20 @@ export type SessionState =
   | 'excluded'
   | 'archived';
 
-export const SESSION_STATE_META: Record<SessionState, { label: string; tone: DataTone }> = {
-  draft: { label: 'Rascunho', tone: 'neutral' },
-  awaiting_data: { label: 'Aguardando dados', tone: 'neutral' },
-  incomplete: { label: 'Dados incompletos', tone: 'warning' },
-  ready_to_sync: { label: 'Pronta para sincronização', tone: 'info' },
-  syncing: { label: 'Sincronizando', tone: 'info' },
-  synced: { label: 'Sincronizada', tone: 'success' },
-  processing: { label: 'Processando', tone: 'info' },
-  processed: { label: 'Processada', tone: 'success' },
-  review_required: { label: 'Requer revisão', tone: 'warning' },
-  approved: { label: 'Aprovada', tone: 'success' },
-  excluded: { label: 'Excluída', tone: 'danger' },
-  archived: { label: 'Arquivada', tone: 'neutral' },
-};
+export const SESSION_STATE_META = lazyMeta('domain:sessionState', {
+  draft: { tone: 'neutral' },
+  awaiting_data: { tone: 'neutral' },
+  incomplete: { tone: 'warning' },
+  ready_to_sync: { tone: 'info' },
+  syncing: { tone: 'info' },
+  synced: { tone: 'success' },
+  processing: { tone: 'info' },
+  processed: { tone: 'success' },
+  review_required: { tone: 'warning' },
+  approved: { tone: 'success' },
+  excluded: { tone: 'danger' },
+  archived: { tone: 'neutral' },
+} satisfies Record<SessionState, { tone: DataTone }>);
 
 export type DataTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
@@ -196,12 +197,12 @@ export type DataTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
 export type QualityVerdict = 'approved' | 'approved_with_caveats' | 'review_required' | 'rejected';
 
-export const QUALITY_VERDICT_META: Record<QualityVerdict, { label: string; tone: DataTone }> = {
-  approved: { label: 'Aprovado', tone: 'success' },
-  approved_with_caveats: { label: 'Aprovado com ressalvas', tone: 'warning' },
-  review_required: { label: 'Requer revisão', tone: 'warning' },
-  rejected: { label: 'Rejeitado', tone: 'danger' },
-};
+export const QUALITY_VERDICT_META = lazyMeta('domain:qualityVerdict', {
+  approved: { tone: 'success' },
+  approved_with_caveats: { tone: 'warning' },
+  review_required: { tone: 'warning' },
+  rejected: { tone: 'danger' },
+} satisfies Record<QualityVerdict, { tone: DataTone }>);
 
 export interface QualityFinding {
   id: string;
@@ -283,31 +284,28 @@ export type SyncMethod =
   | 'visual_event' | 'audio_event' | 'reference_frame'
   | 'manual' | 'event_correlation' | 'informed_offset' | 'semi_automatic';
 
-export const SYNC_METHODS: { value: SyncMethod; label: string }[] = [
-  { value: 'absolute_timestamp', label: 'Timestamp absoluto' },
-  { value: 'hardware_trigger', label: 'Trigger de hardware' },
-  { value: 'digital_marker', label: 'Marcador digital' },
-  { value: 'visual_event', label: 'Evento visual' },
-  { value: 'audio_event', label: 'Evento sonoro' },
-  { value: 'reference_frame', label: 'Frame de referência' },
-  { value: 'manual', label: 'Ajuste manual' },
-  { value: 'event_correlation', label: 'Correlação entre eventos' },
-  { value: 'informed_offset', label: 'Offset informado' },
-  { value: 'semi_automatic', label: 'Alinhamento semiautomático' },
-];
+export const SYNC_METHODS = lazyOptions<SyncMethod, 'label'>(
+  'domain:syncMethod',
+  ['label'],
+  [
+    'absolute_timestamp', 'hardware_trigger', 'digital_marker', 'visual_event',
+    'audio_event', 'reference_frame', 'manual', 'event_correlation',
+    'informed_offset', 'semi_automatic',
+  ].map((value) => ({ value: value as SyncMethod })),
+);
 
 export type SyncState =
   | 'not_synced' | 'auto_available' | 'in_review'
   | 'synced' | 'synced_with_caveats' | 'sync_failed';
 
-export const SYNC_STATE_META: Record<SyncState, { label: string; tone: DataTone }> = {
-  not_synced: { label: 'Não sincronizado', tone: 'neutral' },
-  auto_available: { label: 'Sincronização automática disponível', tone: 'info' },
-  in_review: { label: 'Sincronização em revisão', tone: 'warning' },
-  synced: { label: 'Sincronizado', tone: 'success' },
-  synced_with_caveats: { label: 'Sincronizado com ressalvas', tone: 'warning' },
-  sync_failed: { label: 'Falha de sincronização', tone: 'danger' },
-};
+export const SYNC_STATE_META = lazyMeta('domain:syncState', {
+  not_synced: { tone: 'neutral' },
+  auto_available: { tone: 'info' },
+  in_review: { tone: 'warning' },
+  synced: { tone: 'success' },
+  synced_with_caveats: { tone: 'warning' },
+  sync_failed: { tone: 'danger' },
+} satisfies Record<SyncState, { tone: DataTone }>);
 
 export interface SyncAnchor {
   id: string;
@@ -336,15 +334,15 @@ export type DatasetState =
   | 'draft' | 'building' | 'validating' | 'frozen'
   | 'published_internal' | 'superseded' | 'archived';
 
-export const DATASET_STATE_META: Record<DatasetState, { label: string; tone: DataTone }> = {
-  draft: { label: 'Rascunho', tone: 'neutral' },
-  building: { label: 'Em construção', tone: 'info' },
-  validating: { label: 'Em validação', tone: 'warning' },
-  frozen: { label: 'Congelado', tone: 'success' },
-  published_internal: { label: 'Publicado internamente', tone: 'success' },
-  superseded: { label: 'Superseded', tone: 'neutral' },
-  archived: { label: 'Arquivado', tone: 'neutral' },
-};
+export const DATASET_STATE_META = lazyMeta('domain:datasetState', {
+  draft: { tone: 'neutral' },
+  building: { tone: 'info' },
+  validating: { tone: 'warning' },
+  frozen: { tone: 'success' },
+  published_internal: { tone: 'success' },
+  superseded: { tone: 'neutral' },
+  archived: { tone: 'neutral' },
+} satisfies Record<DatasetState, { tone: DataTone }>);
 
 export interface DatasetManifest {
   datasetVersion: string;
@@ -387,20 +385,12 @@ export type ModelRisk =
   | 'device_dependence' | 'protocol_dependence' | 'sampling_mismatch'
   | 'drift' | 'domain_shift';
 
-export const MODEL_RISK_LABELS: Record<ModelRisk, string> = {
-  small_sample: 'Amostra pequena',
-  imbalance: 'Desbalanceamento',
-  overfitting: 'Overfitting',
-  participant_leakage: 'Vazamento entre participantes',
-  low_calibration: 'Baixa calibração',
-  low_external_validation: 'Baixa validação externa',
-  group_disparity: 'Desempenho desigual entre grupos',
-  device_dependence: 'Dependência de dispositivo',
-  protocol_dependence: 'Dependência de protocolo',
-  sampling_mismatch: 'Incompatibilidade de taxas de amostragem',
-  drift: 'Drift',
-  domain_shift: 'Mudança de domínio',
-};
+export const MODEL_RISK_LABELS = lazyLabels<ModelRisk>('domain:modelRisk', [
+  'small_sample', 'imbalance', 'overfitting', 'participant_leakage',
+  'low_calibration', 'low_external_validation', 'group_disparity',
+  'device_dependence', 'protocol_dependence', 'sampling_mismatch',
+  'drift', 'domain_shift',
+]);
 
 export type ModelInputModality = 'video' | 'eeg' | 'multimodal' | 'statistical';
 
@@ -411,18 +401,18 @@ export type ProvenanceKind =
   | 'detected_event' | 'derived_feature' | 'model_estimate'
   | 'excluded' | 'missing' | 'imputed' | 'aggregate';
 
-export const PROVENANCE_META: Record<ProvenanceKind, { label: string; color: string }> = {
-  video_observed: { label: 'Vídeo observado', color: '#2563EB' },
-  eeg_observed: { label: 'EEG observado', color: '#0891B2' },
-  human_annotation: { label: 'Anotação humana', color: '#7C3AED' },
-  detected_event: { label: 'Evento detectado', color: '#D97706' },
-  derived_feature: { label: 'Feature derivada', color: '#059669' },
-  model_estimate: { label: 'Estimativa de modelo', color: '#DB2777' },
-  excluded: { label: 'Dado excluído', color: '#DC2626' },
-  missing: { label: 'Dado ausente', color: '#94A3B8' },
-  imputed: { label: 'Dado imputado', color: '#A855F7' },
-  aggregate: { label: 'Resultado agregado', color: '#334155' },
-};
+export const PROVENANCE_META = lazyMeta('domain:provenance', {
+  video_observed: { color: '#2563EB' },
+  eeg_observed: { color: '#0891B2' },
+  human_annotation: { color: '#7C3AED' },
+  detected_event: { color: '#D97706' },
+  derived_feature: { color: '#059669' },
+  model_estimate: { color: '#DB2777' },
+  excluded: { color: '#DC2626' },
+  missing: { color: '#94A3B8' },
+  imputed: { color: '#A855F7' },
+  aggregate: { color: '#334155' },
+} satisfies Record<ProvenanceKind, { color: string }>);
 
 // ─── Chart metadata contract (§20) ───────────────────────────
 // Every scientific chart must carry this context.

@@ -1,3 +1,9 @@
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import i18n from '@/i18n';
+import { translate } from '@/i18n/labels';
+import { useLocale } from '@/i18n/useLocale';
+import { toast } from '@/app/stores/useToastStore';
 import { useEffect, useMemo, useState } from 'react';
 import { CirclePause, Clipboard, History, Pencil, Plus, ShieldAlert, ShieldCheck, UserCheck, Users } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -15,6 +21,8 @@ import { cn } from '@/lib/utils';
 import type { Participant } from '@/types/domain';
 
 export function ParticipantsPage() {
+  const { t } = useTranslation('participants');
+  const locale = useLocale();
   const { studyId: routeStudyId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
@@ -38,25 +46,25 @@ export function ParticipantsPage() {
   );
 
   const filteredParticipants = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase('pt-BR');
+    const term = search.trim().toLocaleLowerCase(locale);
     return participants.filter((participant) => {
       const matchesSearch = !term || [
         participant.external_code,
         participant.id,
         studyNames.get(participant.study_id),
         participant.demographic_group ? JSON.stringify(participant.demographic_group) : '',
-      ].some((value) => value?.toLocaleLowerCase('pt-BR').includes(term));
+      ].some((value) => value?.toLocaleLowerCase(locale).includes(term));
       const matchesStudy = !studyId || participant.study_id === studyId;
       const matchesConsent = !consentStatus || participant.consent_status === consentStatus;
       const matchesActivity = !activityStatus
         || (activityStatus === 'active' ? participant.is_active : !participant.is_active);
       return matchesSearch && matchesStudy && matchesConsent && matchesActivity;
     }).sort((a, b) => {
-      if (sort === 'code') return a.external_code.localeCompare(b.external_code, 'pt-BR');
+      if (sort === 'code') return a.external_code.localeCompare(b.external_code, locale);
       if (sort === 'oldest') return Date.parse(a.created_at) - Date.parse(b.created_at);
       return Date.parse(b.created_at) - Date.parse(a.created_at);
     });
-  }, [activityStatus, consentStatus, participants, search, sort, studyId, studyNames]);
+  }, [activityStatus, consentStatus, locale, participants, search, sort, studyId, studyNames]);
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -78,13 +86,13 @@ export function ParticipantsPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="Participantes"
-        description="Recrutamento, caracterização da amostra e consentimento com proteção de identidade."
+        title={t('list.title')}
+        description={t('list.description')}
         actions={
           <CreateParticipantDialog>
             <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700">
-              <Plus size={16} />
-              Registrar participante
+              <Plus size={16} aria-hidden="true" />
+              {t('list.register')}
             </button>
           </CreateParticipantDialog>
         }
@@ -92,82 +100,82 @@ export function ParticipantsPage() {
 
       <div className="space-y-4 p-4 sm:p-6">
         {isLoading ? (
-          <LoadingState variant="skeleton-table" message="Carregando participantes…" />
+          <LoadingState variant="skeleton-table" message={t('list.loading')} />
         ) : isError ? (
           <ErrorState
-            title="Não foi possível carregar os participantes"
-            message="Confira a conexão e tente novamente."
+            title={t('list.loadFailed')}
+            message={t('list.loadFailedHint')}
             onRetry={() => { void refetch(); }}
           />
         ) : participants.length === 0 ? (
           <EmptyState
             variant="empty"
-            title="Nenhum participante encontrado"
-            description="Cadastre participantes para associá-los a sessões e vídeos."
+            title={t('list.emptyTitle')}
+            description={t('list.emptyDescription')}
             icon={<Users size={40} className="text-text-disabled" />}
           />
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-              <ParticipantMetric icon={Users} label="Total" value={participants.length} />
-              <ParticipantMetric icon={UserCheck} label="Ativos" value={consentCounts.active} tone="success" />
-              <ParticipantMetric icon={CirclePause} label="Inativos" value={consentCounts.inactive} />
-              <ParticipantMetric icon={ShieldCheck} label="TCLE aceito" value={consentCounts.accepted} tone="success" />
-              <ParticipantMetric icon={ShieldAlert} label="Pendentes" value={consentCounts.pending} tone="warning" />
+              <ParticipantMetric icon={Users} label={t('list.metrics.total')} value={participants.length} />
+              <ParticipantMetric icon={UserCheck} label={t('list.metrics.active')} value={consentCounts.active} tone="success" />
+              <ParticipantMetric icon={CirclePause} label={t('list.metrics.inactive')} value={consentCounts.inactive} />
+              <ParticipantMetric icon={ShieldCheck} label={t('list.metrics.accepted')} value={consentCounts.accepted} tone="success" />
+              <ParticipantMetric icon={ShieldAlert} label={t('list.metrics.pending')} value={consentCounts.pending} tone="warning" />
             </div>
 
             <ListFilterBar
               searchValue={search}
               onSearchChange={setSearch}
-              searchPlaceholder="Buscar por código, estudo ou metadado..."
+              searchPlaceholder={t('list.searchPlaceholder')}
               resultCount={filteredParticipants.length}
               totalCount={participants.length}
-              resultLabel="participante"
-              resultLabelPlural="participantes"
+              resultLabel={t('list.resultSingular')}
+              resultLabelPlural={t('list.resultPlural')}
               filters={[
                 {
                   id: 'study',
-                  label: 'Filtrar por estudo',
+                  label: t('list.filters.study'),
                   value: studyId,
                   onChange: setSelectedStudyId,
                   disabled: !!routeStudyId,
                   options: [
-                    { value: '', label: 'Todos os estudos' },
+                    { value: '', label: t('list.filters.allStudies') },
                     ...studies.map((study) => ({ value: study.id, label: study.name })),
                   ],
                 },
                 {
                   id: 'activity',
-                  label: 'Filtrar por situação',
+                  label: t('list.filters.activity'),
                   value: activityStatus,
                   onChange: setActivityStatus,
                   options: [
-                    { value: '', label: 'Ativos e inativos' },
-                    { value: 'active', label: 'Ativos' },
-                    { value: 'inactive', label: 'Inativos' },
+                    { value: '', label: t('list.filters.allActivity') },
+                    { value: 'active', label: t('list.filters.active') },
+                    { value: 'inactive', label: t('list.filters.inactive') },
                   ],
                 },
                 {
                   id: 'consent',
-                  label: 'Filtrar por consentimento',
+                  label: t('list.filters.consent'),
                   value: consentStatus,
                   onChange: setConsentStatus,
                   options: [
-                    { value: '', label: 'Todos os consentimentos' },
-                    { value: 'accepted', label: 'Aceito' },
-                    { value: 'pending', label: 'Pendente' },
-                    { value: 'revoked', label: 'Revogado' },
+                    { value: '', label: t('list.filters.allConsents') },
+                    { value: 'accepted', label: t('list.consent.accepted') },
+                    { value: 'pending', label: t('list.consent.pending') },
+                    { value: 'revoked', label: t('list.consent.revoked') },
                   ],
                 },
                 {
                   id: 'sort',
-                  label: 'Ordenar participantes',
+                  label: t('list.filters.sort'),
                   value: sort,
                   onChange: setSort,
                   options: [
-                    { value: '', label: 'Mais recentes' },
-                    { value: 'oldest', label: 'Mais antigos' },
-                    { value: 'code', label: 'Código A–Z' },
+                    { value: '', label: t('list.filters.newest') },
+                    { value: 'oldest', label: t('list.filters.oldest') },
+                    { value: 'code', label: t('list.filters.code') },
                   ],
                 },
               ]}
@@ -176,8 +184,8 @@ export function ParticipantsPage() {
             {filteredParticipants.length === 0 ? (
               <EmptyState
                 variant="empty"
-                title="Nenhum participante corresponde aos filtros"
-                description="Ajuste a busca ou limpe os filtros para ver outros participantes."
+                title={t('list.noMatchTitle')}
+                description={t('list.noMatchDescription')}
                 icon={<Users size={40} className="text-text-disabled" />}
               />
             ) : (
@@ -187,7 +195,7 @@ export function ParticipantsPage() {
                     <article key={participant.id} className="card space-y-4 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs font-medium uppercase tracking-wide text-text-muted">Código pseudonimizado</p>
+                          <p className="text-xs font-medium uppercase tracking-wide text-text-muted">{t('list.columns.pseudonymisedCode')}</p>
                           <p className="mt-1 break-words font-semibold text-text-primary">{participant.external_code}</p>
                         </div>
                         <div className="flex flex-col items-end gap-1.5">
@@ -199,17 +207,17 @@ export function ParticipantsPage() {
                       <dl className="grid grid-cols-1 gap-3 text-sm">
                         {!routeStudyId && (
                           <div>
-                            <dt className="text-xs text-text-muted">Estudo</dt>
+                            <dt className="text-xs text-text-muted">{t('list.columns.study')}</dt>
                             <dd className="mt-0.5 text-text-secondary">{studyNames.get(participant.study_id) ?? participant.study_id.slice(0, 8)}</dd>
                           </div>
                         )}
                         <div>
-                          <dt className="text-xs text-text-muted">Grupo demográfico</dt>
-                          <dd className="mt-0.5 text-text-secondary">{formatDemographicGroup(participant.demographic_group)}</dd>
+                          <dt className="text-xs text-text-muted">{t('list.columns.demographics')}</dt>
+                          <dd className="mt-0.5 text-text-secondary">{formatDemographicGroup(participant.demographic_group, t)}</dd>
                         </div>
                         <div>
-                          <dt className="text-xs text-text-muted">Cadastro</dt>
-                          <dd className="mt-0.5 text-text-secondary">{formatDate(participant.created_at)}</dd>
+                          <dt className="text-xs text-text-muted">{t('list.columns.createdAtShort')}</dt>
+                          <dd className="mt-0.5 text-text-secondary">{formatDate(participant.created_at, locale)}</dd>
                         </div>
                       </dl>
 
@@ -225,13 +233,13 @@ export function ParticipantsPage() {
                   <table className="min-w-[920px] w-full text-left text-sm text-text-secondary">
                     <thead className="border-b border-border bg-surface-muted font-medium text-text-secondary">
                       <tr>
-                        <th scope="col" className="px-6 py-3">Código</th>
-                        {!routeStudyId && <th scope="col" className="px-6 py-3">Estudo</th>}
-                        <th scope="col" className="px-6 py-3">Grupo demográfico</th>
-                        <th scope="col" className="px-6 py-3">Situação</th>
-                        <th scope="col" className="px-6 py-3">Consentimento</th>
-                        <th scope="col" className="px-6 py-3">Data de cadastro</th>
-                        <th scope="col" className="px-6 py-3 text-right">Ações</th>
+                        <th scope="col" className="px-6 py-3">{t('list.columns.code')}</th>
+                        {!routeStudyId && <th scope="col" className="px-6 py-3">{t('list.columns.study')}</th>}
+                        <th scope="col" className="px-6 py-3">{t('list.columns.demographics')}</th>
+                        <th scope="col" className="px-6 py-3">{t('list.columns.status')}</th>
+                        <th scope="col" className="px-6 py-3">{t('list.columns.consent')}</th>
+                        <th scope="col" className="px-6 py-3">{t('list.columns.createdAt')}</th>
+                        <th scope="col" className="px-6 py-3 text-right">{t('list.columns.actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -254,10 +262,10 @@ export function ParticipantsPage() {
                               {studyNames.get(participant.study_id) ?? participant.study_id.slice(0, 8)}
                             </td>
                           )}
-                          <td className="max-w-xs px-6 py-4">{formatDemographicGroup(participant.demographic_group)}</td>
+                          <td className="max-w-xs px-6 py-4">{formatDemographicGroup(participant.demographic_group, t)}</td>
                           <td className="px-6 py-4"><ParticipantStatusBadge active={participant.is_active} /></td>
                           <td className="px-6 py-4"><ConsentBadge status={participant.consent_status} /></td>
-                          <td className="px-6 py-4">{formatDate(participant.created_at)}</td>
+                          <td className="px-6 py-4">{formatDate(participant.created_at, locale)}</td>
                           <td className="px-6 py-4"><ParticipantActions participant={participant} /></td>
                         </tr>
                       ))}
@@ -285,16 +293,16 @@ function ParticipantMetric({
   tone?: 'default' | 'success' | 'warning' | 'danger';
 }) {
   const toneClass = {
-    default: 'bg-blue-50 text-blue-700',
-    success: 'bg-emerald-50 text-emerald-700',
-    warning: 'bg-amber-50 text-amber-700',
-    danger: 'bg-red-50 text-red-700',
+    default: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+    success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+    warning: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+    danger: 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300',
   }[tone];
 
   return (
     <div className="card flex items-center gap-3 p-3 sm:p-4">
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${toneClass}`}>
-        <Icon size={17} />
+        <Icon size={17} aria-hidden="true" />
       </div>
       <div className="min-w-0">
         <p className="text-xl font-semibold text-text-primary">{value}</p>
@@ -305,33 +313,36 @@ function ParticipantMetric({
 }
 
 function ConsentBadge({ status }: { status: Participant['consent_status'] }) {
-  const meta = {
-    accepted: { label: 'Aceito', className: 'bg-emerald-100 text-emerald-700' },
-    pending: { label: 'Pendente', className: 'bg-amber-100 text-amber-700' },
-    revoked: { label: 'Revogado', className: 'bg-red-100 text-red-700' },
+  const { t } = useTranslation('participants');
+  const className = {
+    accepted: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+    revoked: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
   }[status];
 
   return (
-    <span className={`inline-flex shrink-0 rounded-full px-2 py-1 text-xs font-medium ${meta.className}`}>
-      {meta.label}
+    <span className={`inline-flex shrink-0 rounded-full px-2 py-1 text-xs font-medium ${className}`}>
+      {t(`list.consent.${status}`)}
     </span>
   );
 }
 
 function ParticipantStatusBadge({ active }: { active: boolean }) {
+  const { t } = useTranslation('participants');
   return (
     <span className={cn(
       'inline-flex shrink-0 rounded-full px-2 py-1 text-xs font-medium',
       active
-        ? 'bg-blue-100 text-blue-700'
+        ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
         : 'bg-surface-muted text-text-secondary dark:bg-slate-800 dark:text-text-disabled',
     )}>
-      {active ? 'Ativo' : 'Inativo'}
+      {active ? t('list.active') : t('list.inactive')}
     </span>
   );
 }
 
 function ParticipantActions({ participant, labeled = false }: { participant: Participant; labeled?: boolean }) {
+  const { t } = useTranslation('participants');
   const buttonClass = labeled
     ? 'inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-text-secondary transition hover:bg-surface-muted hover:text-text-primary'
     : 'inline-flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition hover:bg-surface-muted hover:text-text-primary';
@@ -339,19 +350,19 @@ function ParticipantActions({ participant, labeled = false }: { participant: Par
   return (
     <div className={`flex items-center gap-1 ${labeled ? 'flex-wrap' : 'justify-end'}`}>
       <EditParticipantDialog participant={participant}>
-        <button type="button" aria-label="Editar participante" title="Editar participante" className={buttonClass}>
-          <Pencil size={16} />
-          {labeled && (participant.consent_status === 'pending' ? 'Revisar consentimento' : 'Editar')}
+        <button type="button" aria-label={t('list.edit')} title={t('list.edit')} className={buttonClass}>
+          <Pencil size={16} aria-hidden="true" />
+          {labeled && (participant.consent_status === 'pending' ? t('list.reviewConsent') : t('list.editShort'))}
         </button>
       </EditParticipantDialog>
       <EntityHistoryDialog
         entityType="participant"
         entityId={participant.id}
-        title={`Histórico de ${participant.external_code}`}
+        title={t('list.historyOf', { code: participant.external_code })}
       >
-        <button type="button" aria-label="Ver histórico" title="Ver histórico" className={buttonClass}>
-          <History size={16} />
-          {labeled && 'Histórico'}
+        <button type="button" aria-label={t('list.history')} title={t('list.history')} className={buttonClass}>
+          <History size={16} aria-hidden="true" />
+          {labeled && t('list.historyShort')}
         </button>
       </EntityHistoryDialog>
     </div>
@@ -359,35 +370,61 @@ function ParticipantActions({ participant, labeled = false }: { participant: Par
 }
 
 function CopyCodeButton({ code, compact = false }: { code: string; compact?: boolean }) {
+  const { t } = useTranslation('participants');
   return (
     <button
       type="button"
-      aria-label={`Copiar código ${code}`}
-      title="Copiar código"
-      onClick={() => { void navigator.clipboard.writeText(code); }}
+      aria-label={t('list.copyCode', { code })}
+      title={t('list.copy')}
+      onClick={() => {
+        void navigator.clipboard.writeText(code).then(() => toast.success(t('list.copied'), code));
+      }}
       className={compact
         ? 'inline-flex h-8 w-8 items-center justify-center rounded-md text-text-muted transition hover:bg-surface-muted hover:text-text-primary'
         : 'inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-text-secondary transition hover:bg-surface-muted hover:text-text-primary'}
     >
-      <Clipboard size={15} />
-      {!compact && 'Copiar código'}
+      <Clipboard size={15} aria-hidden="true" />
+      {!compact && t('list.copy')}
     </button>
   );
 }
 
-function formatDemographicGroup(group?: Record<string, unknown>) {
-  if (!group || Object.keys(group).length === 0) return 'Não informado';
-  return Object.entries(group)
-    .map(([key, value]) => `${humanizeKey(key)}: ${String(value)}`)
+// Known profile fields get their translated label and option name; anything
+// else (legacy free-form keys) is humanised. Nested objects such as the
+// enrolment attestations are bookkeeping, not demographics, so they are left out.
+const PROFILE_FIELDS: Record<string, { label: string; options?: string }> = {
+  cohort: { label: 'profile.cohort' },
+  grupo: { label: 'profile.cohort' },
+  age_range: { label: 'profile.ageRange', options: 'profile.ageRanges' },
+  gender: { label: 'profile.gender', options: 'profile.genders' },
+  education_level: { label: 'profile.education', options: 'profile.educationLevels' },
+  handedness: { label: 'profile.handedness', options: 'profile.handednessOptions' },
+  recruitment_source: { label: 'profile.recruitment' },
+};
+
+function formatDemographicGroup(group: Record<string, unknown> | undefined, t: TFunction<'participants'>) {
+  const entries = Object.entries(group ?? {}).filter(
+    ([, value]) => value !== null && value !== '' && typeof value !== 'object',
+  );
+  if (entries.length === 0) return t('list.notInformed');
+  return entries
+    .map(([key, value]) => {
+      const field = PROFILE_FIELDS[key];
+      const raw = String(value);
+      const optionKey = field?.options ? `participants:${field.options}.${raw}` : '';
+      const label = field ? translate(`participants:${field.label}`) : humanizeKey(key);
+      const shown = optionKey && i18n.exists(optionKey) ? translate(optionKey) : raw;
+      return `${label}: ${shown}`;
+    })
     .join(' · ');
 }
 
 function humanizeKey(value: string) {
   return value
     .replace(/[_-]+/g, ' ')
-    .replace(/^\w/, (letter) => letter.toLocaleUpperCase('pt-BR'));
+    .replace(/^\w/, (letter) => letter.toUpperCase());
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('pt-BR');
+function formatDate(value: string, locale: string) {
+  return new Date(value).toLocaleDateString(locale);
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { QualityFinding } from '@/types/research';
 import { ToneBadge } from '@/components/ui/ToneBadge';
 import { RefreshCw } from 'lucide-react';
@@ -7,8 +8,9 @@ import { RefreshCw } from 'lucide-react';
 // Quality is never reduced to a single unexplained score.
 
 export function QualityFindings({ findings }: { findings: QualityFinding[] }) {
+  const { t } = useTranslation('ui');
   if (!findings.length) {
-    return <p className="text-sm text-text-muted">Nenhum problema de qualidade registrado.</p>;
+    return <p className="text-sm text-text-muted">{t('quality.noFindings')}</p>;
   }
   return (
     <div className="space-y-3">
@@ -18,17 +20,17 @@ export function QualityFindings({ findings }: { findings: QualityFinding[] }) {
             <span className="text-sm font-semibold text-text-primary">{f.issue}</span>
             <div className="flex items-center gap-2">
               {f.reprocessable && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-blue-600">
-                  <RefreshCw size={10} /> Reprocessável
+                <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400">
+                  <RefreshCw size={10} aria-hidden="true" /> {t('quality.reprocessable')}
                 </span>
               )}
-              <ToneBadge tone={f.tone}>{toneLabel(f.tone)}</ToneBadge>
+              <ToneBadge tone={f.tone}>{t(`quality.tone.${f.tone}`)}</ToneBadge>
             </div>
           </div>
           <dl className="grid gap-x-4 gap-y-1.5 px-3.5 py-3 sm:grid-cols-2 text-[12px]">
-            <Row label="Evidência" value={f.evidence} />
-            <Row label="Impacto provável" value={f.impact} />
-            <Row label="Ação recomendada" value={f.recommendation} full />
+            <Row label={t('quality.evidence')} value={f.evidence} />
+            <Row label={t('quality.impact')} value={f.impact} />
+            <Row label={t('quality.recommendation')} value={f.recommendation} full />
           </dl>
         </div>
       ))}
@@ -43,8 +45,4 @@ function Row({ label, value, full }: { label: string; value: string; full?: bool
       <dd className="text-text-secondary mt-0.5">{value}</dd>
     </div>
   );
-}
-
-function toneLabel(tone: string) {
-  return { info: 'Informativo', warning: 'Atenção', danger: 'Crítico', success: 'OK', neutral: '—' }[tone] ?? tone;
 }

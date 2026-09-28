@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { RotateCcw, PenLine, Info, FileDown, Download } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -22,32 +24,33 @@ import { CoactivationPanel } from '@/features/eeg/components/CoactivationPanel';
 
 // ─── Event table columns ──────────────────────────────────────
 
-const EVENT_COLUMNS: ColumnDef<TimelineEvent>[] = [
+function eventColumns(t: TFunction<'videos'>): ColumnDef<TimelineEvent>[] {
+  return [
   {
     key: 'microAction',
-    header: 'Microação',
+    header: t('detail.columns.microAction'),
     sortable: true,
     render: (_, row) => <MicroActionBadge action={row.microAction} size="sm" />,
   },
   {
     key: 'startMs',
-    header: 'Início',
+    header: t('detail.columns.start'),
     sortable: true,
     render: (v) => <span className="font-mono text-xs text-text-secondary">{formatMs(Number(v))}</span>,
   },
   {
     key: 'endMs',
-    header: 'Fim',
+    header: t('detail.columns.end'),
     render: (v) => <span className="font-mono text-xs text-text-secondary">{formatMs(Number(v))}</span>,
   },
   {
     key: 'endMs',
-    header: 'Duração',
+    header: t('detail.columns.duration'),
     render: (_, row) => <span className="font-mono text-xs text-text-secondary">{formatMs(row.endMs - row.startMs)}</span>,
   },
   {
     key: 'confidence',
-    header: 'Confiança',
+    header: t('detail.columns.confidence'),
     sortable: true,
     render: (v) => {
       const val = Number(v);
@@ -60,33 +63,35 @@ const EVENT_COLUMNS: ColumnDef<TimelineEvent>[] = [
   },
   {
     key: 'origin',
-    header: 'Origem',
+    header: t('detail.columns.origin'),
     render: (v) => (
       <span className={cn(
         'text-[11px] font-medium px-1.5 py-0.5 rounded',
-        v === 'model' ? 'bg-violet-50 text-violet-600' : 'bg-blue-50 text-blue-600',
+        v === 'model' ? 'bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300' : 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300',
       )}>
-        {v === 'model' ? 'Modelo' : 'Anotador'}
+        {v === 'model' ? t('detail.origin.model') : t('detail.origin.annotator')}
       </span>
     ),
   },
   {
     key: 'review_status',
-    header: 'Revisão',
+    header: t('detail.columns.review'),
     render: (v) => (
       <span className={cn(
         'text-[11px] font-medium px-1.5 py-0.5 rounded',
-        v === 'approved' ? 'bg-emerald-50 text-emerald-600' : v === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600',
+        v === 'approved' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300' : v === 'rejected' ? 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-300' : 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300',
       )}>
-        {v === 'approved' ? 'Aprovado' : v === 'rejected' ? 'Rejeitado' : 'Pendente'}
+        {v === 'approved' ? t('detail.review.approved') : v === 'rejected' ? t('detail.review.rejected') : t('detail.review.pending')}
       </span>
     ),
   },
-];
+  ];
+}
 
 // ─── Video Detail Page ────────────────────────────────────────
 
 export function VideoDetailPage() {
+  const { t } = useTranslation('videos');
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
 
@@ -120,7 +125,7 @@ export function VideoDetailPage() {
   if (loadingVideo || loadingTimeline || loadingQuality) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
+        <div role="status" aria-label={t('detail.loading')} className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
       </div>
     );
   }
@@ -129,10 +134,9 @@ export function VideoDetailPage() {
     return (
       <div className="min-h-full bg-app-bg px-6 py-12">
         <div className="mx-auto max-w-lg rounded-xl border border-border bg-surface p-8 text-center">
-          <h1 className="text-xl font-semibold text-text-primary">Vídeo não encontrado</h1>
+          <h1 className="text-xl font-semibold text-text-primary">{t('detail.notFound')}</h1>
           <p className="mt-2 text-sm text-text-muted">
-            Não foi possível carregar os dados deste vídeo. Ele pode não existir, ainda
-            não ter sido processado, ou o processamento pode ter falhado.
+            {t('detail.notFoundDescription')}
           </p>
           <div className="mt-5 flex justify-center gap-2">
             {videoId && (
@@ -140,14 +144,14 @@ export function VideoDetailPage() {
                 to={`/app/videos/${videoId}/processing`}
                 className="inline-flex rounded-lg border border-border px-4 py-2 text-sm font-semibold text-text-secondary transition hover:bg-app-bg"
               >
-                Ver logs de processamento
+                {t('detail.processingLogs')}
               </Link>
             )}
             <Link
               to="/app/videos"
               className="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              Voltar para vídeos
+              {t('detail.back')}
             </Link>
           </div>
         </div>
@@ -167,11 +171,11 @@ export function VideoDetailPage() {
   }));
 
   const PAGE_KPIS: KPICardData[] = [
-    { id: 'events',    label: 'Total de eventos',    value: events.length,      description: 'Microações detectadas no vídeo',  icon: 'BarChart3',   color: 'default' },
-    { id: 'per_min',   label: 'Eventos por min',     value: ((events.length / (qualityData?.durationSeconds || 120)) * 60).toFixed(1),  description: 'Taxa média de ocorrência',         icon: 'Activity',    color: 'info'    },
-    { id: 'face_det',  label: 'Face detection',      value: `${((qualityData?.faceDetectionRate ?? 0) * 100).toFixed(1)}%`, description: 'Taxa de detecção facial',         icon: 'ShieldCheck', color: 'success' },
-    { id: 'conf',      label: 'Confiança média',     value: `${(events.reduce((acc, ev) => acc + ev.confidence, 0) / (events.length || 1) * 100).toFixed(1)}%`, description: 'Confiança média nas predições',   icon: 'ShieldCheck', color: 'success' },
-    { id: 'gaps',      label: 'Achados de qualidade', value: qualityData?.findings?.length || 0,       description: 'Problemas identificados no vídeo', icon: 'AlertTriangle',color: 'warning' },
+    { id: 'events',    label: t('detail.kpis.events.label'),        value: events.length,      description: t('detail.kpis.events.description'),        icon: 'BarChart3',   color: 'default' },
+    { id: 'per_min',   label: t('detail.kpis.perMinute.label'),     value: ((events.length / (qualityData?.durationSeconds || 120)) * 60).toFixed(1),  description: t('detail.kpis.perMinute.description'), icon: 'Activity', color: 'info' },
+    { id: 'face_det',  label: t('detail.kpis.faceDetection.label'), value: `${((qualityData?.faceDetectionRate ?? 0) * 100).toFixed(1)}%`, description: t('detail.kpis.faceDetection.description'), icon: 'ShieldCheck', color: 'success' },
+    { id: 'conf',      label: t('detail.kpis.confidence.label'),    value: `${(events.reduce((acc, ev) => acc + ev.confidence, 0) / (events.length || 1) * 100).toFixed(1)}%`, description: t('detail.kpis.confidence.description'), icon: 'ShieldCheck', color: 'success' },
+    { id: 'gaps',      label: t('detail.kpis.findings.label'),      value: qualityData?.findings?.length || 0, description: t('detail.kpis.findings.description'), icon: 'AlertTriangle', color: 'warning' },
   ];
 
   // Aggregate summary
@@ -192,65 +196,73 @@ export function VideoDetailPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title={videoAsset?.filename || "Video Detalhes"}
-        description={`Vídeo ID: ${videoId}`}
+        title={videoAsset?.filename || t('detail.fallbackTitle')}
+        description={t('detail.videoId', { id: videoId })}
         actions={
           <>
             <StatusBadge status="processed" />
             <QualityBadge score={qualityData?.faceDetectionRate ?? 0} />
             <ModelVersionBadge name="FaceMesh" version={timelineData?.model_version || "1.0"} active />
             <button
+              type="button"
               onClick={() => downloadDynamicPdf(videoId!)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-app-bg transition-colors"
             >
-              <FileDown size={13} />
-              Baixar Relatório
+              <FileDown size={13} aria-hidden="true" />
+              {t('detail.downloadReport')}
             </button>
             {videoAsset?.landmark_artifact_id && (
               <div className="relative group">
                 <button
+                  type="button"
+                  aria-haspopup="menu"
                   disabled={landmarkDownload.isPending}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-app-bg transition-colors disabled:opacity-50"
                 >
-                  <Download size={13} />
-                  {landmarkDownload.isPending ? 'Gerando link...' : 'Baixar landmarks'}
+                  <Download size={13} aria-hidden="true" />
+                  {landmarkDownload.isPending ? t('detail.generatingLink') : t('detail.downloadLandmarks')}
                 </button>
-                <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10 bg-surface border border-border rounded-lg shadow-lg overflow-hidden min-w-[160px]">
+                <div className="absolute right-0 top-full mt-1 hidden group-hover:block group-focus-within:block z-10 bg-surface border border-border rounded-lg shadow-lg overflow-hidden min-w-[160px]">
                   <button
+                    type="button"
                     onClick={() => handleDownloadLandmarks('normalized')}
                     className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-app-bg"
                   >
-                    Normalizado (.parquet)
+                    {t('detail.normalized')}
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDownloadLandmarks('raw')}
                     className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-app-bg"
                   >
-                    Bruto (.parquet)
+                    {t('detail.raw')}
                   </button>
                 </div>
               </div>
             )}
             <button
+              type="button"
               onClick={handleProcess}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-app-bg transition-colors"
             >
-              <RotateCcw size={13} />
-              Reprocessar
+              <RotateCcw size={13} aria-hidden="true" />
+              {t('detail.reprocess')}
             </button>
             <button
+              type="button"
               onClick={handleInference}
               disabled={startInference.isPending}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-app-bg transition-colors"
             >
-              {startInference.isPending ? 'Rodando...' : 'Inferência'}
+              {startInference.isPending ? t('detail.running') : t('detail.inference')}
             </button>
             <button
+              type="button"
               onClick={() => navigate(`/app/videos/${videoId}/annotations`)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
             >
-              <PenLine size={13} />
-              Anotar
+              <PenLine size={13} aria-hidden="true" />
+              {t('detail.annotate')}
             </button>
           </>
         }
@@ -276,7 +288,7 @@ export function VideoDetailPage() {
             />
 
             <div className="card p-4">
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Timeline de microações</h3>
+              <h3 className="text-sm font-semibold text-text-primary mb-3">{t('detail.timeline')}</h3>
               <MicroActionTimeline
                 events={events}
                 videoDurationMs={(qualityData?.durationSeconds || 120) * 1000}
@@ -293,25 +305,22 @@ export function VideoDetailPage() {
 
         <div className="card overflow-hidden">
           <div className="px-5 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-text-primary">Eventos detectados</h3>
+            <h3 className="text-sm font-semibold text-text-primary">{t('detail.events')}</h3>
             <p className="text-xs text-text-muted mt-0.5">
-              {events.length} eventos · ordenados por tempo de início
+              {t('detail.eventsCount', { count: events.length })}
             </p>
           </div>
           <DataTable
-            columns={EVENT_COLUMNS}
+            columns={eventColumns(t)}
             data={events}
           />
         </div>
 
         <div className="flex items-start gap-3 p-4 rounded-xl bg-app-bg border border-border">
-          <Info size={14} className="text-text-muted shrink-0 mt-0.5" />
+          <Info size={14} className="text-text-muted shrink-0 mt-0.5" aria-hidden="true" />
           <p className="text-xs text-text-muted leading-relaxed">
-            <strong className="text-text-secondary font-semibold">Interpretação científica:</strong>{' '}
-            Os resultados descrevem padrões temporais de eventos faciais observados no vídeo — não
-            constituem diagnóstico nem inferência automática de estados cognitivos. A associação com
-            outras modalidades (por exemplo, EEG) não implica causalidade e depende do protocolo, dos
-            parâmetros e da validação estatística conduzida pelo pesquisador.
+            <strong className="text-text-secondary font-semibold">{t('detail.interpretationTitle')}</strong>{' '}
+            {t('detail.interpretation')}
           </p>
         </div>
       </div>

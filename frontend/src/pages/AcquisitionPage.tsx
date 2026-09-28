@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { forwardRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Video, Activity, Waypoints, Flag, ArrowRight, Camera, Crosshair, FlaskConical } from 'lucide-react';
@@ -17,6 +18,7 @@ import { SESSION_STATE_META, type SessionState } from '@/types/research';
 // core modalities plus events, with pending validations surfaced.
 
 export function AcquisitionPage() {
+  const { t } = useTranslation('acquisition');
   const navigate = useNavigate();
   const [captureSessionId, setCaptureSessionId] = useState<string | null>(null);
   const [lslSessionId, setLslSessionId] = useState<string | null>(null);
@@ -30,48 +32,48 @@ export function AcquisitionPage() {
   return (
     <div className="min-h-full bg-app-bg pb-12">
       <PageHeader
-        title="Aquisição de dados"
-        description="Importação e validação de vídeo, EEG e eventos experimentais. As duas modalidades centrais recebem tratamento equivalente."
+        title={t('hub.title')}
+        description={t('hub.description')}
       />
       <div className="px-6 pt-6 space-y-6">
-        <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-blue-900">
-          <strong>Por onde começar?</strong> Se a coleta já está em XDF, use <strong>Importar EEG</strong>. Para uma nova gravação sincronizada, use <strong>Gravar LSL</strong>. Depois, revise a sessão e a sincronização.
+        <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+          <Trans t={t} i18nKey="hub.intro" components={{ strong: <strong /> }} />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <AcquisitionGroup title="1 · Importar arquivos" description="Dados já gravados e disponíveis no computador.">
+          <AcquisitionGroup title={t('hub.import.title')} description={t('hub.import.description')}>
             <UploadAssetDialog kind="eeg">
-              <EntryCard icon={Activity} title="Importar EEG / XDF" desc="Ler EEG, FC, RR e marcadores do arquivo." tone="cyan" />
+              <EntryCard icon={Activity} title={t('hub.import.eeg.title')} desc={t('hub.import.eeg.desc')} tone="cyan" />
             </UploadAssetDialog>
             <UploadAssetDialog kind="video">
-              <EntryCard icon={Video} title="Importar vídeo" desc="Enviar vídeo para uma sessão existente." tone="blue" />
+              <EntryCard icon={Video} title={t('hub.import.video.title')} desc={t('hub.import.video.desc')} tone="blue" />
             </UploadAssetDialog>
           </AcquisitionGroup>
 
-          <AcquisitionGroup title="2 · Gravar uma nova coleta" description="Captura ao vivo vinculada à sessão.">
-            <SelectTargetDialog target="session" title="Capturar vídeo ao vivo" description="Escolha a sessão que receberá o vídeo capturado neste navegador." confirmLabel="Abrir câmera" onSelect={(sessionId) => setCaptureSessionId(sessionId)}>
-              <EntryCard icon={Camera} title="Capturar vídeo" desc="Câmera, revisão local e envio retomável." tone="emerald" />
+          <AcquisitionGroup title={t('hub.record.title')} description={t('hub.record.description')}>
+            <SelectTargetDialog target="session" title={t('hub.record.capture.dialogTitle')} description={t('hub.record.capture.dialogDescription')} confirmLabel={t('hub.record.capture.confirm')} onSelect={(sessionId) => setCaptureSessionId(sessionId)}>
+              <EntryCard icon={Camera} title={t('hub.record.capture.title')} desc={t('hub.record.capture.desc')} tone="emerald" />
             </SelectTargetDialog>
-            <SelectTargetDialog target="session" title="Gravar EEG/LSL" description="Escolha a sessão e conecte o agente LabRecorder local." confirmLabel="Conectar agente" onSelect={(sessionId) => setLslSessionId(sessionId)}>
-              <EntryCard icon={Activity} title="Gravar LSL" desc="EEG, Polar H10 e marcadores em XDF." tone="cyan" />
-            </SelectTargetDialog>
-          </AcquisitionGroup>
-
-          <AcquisitionGroup title="3 · Complementar o experimento" description="Eventos, condições e calibração contextual.">
-            <SelectTargetDialog target="session" title="Contexto experimental" description="Escolha a sessão para editar trials, registrar eventos e importar séries ambientais." confirmLabel="Abrir contexto" onSelect={(sessionId) => setContextSessionId(sessionId)}>
-              <EntryCard icon={FlaskConical} title="Contexto" desc="Trials, eventos e séries ambientais." tone="indigo" />
-            </SelectTargetDialog>
-            <SelectTargetDialog target="session" title="Calibrar gaze experimental" description="Escolha a sessão e execute o protocolo controlado em tela cheia." confirmLabel="Iniciar calibração" onSelect={(sessionId) => setGazeSessionId(sessionId)}>
-              <EntryCard icon={Crosshair} title="Calibrar gaze" desc="Grade 3×3, validação e drift." tone="rose" />
+            <SelectTargetDialog target="session" title={t('hub.record.lsl.dialogTitle')} description={t('hub.record.lsl.dialogDescription')} confirmLabel={t('hub.record.lsl.confirm')} onSelect={(sessionId) => setLslSessionId(sessionId)}>
+              <EntryCard icon={Activity} title={t('hub.record.lsl.title')} desc={t('hub.record.lsl.desc')} tone="cyan" />
             </SelectTargetDialog>
           </AcquisitionGroup>
 
-          <AcquisitionGroup title="4 · Preparar a análise" description="Revise as referências temporais da sessão.">
-            <SelectTargetDialog target="session" title="Registrar eventos" description="Escolha a sessão para abrir a ferramenta de eventos e anotações." confirmLabel="Abrir anotações" onSelect={(sessionId) => navigate(`/app/sessions/${sessionId}/annotate`)}>
-              <EntryCard icon={Flag} title="Revisar eventos" desc="Marcadores, estímulos e anotações." tone="amber" />
+          <AcquisitionGroup title={t('hub.complement.title')} description={t('hub.complement.description')}>
+            <SelectTargetDialog target="session" title={t('hub.complement.context.dialogTitle')} description={t('hub.complement.context.dialogDescription')} confirmLabel={t('hub.complement.context.confirm')} onSelect={(sessionId) => setContextSessionId(sessionId)}>
+              <EntryCard icon={FlaskConical} title={t('hub.complement.context.title')} desc={t('hub.complement.context.desc')} tone="indigo" />
             </SelectTargetDialog>
-            <SelectTargetDialog target="session" title="Sincronizar sessão" description="Escolha a sessão cujas fontes serão alinhadas no eixo temporal." confirmLabel="Abrir sincronização" onSelect={(sessionId) => navigate(`/app/sessions/${sessionId}/sync`)}>
-              <EntryCard icon={Waypoints} title="Sincronizar" desc="Alinhar vídeo e EEG no eixo temporal." tone="violet" />
+            <SelectTargetDialog target="session" title={t('hub.complement.gaze.dialogTitle')} description={t('hub.complement.gaze.dialogDescription')} confirmLabel={t('hub.complement.gaze.confirm')} onSelect={(sessionId) => setGazeSessionId(sessionId)}>
+              <EntryCard icon={Crosshair} title={t('hub.complement.gaze.title')} desc={t('hub.complement.gaze.desc')} tone="rose" />
+            </SelectTargetDialog>
+          </AcquisitionGroup>
+
+          <AcquisitionGroup title={t('hub.prepare.title')} description={t('hub.prepare.description')}>
+            <SelectTargetDialog target="session" title={t('hub.prepare.events.dialogTitle')} description={t('hub.prepare.events.dialogDescription')} confirmLabel={t('hub.prepare.events.confirm')} onSelect={(sessionId) => navigate(`/app/sessions/${sessionId}/annotate`)}>
+              <EntryCard icon={Flag} title={t('hub.prepare.events.title')} desc={t('hub.prepare.events.desc')} tone="amber" />
+            </SelectTargetDialog>
+            <SelectTargetDialog target="session" title={t('hub.prepare.sync.dialogTitle')} description={t('hub.prepare.sync.dialogDescription')} confirmLabel={t('hub.prepare.sync.confirm')} onSelect={(sessionId) => navigate(`/app/sessions/${sessionId}/sync`)}>
+              <EntryCard icon={Waypoints} title={t('hub.prepare.sync.title')} desc={t('hub.prepare.sync.desc')} tone="violet" />
             </SelectTargetDialog>
           </AcquisitionGroup>
         </div>
@@ -80,14 +82,14 @@ export function AcquisitionPage() {
 
         <section className="rounded-xl border border-border bg-surface">
           <div className="px-4 py-3 border-b border-border">
-            <h3 className="text-sm font-semibold text-text-primary">Validações pendentes</h3>
+            <h3 className="text-sm font-semibold text-text-primary">{t('hub.pending.title')}</h3>
           </div>
           <ul>
             {isLoading ? (
-              <li className="px-4 py-8 text-center text-sm text-text-muted">Carregando sessões…</li>
+              <li className="px-4 py-8 text-center text-sm text-text-muted">{t('hub.pending.loading')}</li>
             ) : pending.length === 0 ? (
               <li className="px-4 py-8 text-center text-sm text-text-muted">
-                Nenhuma validação pendente para as sessões acessíveis.
+                {t('hub.pending.empty')}
               </li>
             ) : pending.map((session) => {
               const state = (session.state ?? 'draft') as SessionState;
@@ -103,15 +105,15 @@ export function AcquisitionPage() {
               return (
                 <li key={session.id}>
                   <Link to={target} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-surface-hover">
-                    <Icon size={16} className="text-text-muted" />
+                    <Icon size={16} className="text-text-muted" aria-hidden="true" />
                     <span className="text-sm text-text-primary font-medium">
                       S-{session.id.slice(0, 8).toUpperCase()}
                     </span>
                     <span className="text-[13px] text-text-secondary">
-                      {session.condition || 'Sessão sem condição informada'}
+                      {session.condition || t('hub.pending.noCondition')}
                     </span>
                     <ToneBadge tone={meta.tone} className="ml-auto">{meta.label}</ToneBadge>
-                    <ArrowRight size={14} className="text-text-muted" />
+                    <ArrowRight size={14} className="text-text-muted" aria-hidden="true" />
                   </Link>
                 </li>
               );
@@ -167,19 +169,22 @@ function AcquisitionGroup({ title, description, children }: { title: string; des
 const EntryCard = forwardRef<HTMLButtonElement, EntryCardProps>(
   ({ icon: Icon, title, desc, tone, ...props }, ref) => {
   const c: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600', cyan: 'bg-cyan-50 text-cyan-600',
-    amber: 'bg-amber-50 text-amber-600', violet: 'bg-violet-50 text-violet-600',
-    emerald: 'bg-emerald-50 text-emerald-600', rose: 'bg-rose-50 text-rose-600',
-    indigo: 'bg-indigo-50 text-indigo-600',
+    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300',
+    cyan: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-300',
+    amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300',
+    violet: 'bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300',
+    emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300',
+    rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300',
+    indigo: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300',
   };
   return (
     <button
       ref={ref}
       type="button"
-      className="h-full w-full rounded-xl border border-border bg-surface p-4 text-left hover:border-blue-300 transition-colors"
+      className="h-full w-full rounded-xl border border-border bg-surface p-4 text-left hover:border-blue-300 transition-colors dark:hover:border-blue-800"
       {...props}
     >
-      <div className={`h-9 w-9 rounded-lg flex items-center justify-center mb-3 ${c[tone]}`}><Icon size={18} /></div>
+      <div className={`h-9 w-9 rounded-lg flex items-center justify-center mb-3 ${c[tone]}`}><Icon size={18} aria-hidden="true" /></div>
       <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
       <p className="text-[12px] text-text-secondary mt-0.5 leading-relaxed">{desc}</p>
     </button>

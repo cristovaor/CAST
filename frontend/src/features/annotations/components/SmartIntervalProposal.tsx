@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Check, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { AnnotationIntervalAnalysis } from '@/types/annotation';
@@ -15,6 +16,7 @@ export function SmartIntervalProposal({
   onKeepOriginal,
   onCancel,
 }: SmartIntervalProposalProps) {
+  const { t } = useTranslation('annotations');
   const motion = analysis.motionSeries ?? [];
   const maxMotion = Math.max(...motion.map((item) => item.motion), 0.000001);
   const suggestedStart =
@@ -30,33 +32,34 @@ export function SmartIntervalProposal({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="flex items-center gap-2 font-semibold text-text-primary">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Ajuste inteligente do intervalo
+            <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+            {t('proposal.title')}
           </p>
           <p className="mt-1">
-            Original: {analysis.originalStartFrame}–{analysis.originalEndFrame}
+            {t('proposal.original', { start: analysis.originalStartFrame, end: analysis.originalEndFrame })}
             {' · '}
-            Sugestão: {suggestedStart}–{suggestedEnd}
+            {t('proposal.suggested', { start: suggestedStart, end: suggestedEnd })}
             {analysis.boundaryConfidence != null
-              ? ` · confiança ${Math.round(analysis.boundaryConfidence * 100)}%`
+              ? t('proposal.confidence', { value: Math.round(analysis.boundaryConfidence * 100) })
               : ''}
           </p>
         </div>
         <button
           type="button"
           onClick={onCancel}
-          aria-label="Cancelar anotação"
+          aria-label={t('proposal.cancel')}
           className="rounded p-1 text-text-muted hover:bg-surface-hover"
-          title="Cancelar anotação"
+          title={t('proposal.cancel')}
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
 
       {motion.length > 0 && (
         <div
           className="mt-3 flex h-10 items-end gap-px rounded bg-surface-muted px-2 py-1"
-          aria-label="Intensidade de movimento dos landmarks"
+          role="img"
+          aria-label={t('proposal.motion')}
         >
           {motion.map((item) => (
             <span
@@ -65,7 +68,7 @@ export function SmartIntervalProposal({
               style={{
                 height: `${Math.max(6, (item.motion / maxMotion) * 100)}%`,
               }}
-              title={`Quadro ${item.frameIndex}: ${item.motion.toFixed(5)}`}
+              title={t('proposal.frame', { frame: item.frameIndex, value: item.motion.toFixed(5) })}
             />
           ))}
         </div>
@@ -78,7 +81,7 @@ export function SmartIntervalProposal({
               key={warning.code}
               className="flex items-center gap-2 text-warning"
             >
-              <AlertTriangle className="h-3.5 w-3.5" />
+              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
               {warning.message}
             </p>
           ))}
@@ -87,15 +90,15 @@ export function SmartIntervalProposal({
 
       <div className="mt-3 flex flex-wrap justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onKeepOriginal}>
-          Manter original
+          {t('proposal.keep')}
         </Button>
         <Button
           size="sm"
           disabled={!analysis.available}
           onClick={() => onApply(suggestedStart, suggestedEnd)}
         >
-          <Check className="mr-1 h-3.5 w-3.5" />
-          {changed ? 'Aplicar ajuste' : 'Confirmar intervalo'}
+          <Check className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+          {changed ? t('proposal.apply') : t('proposal.confirm')}
         </Button>
       </div>
     </div>

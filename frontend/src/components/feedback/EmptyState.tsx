@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import {
   SearchX, AlertTriangle, ShieldOff, FolderOpen,
@@ -16,25 +17,22 @@ interface EmptyStateProps {
   className?: string;
 }
 
-const DEFAULTS: Record<EmptyVariant, { title: string; description: string; icon: ReactNode }> = {
+// Titles and descriptions come from `ui:emptyState.<key>`.
+const DEFAULTS: Record<EmptyVariant, { key: 'empty' | 'noResults' | 'error' | 'noAccess'; icon: ReactNode }> = {
   'empty': {
-    title: 'Nenhum item encontrado',
-    description: 'Comece criando o primeiro item.',
+    key: 'empty',
     icon: <FolderOpen size={40} className="text-text-disabled" />,
   },
   'no-results': {
-    title: 'Nenhum resultado',
-    description: 'Tente ajustar os filtros ou termos de busca.',
+    key: 'noResults',
     icon: <SearchX size={40} className="text-text-disabled" />,
   },
   'error': {
-    title: 'Erro ao carregar',
-    description: 'Não foi possível carregar os dados. Tente novamente.',
+    key: 'error',
     icon: <AlertTriangle size={40} className="text-red-300" />,
   },
   'no-access': {
-    title: 'Acesso restrito',
-    description: 'Você não tem permissão para visualizar este conteúdo.',
+    key: 'noAccess',
     icon: <ShieldOff size={40} className="text-text-disabled" />,
   },
 };
@@ -48,16 +46,17 @@ export function EmptyState({
   icon,
   className,
 }: EmptyStateProps) {
+  const { t } = useTranslation('ui');
   const defaults = DEFAULTS[variant];
 
   return (
     <div className={cn('flex flex-col items-center justify-center py-16 px-8 text-center', className)}>
       <div className="mb-4">{icon ?? defaults.icon}</div>
       <h3 className="text-base font-semibold text-text-secondary mb-1">
-        {title ?? defaults.title}
+        {title ?? t(`emptyState.${defaults.key}.title`)}
       </h3>
       <p className="text-sm text-text-muted max-w-sm leading-relaxed">
-        {description ?? defaults.description}
+        {description ?? t(`emptyState.${defaults.key}.description`)}
       </p>
 
       {(action || secondaryAction) && (

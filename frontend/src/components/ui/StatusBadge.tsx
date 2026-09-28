@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn, getStatusClasses } from '@/lib/utils';
 import { statusLabel } from '@/lib/formatters';
 import type { StatusVariant } from '@/types/domain';
@@ -15,6 +16,7 @@ export function StatusBadge({
   showDot = true,
   className,
 }: StatusBadgeProps) {
+  const { t } = useTranslation('ui');
   const { bg, text, border, dot } = getStatusClasses(status);
 
   const sizes = {
@@ -39,7 +41,7 @@ export function StatusBadge({
         sizes[size],
         className,
       )}
-      aria-label={`Status: ${statusLabel(status)}`}
+      aria-label={t('badges.status', { label: statusLabel(status) })}
     >
       {showDot && (
         <span

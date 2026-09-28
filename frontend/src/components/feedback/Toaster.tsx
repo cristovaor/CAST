@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, AlertTriangle, XCircle, Info, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useToastStore, type Toast, type ToastTone } from '@/app/stores/useToastStore';
 
@@ -15,6 +16,7 @@ const TONE_CONFIG: Record<
 };
 
 function ToastCard({ toast }: { toast: Toast }) {
+  const { t } = useTranslation('ui');
   const dismiss = useToastStore((state) => state.dismiss);
   const config = TONE_CONFIG[toast.tone];
   const Icon = config.icon;
@@ -93,7 +95,7 @@ function ToastCard({ toast }: { toast: Toast }) {
       <button
         type="button"
         onClick={() => dismiss(toast.id)}
-        aria-label="Fechar notificação"
+        aria-label={t('toaster.close')}
         className={cn(
           'absolute right-2 top-2 rounded-md p-1 text-text-muted',
           'hover:bg-surface-muted hover:text-text-secondary transition-colors',

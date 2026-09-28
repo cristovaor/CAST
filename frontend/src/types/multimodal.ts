@@ -8,6 +8,8 @@
 // métrica derivada, associação estatística e interpretação.
 // ============================================================
 
+import { lazyLabels } from '@/i18n/labels';
+
 // ─── Proveniência de dados (princípio científico central) ────
 
 export type DataProvenance =
@@ -38,21 +40,7 @@ export type StudyDesignType =
   | 'replication'
   | 'custom';
 
-export const STUDY_DESIGN_LABELS: Record<StudyDesignType, string> = {
-  observational: 'Observacional',
-  experimental: 'Experimental',
-  quasi_experimental: 'Quase-experimental',
-  cross_sectional: 'Transversal',
-  longitudinal: 'Longitudinal',
-  within_subject: 'Intraindivíduo',
-  between_groups: 'Intergrupos',
-  crossover: 'Crossover',
-  pilot: 'Estudo piloto',
-  exploratory: 'Exploratório',
-  validation: 'Validação',
-  replication: 'Replicação',
-  custom: 'Customizado',
-};
+export const STUDY_DESIGN_LABELS = lazyLabels<StudyDesignType>('domain:design', ['observational', 'experimental', 'quasi_experimental', 'cross_sectional', 'longitudinal', 'within_subject', 'between_groups', 'crossover', 'pilot', 'exploratory', 'validation', 'replication', 'custom'], '.label');
 
 export interface Hypothesis {
   id: string;
@@ -93,17 +81,7 @@ export type VariableRole =
   | 'secondary_outcome'
   | 'exploratory';
 
-export const VARIABLE_ROLE_LABELS: Record<VariableRole, string> = {
-  independent: 'Independente',
-  dependent: 'Dependente',
-  covariate: 'Covariável',
-  confounder: 'Confundidor',
-  moderator: 'Moderador',
-  mediator: 'Mediador',
-  primary_outcome: 'Desfecho primário',
-  secondary_outcome: 'Desfecho secundário',
-  exploratory: 'Exploratória',
-};
+export const VARIABLE_ROLE_LABELS = lazyLabels<VariableRole>('domain:variableRole', ['independent', 'dependent', 'covariate', 'confounder', 'moderator', 'mediator', 'primary_outcome', 'secondary_outcome', 'exploratory']);
 
 export type VariableOrigin =
   | 'raw_video'
@@ -119,20 +97,7 @@ export type VariableOrigin =
   | 'model_output'
   | 'statistical';
 
-export const VARIABLE_ORIGIN_LABELS: Record<VariableOrigin, string> = {
-  raw_video: 'Vídeo bruto',
-  raw_eeg: 'EEG bruto',
-  video_feature: 'Feature de vídeo',
-  eeg_feature: 'Feature de EEG',
-  event: 'Evento',
-  annotation: 'Anotação',
-  questionnaire: 'Questionário',
-  test: 'Teste',
-  experimental: 'Variável experimental',
-  derived: 'Variável derivada',
-  model_output: 'Saída de modelo',
-  statistical: 'Cálculo estatístico',
-};
+export const VARIABLE_ORIGIN_LABELS = lazyLabels<VariableOrigin>('domain:variableOrigin', ['raw_video', 'raw_eeg', 'video_feature', 'eeg_feature', 'event', 'annotation', 'questionnaire', 'test', 'experimental', 'derived', 'model_output', 'statistical']);
 
 export interface StudyVariable {
   id: string;
@@ -164,15 +129,7 @@ export type ModalityKind =
   | 'behavioral'
   | 'other';
 
-export const MODALITY_LABELS: Record<ModalityKind, string> = {
-  video: 'Vídeo',
-  eeg: 'EEG',
-  events: 'Eventos experimentais',
-  test: 'Testes',
-  questionnaire: 'Questionários',
-  behavioral: 'Respostas comportamentais',
-  other: 'Dados auxiliares',
-};
+export const MODALITY_LABELS = lazyLabels<ModalityKind>('domain:modalityKind', ['video', 'eeg', 'events', 'test', 'questionnaire', 'behavioral', 'other']);
 
 export interface StudyModalityConfig {
   kind: ModalityKind;
@@ -196,20 +153,7 @@ export type SessionState =
   | 'excluded'
   | 'archived';
 
-export const SESSION_STATE_LABELS: Record<SessionState, string> = {
-  draft: 'Rascunho',
-  awaiting_data: 'Aguardando dados',
-  incomplete_data: 'Dados incompletos',
-  ready_to_sync: 'Pronta para sincronização',
-  syncing: 'Sincronizando',
-  synchronized: 'Sincronizada',
-  processing: 'Processando',
-  processed: 'Processada',
-  needs_review: 'Requer revisão',
-  approved: 'Aprovada',
-  excluded: 'Excluída',
-  archived: 'Arquivada',
-};
+export const SESSION_STATE_LABELS = lazyLabels<SessionState>('domain:multimodalSessionState', ['draft', 'awaiting_data', 'incomplete_data', 'ready_to_sync', 'syncing', 'synchronized', 'processing', 'processed', 'needs_review', 'approved', 'excluded', 'archived']);
 
 // ─── EEG ─────────────────────────────────────────────────────
 
@@ -222,34 +166,14 @@ export type EEGQualityVerdict =
   | 'needs_review'
   | 'inadequate';
 
-export const EEG_QUALITY_LABELS: Record<EEGQualityVerdict, string> = {
-  adequate: 'Adequado',
-  adequate_with_caveats: 'Adequado com ressalvas',
-  needs_review: 'Requer revisão',
-  inadequate: 'Inadequado',
-};
+export const EEG_QUALITY_LABELS = lazyLabels<EEGQualityVerdict>('domain:eegQuality', ['adequate', 'adequate_with_caveats', 'needs_review', 'inadequate']);
 
 export type EEGChannelIssue =
   | 'missing' | 'noisy' | 'flat' | 'clipping' | 'saturation' | 'drift'
   | 'line_noise' | 'ocular_artifact' | 'muscle_artifact' | 'movement'
   | 'signal_loss' | 'discontinuity' | 'high_impedance' | 'sampling_inconsistency';
 
-export const EEG_ISSUE_LABELS: Record<EEGChannelIssue, string> = {
-  missing: 'Canal ausente',
-  noisy: 'Canal ruidoso',
-  flat: 'Canal plano',
-  clipping: 'Clipping',
-  saturation: 'Saturação',
-  drift: 'Drift',
-  line_noise: 'Ruído de rede',
-  ocular_artifact: 'Artefato ocular',
-  muscle_artifact: 'Artefato muscular',
-  movement: 'Movimento',
-  signal_loss: 'Perda de sinal',
-  discontinuity: 'Descontinuidade',
-  high_impedance: 'Impedância elevada',
-  sampling_inconsistency: 'Inconsistência de amostragem',
-};
+export const EEG_ISSUE_LABELS = lazyLabels<EEGChannelIssue>('domain:eegIssue', ['missing', 'noisy', 'flat', 'clipping', 'saturation', 'drift', 'line_noise', 'ocular_artifact', 'muscle_artifact', 'movement', 'signal_loss', 'discontinuity', 'high_impedance', 'sampling_inconsistency']);
 
 export interface EEGChannelQuality {
   channel: string;

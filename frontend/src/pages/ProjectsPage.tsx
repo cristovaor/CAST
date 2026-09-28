@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -11,7 +13,7 @@ import { QualityBadge } from '@/components/ui/QualityBadge';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { cn, scoreToQuality } from '@/lib/utils';
-import { formatRelativeTime, formatNumber } from '@/lib/formatters';
+import { formatRelativeTime, formatNumber, statusLabel } from '@/lib/formatters';
 import {
   useArchiveProject,
   useDeleteProject,
@@ -30,10 +32,11 @@ interface Filters {
 
 // ─── Table columns ────────────────────────────────────────────
 
-const TABLE_COLUMNS: ColumnDef<Project>[] = [
+function projectColumns(t: TFunction<'projects'>): ColumnDef<Project>[] {
+  return [
   {
     key: 'name',
-    header: 'Projeto',
+    header: t('columns.project'),
     sortable: true,
     render: (_, row) => (
       <div>
@@ -46,34 +49,34 @@ const TABLE_COLUMNS: ColumnDef<Project>[] = [
   },
   {
     key: 'status',
-    header: 'Status',
+    header: t('columns.status'),
     sortable: true,
     render: (_, row) => row.status ? <StatusBadge status={row.status} size="sm" /> : '—',
   },
   {
     key: 'study_count',
-    header: 'Estudos',
+    header: t('columns.studies'),
     align: 'center',
     sortable: true,
     render: (v) => <span className="text-sm font-semibold text-text-primary">{formatNumber(Number(v ?? 0))}</span>,
   },
   {
     key: 'session_count',
-    header: 'Sessões',
+    header: t('columns.sessions'),
     align: 'center',
     sortable: true,
     render: (v) => <span className="text-sm font-semibold text-text-primary">{formatNumber(Number(v ?? 0))}</span>,
   },
   {
     key: 'video_count',
-    header: 'Vídeos',
+    header: t('columns.videos'),
     align: 'center',
     sortable: true,
     render: (v) => <span className="text-sm font-semibold text-text-primary">{formatNumber(Number(v ?? 0))}</span>,
   },
   {
     key: 'average_quality',
-    header: 'Qualidade',
+    header: t('columns.quality'),
     sortable: true,
     render: (_, row) => row.average_quality
       ? <QualityBadge level={scoreToQuality(row.average_quality)} score={row.average_quality} size="sm" />
@@ -81,7 +84,7 @@ const TABLE_COLUMNS: ColumnDef<Project>[] = [
   },
   {
     key: 'last_activity',
-    header: 'Última atividade',
+    header: t('columns.lastActivity'),
     sortable: true,
     render: (v) => v
       ? <span className="text-xs text-text-secondary">{formatRelativeTime(String(v))}</span>
@@ -89,7 +92,7 @@ const TABLE_COLUMNS: ColumnDef<Project>[] = [
   },
   {
     key: 'responsible',
-    header: 'Responsáveis',
+    header: t('columns.responsible'),
     render: (_, row) => (
       <div className="flex -space-x-1.5">
         {(row.responsible ?? []).slice(0, 3).map((u) => (
@@ -107,11 +110,13 @@ const TABLE_COLUMNS: ColumnDef<Project>[] = [
       </div>
     ),
   },
-];
+  ];
+}
 
 // ─── Projects Page ────────────────────────────────────────────
 
 export function ProjectsPage() {
+  const { t } = useTranslation('projects');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -138,25 +143,25 @@ export function ProjectsPage() {
   });
 
   const STATUS_OPTIONS: { value: Filters['status']; label: string }[] = [
-    { value: 'all',       label: 'Todos os status' },
-    { value: 'active',    label: 'Ativo' },
-    { value: 'draft',     label: 'Rascunho' },
-    { value: 'completed', label: 'Concluído' },
-    { value: 'archived',  label: 'Arquivado' },
+    { value: 'all',       label: t('allStatuses') },
+    { value: 'active',    label: statusLabel('active') },
+    { value: 'draft',     label: statusLabel('draft') },
+    { value: 'completed', label: statusLabel('completed') },
+    { value: 'archived',  label: statusLabel('archived') },
   ];
 
   return (
     <div className="min-h-full bg-app-bg text-text-primary">
       <PageHeader
-        title="Projetos de pesquisa"
-        description="Organize estudos, sessões, participantes e pipelines de análise de microações faciais."
+        title={t('title')}
+        description={t('description')}
         actions={
           <CreateProjectDialog>
             <button
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
             >
-              <Plus size={14} />
-              Novo Projeto
+              <Plus size={14} aria-hidden="true" />
+              {t('newProject')}
             </button>
           </CreateProjectDialog>
         }
@@ -164,8 +169,8 @@ export function ProjectsPage() {
 
       <div className="p-6 space-y-5 animate-fade-in">
         {archiveProject.isError && (
-          <p className="text-sm text-red-600" role="alert">
-            Não foi possível arquivar o projeto: {(archiveProject.error as Error).message}
+          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+            {t('archiveFailed', { message: (archiveProject.error as Error).message })}
           </p>
         )}
         {/* ── Toolbar ──────────────────────────────────────── */}
@@ -175,10 +180,10 @@ export function ProjectsPage() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
             <input
               type="search"
-              placeholder="Buscar projetos…"
+              placeholder={t('search')}
               value={filters.search}
               onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-              aria-label="Buscar projetos"
+              aria-label={t('searchLabel')}
               className="w-full pl-9 pr-4 py-2 text-sm bg-surface rounded-lg border border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
             />
           </div>
@@ -188,7 +193,7 @@ export function ProjectsPage() {
             <button
               onClick={() => setStatusOpen((v) => !v)}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-surface-hover transition-colors"
-              aria-label="Filtrar por status"
+              aria-label={t('filterStatus')}
               aria-expanded={statusOpen}
             >
               <Filter size={13} />
@@ -206,7 +211,7 @@ export function ProjectsPage() {
                       className={cn(
                         'flex items-center justify-between w-full px-3 py-2 text-sm transition-colors text-left',
                         filters.status === opt.value
-                          ? 'bg-blue-50 text-blue-700 font-medium'
+                          ? 'bg-blue-50 text-blue-700 font-medium dark:bg-blue-950/50 dark:text-blue-300'
                           : 'text-text-primary hover:bg-surface-hover',
                       )}
                     >
@@ -225,7 +230,7 @@ export function ProjectsPage() {
 
           {/* Summary */}
           <span className="text-xs text-text-muted font-medium">
-            {filtered.length} projeto{filtered.length !== 1 ? 's' : ''}
+            {t('count', { count: filtered.length })}
           </span>
 
           {/* View toggle */}
@@ -234,13 +239,13 @@ export function ProjectsPage() {
               active={viewMode === 'grid'}
               icon={<LayoutGrid size={14} />}
               onClick={() => setViewMode('grid')}
-              label="Vista em grade"
+              label={t('gridView')}
             />
             <ViewToggleBtn
               active={viewMode === 'table'}
               icon={<List size={14} />}
               onClick={() => setViewMode('table')}
-              label="Vista em tabela"
+              label={t('tableView')}
             />
           </div>
         </div>
@@ -248,18 +253,18 @@ export function ProjectsPage() {
         {/* ── Content ──────────────────────────────────────── */}
         {isLoading ? (
           <div className="flex justify-center p-12">
-            <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
+            <div role="status" aria-label={t('loading')} className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
             variant={filters.search || filters.status !== 'all' ? 'no-results' : 'empty'}
-            title="Nenhum projeto encontrado"
+            title={t('empty.title')}
             description={
               filters.search || filters.status !== 'all'
-                ? 'Tente ajustar os filtros ou termos de busca.'
-                : 'Crie seu primeiro projeto de pesquisa para começar a coletar e analisar dados de microações.'
+                ? t('empty.filtered')
+                : t('empty.first')
             }
-            action={{ label: 'Novo Projeto', onClick: () => setCreateProjectOpen(true) }}
+            action={{ label: t('newProject'), onClick: () => setCreateProjectOpen(true) }}
           />
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -270,20 +275,20 @@ export function ProjectsPage() {
         ) : (
           <div className="card overflow-hidden">
             <DataTable
-              columns={TABLE_COLUMNS}
+              columns={projectColumns(t)}
               data={filtered}
               onRowClick={(row) => navigate(`/app/projects/${row.id}`)}
               rowActions={(row) => [
-                { label: 'Abrir projeto', onClick: () => navigate(`/app/projects/${row.id}`) },
-                { label: 'Editar', onClick: () => setProjectToEdit(row) },
+                { label: t('actions.open'), onClick: () => navigate(`/app/projects/${row.id}`) },
+                { label: t('actions.edit'), onClick: () => setProjectToEdit(row) },
                 ...(row.status !== 'archived'
                   ? [{
-                      label: 'Arquivar',
+                      label: t('actions.archive'),
                       onClick: () => archiveProject.mutate(row.id),
                     }]
                   : []),
                 {
-                  label: 'Excluir',
+                  label: t('actions.delete'),
                   onClick: () => {
                     deleteProject.reset();
                     setProjectToDelete(row);
@@ -292,7 +297,7 @@ export function ProjectsPage() {
                 },
               ]}
               emptyState={
-                <EmptyState variant="no-results" title="Nenhum projeto" />
+                <EmptyState variant="no-results" title={t('empty.table')} />
               }
             />
           </div>
@@ -325,21 +330,20 @@ export function ProjectsPage() {
             onSuccess: () => setProjectToDelete(null),
           });
         }}
-        title="Excluir projeto"
+        title={t('deleteDialog.title')}
         description={
           <>
             <span>
-              Esta ação exclui permanentemente o projeto “{projectToDelete?.name}”.
-              Projetos que possuem estudos devem ser arquivados.
+              {t('deleteDialog.body', { name: projectToDelete?.name ?? '' })}
             </span>
             {deleteProject.isError && (
-              <span className="block mt-2 text-red-600" role="alert">
+              <span className="block mt-2 text-red-600 dark:text-red-400" role="alert">
                 {(deleteProject.error as Error).message}
               </span>
             )}
           </>
         }
-        confirmLabel="Excluir"
+        confirmLabel={t('deleteDialog.confirm')}
         destructive
         isLoading={deleteProject.isPending}
       />

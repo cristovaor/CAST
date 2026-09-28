@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 interface LoadingStateProps {
@@ -9,10 +10,11 @@ interface LoadingStateProps {
 }
 
 export function LoadingState({ variant = 'spinner', message, rows = 5, className }: LoadingStateProps) {
+  const { t } = useTranslation('ui');
   if (variant === 'spinner') {
     return (
       <div className={cn('flex flex-col items-center justify-center py-16 gap-3', className)}>
-        <div className="h-8 w-8 animate-spin-slow rounded-full border-2 border-border border-t-blue-500" role="status" aria-label={message ?? 'Carregando'} />
+        <div className="h-8 w-8 animate-spin-slow rounded-full border-2 border-border border-t-blue-500" role="status" aria-label={message ?? t('loading')} />
         {message && <p className="text-sm text-text-muted">{message}</p>}
       </div>
     );

@@ -21,21 +21,28 @@ import {
   Database,
   Layers,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useSidebarStore } from '@/app/stores/useSidebarStore';
 import { useLogout, useMe } from '@/features/auth/useAuth';
+import { BrandMark } from '@/components/brand/BrandMark';
+import { roleLabel } from '@/lib/formatters';
+import type { ptBR } from '@/i18n/locales/pt-BR';
 
 // ─── Nav item types ───────────────────────────────────────────
 
+type NavItemKey = keyof typeof ptBR.nav.items;
+type NavGroupKey = keyof typeof ptBR.nav.groups;
+
 interface NavItem {
-  label: string;
+  key: NavItemKey;
   path: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   badge?: number;
 }
 
 interface NavGroup {
-  label: string;
+  key: NavGroupKey;
   items: NavItem[];
 }
 
@@ -43,44 +50,45 @@ interface NavGroup {
 
 // 14-section architecture (docs §6): a configurable, reusable scientific
 // environment for synchronized multimodal analysis (video + EEG + events).
+// Labels resolve from the `nav` locale namespace at render time.
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: 'Visão geral',
+    key: 'overview',
     items: [
-      { label: 'Visão geral',    path: '/app',             icon: LayoutDashboard },
+      { key: 'overview',     path: '/app',              icon: LayoutDashboard },
     ],
   },
   {
-    label: 'Pesquisa',
+    key: 'research',
     items: [
-      { label: 'Projetos',       path: '/app/projects',    icon: FolderKanban },
-      { label: 'Estudos',        path: '/app/studies',     icon: FlaskConical },
-      { label: 'Participantes',  path: '/app/participants', icon: Users },
-      { label: 'Sessões',        path: '/app/sessions',    icon: CalendarClock },
+      { key: 'projects',     path: '/app/projects',     icon: FolderKanban },
+      { key: 'studies',      path: '/app/studies',      icon: FlaskConical },
+      { key: 'participants', path: '/app/participants', icon: Users },
+      { key: 'sessions',     path: '/app/sessions',     icon: CalendarClock },
     ],
   },
   {
-    label: 'Dados multimodais',
+    key: 'multimodal',
     items: [
-      { label: 'Aquisição',      path: '/app/acquisition', icon: Video },
-      { label: 'Processamento',  path: '/app/processing',  icon: Cpu },
-      { label: 'Anotação',       path: '/app/annotations', icon: PenLine },
-      { label: 'Análises',       path: '/app/analysis',    icon: LineChart },
+      { key: 'acquisition',  path: '/app/acquisition',  icon: Video },
+      { key: 'processing',   path: '/app/processing',   icon: Cpu },
+      { key: 'annotations',  path: '/app/annotations',  icon: PenLine },
+      { key: 'analysis',     path: '/app/analysis',     icon: LineChart },
     ],
   },
   {
-    label: 'Ciência & modelos',
+    key: 'science',
     items: [
-      { label: 'Datasets',       path: '/app/datasets',    icon: Database },
-      { label: 'Modelos',        path: '/app/models',      icon: Brain },
-      { label: 'Relatórios',     path: '/app/reports',     icon: BarChart3 },
+      { key: 'datasets',     path: '/app/datasets',     icon: Database },
+      { key: 'models',       path: '/app/models',       icon: Brain },
+      { key: 'reports',      path: '/app/reports',      icon: BarChart3 },
     ],
   },
   {
-    label: 'Governança',
+    key: 'governance',
     items: [
-      { label: 'Governança',     path: '/app/governance',  icon: ShieldCheck },
-      { label: 'Administração',  path: '/app/settings',    icon: Settings },
+      { key: 'governance',   path: '/app/governance',   icon: ShieldCheck },
+      { key: 'settings',     path: '/app/settings',     icon: Settings },
     ],
   },
 ];
@@ -90,19 +98,13 @@ void Waypoints; void Layers;
 
 // ─── Sidebar Component ────────────────────────────────────────
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  researcher: 'Pesquisador',
-  annotator: 'Anotador',
-  viewer: 'Leitor',
-};
-
 function initialsOf(name?: string) {
   if (!name) return 'U';
   return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || 'U';
 }
 
 export function Sidebar() {
+  const { t } = useTranslation(['nav', 'common']);
   const { isCollapsed, toggle } = useSidebarStore();
   const navigate = useNavigate();
   const { data: user } = useMe();
@@ -113,8 +115,9 @@ export function Sidebar() {
     navigate('/login', { replace: true });
   };
 
-  const userName = user?.name ?? 'Usuário';
-  const userRole = ROLE_LABELS[user?.role ?? 'viewer'] ?? 'Leitor';
+  const userName = user?.name ?? t('nav:sidebar.user');
+  const userRole = roleLabel(user?.role);
+  const signOutLabel = t('nav:sidebar.signOutAs', { name: userName });
   const initials = initialsOf(user?.name);
 
   return (
@@ -133,18 +136,21 @@ export function Sidebar() {
         )}
       >
         {/* Logo mark */}
-        <div
-          className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0 cursor-pointer"
+        <button
+          type="button"
           onClick={() => navigate('/app')}
+          aria-label={t('nav:sidebar.home')}
+          title={t('nav:sidebar.home')}
+          className="shrink-0 rounded-lg"
         >
-          <span className="text-white font-bold text-xs leading-none tracking-tight">C</span>
-        </div>
+          <BrandMark className="h-7 w-7" />
+        </button>
 
         {/* Wordmark */}
         {!isCollapsed && (
           <div className="animate-fade-in min-w-0">
-            <div className="text-white font-semibold text-sm leading-tight tracking-tight">CAST Pro</div>
-            <div className="text-[#64748B] text-[10px] leading-tight font-medium tracking-wide">Cognitive Analysis System</div>
+            <div className="text-white font-semibold text-sm leading-tight tracking-tight">{t('common:brand.name')}</div>
+            <div className="text-[#64748B] text-[10px] leading-tight font-medium tracking-wide">{t('common:brand.tagline')}</div>
           </div>
         )}
       </div>
@@ -152,12 +158,12 @@ export function Sidebar() {
       {/* ── Navigation ─────────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 scrollbar-none">
         {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="mb-1">
+          <div key={group.key} className="mb-1">
             {/* Group label */}
             {!isCollapsed && (
               <div className="px-4 pt-3 pb-1">
                 <span className="text-[10px] font-semibold uppercase tracking-widest text-[#334155]">
-                  {group.label}
+                  {t(`nav:groups.${group.key}`)}
                 </span>
               </div>
             )}
@@ -192,7 +198,7 @@ export function Sidebar() {
             <button
               type="button"
               onClick={handleLogout}
-              title={`Sair (${userName})`}
+              title={signOutLabel}
               className="flex w-full items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#1E293B] group transition-colors text-left"
             >
               <div className="w-6 h-6 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center shrink-0">
@@ -203,7 +209,7 @@ export function Sidebar() {
                 <div className="text-[9px] text-[#475569] truncate">{userRole}</div>
               </div>
               <LogOut size={13} className="text-[#334155] group-hover:text-[#64748B] transition-colors shrink-0" aria-hidden="true" />
-              <span className="sr-only">Sair</span>
+              <span className="sr-only">{t('nav:sidebar.signOut')}</span>
             </button>
           </div>
         ) : (
@@ -211,8 +217,8 @@ export function Sidebar() {
             <button
               type="button"
               onClick={handleLogout}
-              aria-label={`Sair (${userName})`}
-              title={`Sair (${userName})`}
+              aria-label={signOutLabel}
+              title={signOutLabel}
               className="w-7 h-7 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center hover:bg-blue-600/30 transition-colors"
             >
               <span className="text-blue-400 font-semibold text-[9px]">{initials}</span>
@@ -224,7 +230,7 @@ export function Sidebar() {
       {/* ── Collapse toggle ─────────────────────────────────── */}
       <button
         onClick={toggle}
-        aria-label={isCollapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
+        aria-label={isCollapsed ? t('nav:sidebar.expand') : t('nav:sidebar.collapse')}
         className={cn(
           'absolute top-[52px] -right-3 z-10',
           'w-6 h-6 rounded-full bg-[#1E293B] border border-[#334155]',
@@ -251,11 +257,14 @@ function SidebarItem({
   item: NavItem;
   isCollapsed: boolean;
 }) {
+  const { t } = useTranslation('nav');
+  const label = t(`items.${item.key}`);
+
   return (
     <NavLink
       to={item.path}
       end={item.path === '/app'}
-      title={isCollapsed ? item.label : undefined}
+      title={isCollapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
           'relative flex items-center gap-3 mx-2 px-2 py-[7px] rounded-md',
@@ -278,7 +287,7 @@ function SidebarItem({
           />
           {!isCollapsed && (
             <span className="animate-fade-in font-medium text-[13px] truncate">
-              {item.label}
+              {label}
             </span>
           )}
           {item.badge !== undefined && item.badge > 0 && !isCollapsed && (
