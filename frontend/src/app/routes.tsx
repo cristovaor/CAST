@@ -8,6 +8,43 @@ import { StudyLayout } from "../components/layout/StudyLayout";
 import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
 import { NotFoundPage } from "../pages/NotFoundPage";
 
+// A tab opened before a deploy still runs the previous bundle, which requests
+// chunk hashes the new deploy deleted. Reload once to fetch the fresh
+// index.html; the sessionStorage flag stops a reload loop if a chunk is truly
+// missing, letting the error reach the ErrorBoundary instead.
+const CHUNK_RELOAD_FLAG = "cast:chunk-reload";
+
+function readReloadFlag() {
+  try {
+    return sessionStorage.getItem(CHUNK_RELOAD_FLAG) !== null;
+  } catch {
+    return true; // No storage: never auto-reload, we could not stop a loop.
+  }
+}
+
+function writeReloadFlag(set: boolean) {
+  try {
+    if (set) sessionStorage.setItem(CHUNK_RELOAD_FLAG, "1");
+    else sessionStorage.removeItem(CHUNK_RELOAD_FLAG);
+  } catch {
+    // Storage unavailable; readReloadFlag already disables the reload.
+  }
+}
+
+async function importWithReload<T>(loader: () => Promise<T>): Promise<T> {
+  try {
+    const mod = await loader();
+    writeReloadFlag(false);
+    return mod;
+  } catch (error) {
+    if (readReloadFlag()) throw error;
+    writeReloadFlag(true);
+    window.location.reload();
+    // Keep Suspense on its fallback until the reload replaces the page.
+    return new Promise<T>(() => {});
+  }
+}
+
 // Route-level code splitting: each page is its own chunk, loaded on demand.
 // Helper adapts named exports to React.lazy (which expects a default export).
 function page<T extends Record<string, ComponentType<unknown>>>(
@@ -15,7 +52,7 @@ function page<T extends Record<string, ComponentType<unknown>>>(
   name: keyof T,
 ) {
   return lazy(async () => {
-    const mod = await loader();
+    const mod = await importWithReload(loader);
     return { default: mod[name] };
   });
 }
@@ -35,7 +72,7 @@ const VideoDetailPage = page(() => import("../pages/VideoDetailPage"), "VideoDet
 const ReportsPage = page(() => import("../pages/ReportsPage"), "ReportsPage");
 const SettingsPage = page(() => import("../pages/SettingsPage"), "SettingsPage");
 const ModelsPage = page(() => import("../pages/ModelsPage"), "ModelsPage");
-const ModelDetailPage = lazy(() => import("../pages/ModelDetailPage"));
+const ModelDetailPage = lazy(() => importWithReload(() => import("../pages/ModelDetailPage")));
 const ModelTrainingPage = page(() => import("../pages/ModelTrainingPage"), "ModelTrainingPage");
 const GlobalAnnotationsPage = page(() => import("../pages/GlobalAnnotationsPage"), "GlobalAnnotationsPage");
 const GlobalVideosPage = page(() => import("../pages/GlobalVideosPage"), "GlobalVideosPage");

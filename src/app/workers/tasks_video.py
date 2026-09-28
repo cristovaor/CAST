@@ -141,11 +141,15 @@ def _extract_landmarks(
     if config.get("extractor") == "mediapipe_face_landmarker_v2":
         from app.domains.face.landmarker_v2 import FaceLandmarkerV2
 
-        return FaceLandmarkerV2(
+        landmarker = FaceLandmarkerV2(
             str(config["model_path"]),
             expected_sha256=str(config["model_checksum"]),
             min_confidence=float(config.get("min_detection_confidence", 0.5)),
-        ).extract_from_video(video_path, video_id)
+        )
+        tasks_python = os.environ.get("MEDIAPIPE_TASKS_PYTHON", "/opt/mediapipe-tasks/bin/python")
+        if os.path.exists(tasks_python):
+            return landmarker.extract_isolated(tasks_python, video_path, video_id)
+        return landmarker.extract_from_video(video_path, video_id)
     legacy_python = os.environ.get(
         "MEDIAPIPE_PYTHON",
         "/opt/mediapipe-legacy/bin/python",
@@ -263,6 +267,53 @@ def _write_overlay_chunks(
     return chunk_size, frame_count, overlay_hasher.hexdigest()
 
 
+def _suggest_from_landmark_rules(
+    db,
+    job: ProcessingJob,
+    artifact: LandmarkArtifact,
+) -> dict[str, Any]:
+    """Without an active model, annotators still get reviewable suggestions."""
+    from app.services.heuristic_suggestion_service import (
+        create_heuristic_prediction,
+    )
+
+    _log_progress(
+        db,
+        job,
+        "info",
+        "Nenhum modelo ativo; sugerindo eventos pela distância entre landmarks",
+        50.0,
+    )
+    prediction, created = create_heuristic_prediction(db, artifact)
+    counts = (prediction.summary or {}).get("event_counts", {})
+    job.status = JobStatus.succeeded
+    job.finished_at = datetime.utcnow()
+    _log_progress(
+        db,
+        job,
+        "info",
+        (
+            f"Sugestões por landmarks {'geradas' if created else 'reaproveitadas'}: "
+            + ", ".join(f"{action} {count}" for action, count in counts.items())
+        ),
+        100.0,
+    )
+    return {"prediction_id": str(prediction.id), "source": "heuristic"}
+
+
+def _queue_inference(db, artifact: LandmarkArtifact) -> ProcessingJob:
+    infer_job = ProcessingJob(
+        video_asset_id=artifact.video_asset_id,
+        job_type=JobType.infer,
+        status=JobStatus.queued,
+    )
+    db.add(infer_job)
+    db.commit()
+    db.refresh(infer_job)
+    infer_landmarks_task.delay(str(infer_job.id), str(artifact.id))
+    return infer_job
+
+
 def _mark_failed(db, job: ProcessingJob | None, error: Exception) -> None:
     if job is None:
         return
@@ -316,7 +367,14 @@ def extract_landmarks_task(self, job_id: str):
                 f"Artefato idempotente reutilizado: {existing.id}",
                 100.0,
             )
-            return {"artifact_id": str(existing.id), "reused": True}
+            # Reprocessing a video with ready landmarks still reruns inference,
+            # so a newly activated model (or the landmark rules) takes effect.
+            infer_job = _queue_inference(db, existing)
+            return {
+                "artifact_id": str(existing.id),
+                "inference_job_id": str(infer_job.id),
+                "reused": True,
+            }
 
         fps = float(video.fps or 30.0)
         if existing is not None:
@@ -468,15 +526,7 @@ def extract_landmarks_task(self, job_id: str):
             100.0,
         )
 
-        infer_job = ProcessingJob(
-            video_asset_id=video.id,
-            job_type=JobType.infer,
-            status=JobStatus.queued,
-        )
-        db.add(infer_job)
-        db.commit()
-        db.refresh(infer_job)
-        infer_landmarks_task.delay(str(infer_job.id), str(artifact.id))
+        infer_job = _queue_inference(db, artifact)
 
         from app.services.session_state_service import refresh_session_state
 
@@ -676,7 +726,7 @@ def infer_landmarks_task(self, job_id: str, artifact_id: str):
                     f"Modelo não disponível para {action}: {error}",
                 )
         if not models_by_action:
-            raise ValueError("MODEL_NOT_AVAILABLE: Nenhum modelo ativo encontrado")
+            return _suggest_from_landmark_rules(db, job, artifact)
 
         from app.ml.predictors import run_batch_predictions
         from cast.features.descriptors import build_video_descriptor

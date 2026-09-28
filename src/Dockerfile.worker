@@ -36,9 +36,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # production API image does not carry MediaPipe/Parquet dependencies.
 RUN pip install --no-cache-dir "pyarrow>=16.0.0" "bcrypt==4.0.1"
 
-# Audio synchronization runtime. Kept after the large ML layer so adding or
-# updating FFmpeg does not invalidate the multi-gigabyte Python dependency cache.
-RUN apt-get update && apt-get install -y ffmpeg \
+# Audio synchronization and MediaPipe Tasks GLES/EGL runtime. Kept after the
+# large ML layer to preserve the multi-gigabyte Python dependency cache.
+RUN apt-get update && apt-get install -y ffmpeg libgles2 libegl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # MediaPipe Legacy Solutions needs protobuf/numpy versions that conflict with
@@ -58,6 +58,12 @@ RUN python -m venv /opt/mediapipe-legacy \
         "sentencepiece" \
     && /opt/mediapipe-legacy/bin/pip install --no-cache-dir --no-deps \
         "mediapipe==0.10.21"
+
+# Tasks must also run without TensorFlow: its optional docgen import can cause
+# a native allocator crash when both runtimes share a process.
+COPY requirements-mediapipe-tasks.txt .
+RUN python -m venv /opt/mediapipe-tasks \
+    && /opt/mediapipe-tasks/bin/pip install --no-cache-dir -r requirements-mediapipe-tasks.txt
 
 # Scientific inference runtime is layered separately so updates do not
 # invalidate the much larger ML dependency layers above.

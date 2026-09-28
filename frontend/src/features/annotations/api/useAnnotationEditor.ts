@@ -48,7 +48,9 @@ export function useAnnotationContext(videoId: string, taskId?: string) {
       const active = query.state.data?.processing.some(
         (job) => job.status === 'queued' || job.status === 'running',
       );
-      return active ? 2000 : false;
+      return active || query.state.data?.landmarkArtifact?.status === 'processing'
+        ? 2000
+        : false;
     },
   });
 }

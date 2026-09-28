@@ -1,3 +1,6 @@
+import pytest
+from fastapi import HTTPException
+
 from app.db.models import Participant, Session as DbSession, VideoAsset
 from app.domains.acquisition.models import VideoCapturePart
 from app.domains.acquisition.schemas import (
@@ -70,6 +73,53 @@ def test_complete_capture_is_idempotent_and_does_not_create_video_asset(
     assert len(completed_calls) == 1
     assert db.query(VideoCapturePart).count() == 1
     assert db.query(VideoAsset).filter(VideoAsset.session_id == session.id).count() == 0
+
+
+def test_capture_is_refused_when_session_already_has_video(
+    db, normal_user, monkeypatch
+):
+    session = _session(db, normal_user)
+    db.add(VideoAsset(session_id=session.id, filename="uploaded.mp4"))
+    db.commit()
+    started = []
+    monkeypatch.setattr(
+        "app.domains.acquisition.service.storage_service.create_multipart_upload",
+        lambda *args, **_kwargs: started.append(args) or "upload-1",
+    )
+
+    with pytest.raises(HTTPException) as refused:
+        create_capture(
+            db,
+            session_id=session.id,
+            user_id=normal_user.id,
+            payload=VideoCaptureCreate(filename="capture.webm", mime_type="video/webm"),
+        )
+
+    assert refused.value.status_code == 409
+    assert started == []
+
+
+def test_capture_is_refused_while_another_is_being_finalized(
+    db, normal_user, monkeypatch
+):
+    session = _session(db, normal_user)
+    monkeypatch.setattr(
+        "app.domains.acquisition.service.storage_service.create_multipart_upload",
+        lambda *_args, **_kwargs: "upload-1",
+    )
+    payload = VideoCaptureCreate(filename="capture.webm", mime_type="video/webm")
+    first = create_capture(
+        db, session_id=session.id, user_id=normal_user.id, payload=payload
+    )
+    first.status = "validating"
+    db.commit()
+
+    with pytest.raises(HTTPException) as refused:
+        create_capture(
+            db, session_id=session.id, user_id=normal_user.id, payload=payload
+        )
+
+    assert refused.value.status_code == 409
 
 
 def test_bookmark_client_event_id_is_idempotent(db, normal_user):

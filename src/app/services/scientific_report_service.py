@@ -131,7 +131,9 @@ def _collect_rows(study: Study, db: Session) -> tuple[pd.DataFrame, dict[str, di
         if session.video_asset is not None
     ]
     if video_ids:
-        for prediction in (
+        from app.services.heuristic_suggestion_service import model_predictions
+
+        for prediction in model_predictions(
             db.query(Prediction)
             .filter(Prediction.video_asset_id.in_(video_ids))
             .all()

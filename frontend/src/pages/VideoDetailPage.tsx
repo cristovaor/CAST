@@ -206,7 +206,11 @@ export function VideoDetailPage() {
           <>
             <StatusBadge status="processed" />
             <QualityBadge score={qualityData?.faceDetectionRate ?? 0} />
-            <ModelVersionBadge name="FaceMesh" version={timelineData?.model_version || "1.0"} active />
+            {timelineData?.model_version && timelineData.model_version !== 'unknown' ? (
+              <ModelVersionBadge name="Inferência" version={timelineData.model_version} />
+            ) : (
+              <span className="text-xs text-text-muted">Inferência: versão não disponível</span>
+            )}
             <button
               type="button"
               onClick={() => downloadDynamicPdf(videoId!)}
