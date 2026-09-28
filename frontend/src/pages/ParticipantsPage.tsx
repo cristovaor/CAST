@@ -5,7 +5,7 @@ import { translate } from '@/i18n/labels';
 import { useLocale } from '@/i18n/useLocale';
 import { toast } from '@/app/stores/useToastStore';
 import { useEffect, useMemo, useState } from 'react';
-import { CirclePause, Clipboard, History, Pencil, Plus, ShieldAlert, ShieldCheck, UserCheck, Users } from 'lucide-react';
+import { CirclePause, Clipboard, History, Pencil, Plus, ShieldAlert, ShieldCheck, Trash2, UserCheck, Users } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ListFilterBar } from '@/components/data-display/ListFilterBar';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -15,6 +15,8 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { CreateParticipantDialog } from '@/features/participants/CreateParticipantDialog';
 import { EditParticipantDialog } from '@/features/participants/EditParticipantDialog';
 import { EntityHistoryDialog } from '@/features/audit/EntityHistoryDialog';
+import { DeleteEntityDialog } from '@/features/deletion/DeleteEntityDialog';
+import { useMe } from '@/features/auth/useAuth';
 import { useParticipants } from '@/features/participants/useParticipants';
 import { useStudies } from '@/features/studies/useStudies';
 import { cn } from '@/lib/utils';
@@ -343,6 +345,7 @@ function ParticipantStatusBadge({ active }: { active: boolean }) {
 
 function ParticipantActions({ participant, labeled = false }: { participant: Participant; labeled?: boolean }) {
   const { t } = useTranslation('participants');
+  const isAdmin = useMe().data?.role === 'admin';
   const buttonClass = labeled
     ? 'inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-text-secondary transition hover:bg-surface-muted hover:text-text-primary'
     : 'inline-flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition hover:bg-surface-muted hover:text-text-primary';
@@ -365,6 +368,19 @@ function ParticipantActions({ participant, labeled = false }: { participant: Par
           {labeled && t('list.historyShort')}
         </button>
       </EntityHistoryDialog>
+      {isAdmin && (
+        <DeleteEntityDialog entityType="participant" entityId={participant.id}>
+          <button
+            type="button"
+            aria-label={t('list.delete')}
+            title={t('list.delete')}
+            className={`${buttonClass} hover:text-red-600 dark:hover:text-red-400`}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            {labeled && t('list.deleteShort')}
+          </button>
+        </DeleteEntityDialog>
+      )}
     </div>
   );
 }

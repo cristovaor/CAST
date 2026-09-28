@@ -34,11 +34,6 @@ const projects = {
     archive: 'Arquivar',
     delete: 'Excluir',
   },
-  deleteDialog: {
-    title: 'Excluir projeto',
-    body: 'Esta ação exclui permanentemente o projeto “{{name}}”. Projetos que possuem estudos devem ser arquivados.',
-    confirm: 'Excluir',
-  },
   detail: {
     loading: 'Carregando projeto…',
     notFound: 'Projeto não encontrado ou indisponível.',
@@ -107,7 +102,6 @@ const projects = {
     created: 'Projeto criado',
     updated: 'Projeto atualizado',
     archived: 'Projeto arquivado',
-    deleted: 'Projeto excluído',
     exportFailed: 'Erro na exportação do projeto',
     exported: 'Exportação concluída',
     exportedDetail: 'O download do CSV foi iniciado.',

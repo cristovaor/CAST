@@ -6,6 +6,7 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { cn } from '@/lib/utils';
 import { EntityHistoryDialog } from '@/features/audit/EntityHistoryDialog';
 import { UserDialog } from '@/features/settings/UserDialog';
+import { OrganizationSettingsForm } from '@/features/settings/OrganizationSettingsForm';
 import { useMe } from '@/features/auth/useAuth';
 import {
   useOrganizationSettings,
@@ -97,7 +98,7 @@ export function SettingsPage() {
           >
             <div>
               <h2 className="font-semibold text-text-primary">Organização</h2>
-              <p className="mt-1 text-sm text-text-secondary">Informações do plano e uso atual de armazenamento.</p>
+              <p className="mt-1 text-sm text-text-secondary">Identificação da organização, preferências regionais, plano e uso de armazenamento.</p>
             </div>
 
             {organization.isLoading ? (
@@ -110,8 +111,10 @@ export function SettingsPage() {
               />
             ) : (
               <>
-                <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-                  <Field label="Nome" value={organization.data?.name} />
+                {organization.data && (
+                  <OrganizationSettingsForm organization={organization.data} canEdit={isAdmin} />
+                )}
+                <dl className="grid grid-cols-1 gap-4 border-t border-border pt-4 text-sm sm:grid-cols-2">
                   <Field label="Plano" value={planLabel(organization.data?.plan)} />
                   <Field label="Armazenamento usado" value={`${organization.data?.used_storage_gb ?? 0} GB`} />
                   <Field label="Limite contratado" value={`${organization.data?.max_storage_gb ?? 0} GB`} />

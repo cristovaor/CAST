@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Edit2, Download, AlertTriangle, ShieldCheck, History } from 'lucide-react';
+import { Edit2, Download, AlertTriangle, ShieldCheck, History, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { QualityBadge } from '@/components/ui/QualityBadge';
@@ -15,6 +15,8 @@ import { useExportProject, useProject } from '@/features/projects/useProjects';
 import { useStudies } from '@/features/studies/useStudies';
 import { EditProjectDialog } from '@/features/projects/EditProjectDialog';
 import { EntityHistoryDialog } from '@/features/audit/EntityHistoryDialog';
+import { DeleteEntityDialog } from '@/features/deletion/DeleteEntityDialog';
+import { useMe } from '@/features/auth/useAuth';
 import type { Study, KPICardData, Project } from '@/types/domain';
 
 // ─── Tabs ─────────────────────────────────────────────────────
@@ -91,6 +93,8 @@ export function ProjectDetailPage() {
   const { data: project, isLoading, isError } = useProject(projectId ?? '');
   const { data: studies = [] } = useStudies();
   const exportProject = useExportProject();
+  const navigate = useNavigate();
+  const isAdmin = useMe().data?.role === 'admin';
 
   if (isLoading) return <div role="status" className="p-10 text-center text-sm text-text-secondary">{t('detail.loading')}</div>;
   if (isError || !project) return <div role="alert" className="m-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{t('detail.notFound')}</div>;
@@ -180,6 +184,18 @@ export function ProjectDetailPage() {
                 {t('detail.edit')}
               </button>
             </EditProjectDialog>
+            {isAdmin && (
+              <DeleteEntityDialog
+                entityType="project"
+                entityId={project.id}
+                onDeleted={() => navigate('/app/projects', { replace: true })}
+              >
+                <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-surface border border-red-200 rounded-lg hover:bg-red-50 transition-colors dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40">
+                  <Trash2 size={14} aria-hidden="true" />
+                  {t('actions.delete')}
+                </button>
+              </DeleteEntityDialog>
+            )}
           </>
         }
         tabs={tabNav}

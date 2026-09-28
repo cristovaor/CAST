@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '@/i18n/useLocale';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
 import { EXPERIMENTAL_DESIGNS, MODALITIES } from '@/types/research';
-import { AlertTriangle, CheckCircle2, Database, LineChart, Video, Waypoints, Activity } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Database, LineChart, Video, Waypoints, Activity, Trash2 } from 'lucide-react';
+import { DeleteEntityDialog } from '@/features/deletion/DeleteEntityDialog';
+import { useMe } from '@/features/auth/useAuth';
 import {
   useStudy,
   useStudyQualitySummary,
@@ -268,9 +270,31 @@ export function StudyAnalysisPage() {
 
 export function StudySettingsPage() {
   const { t } = useTranslation('studies');
+  const { studyId } = useParams<{ studyId: string }>();
+  const navigate = useNavigate();
+  const isAdmin = useMe().data?.role === 'admin';
   return (
     <SectionShell title={t('sections.settings.title')} subtitle={t('sections.settings.subtitle')}>
       <ScientificCaveat variant="privacy" />
+      {isAdmin && studyId && (
+        <section className="mt-6 rounded-xl border border-red-200 bg-surface p-4 dark:border-red-900">
+          <h3 className="font-semibold text-red-700 dark:text-red-400">{t('sections.settings.dangerTitle')}</h3>
+          <p className="mt-1 text-sm text-text-secondary">{t('sections.settings.dangerBody')}</p>
+          <DeleteEntityDialog
+            entityType="study"
+            entityId={studyId}
+            onDeleted={() => navigate('/app/studies', { replace: true })}
+          >
+            <button
+              type="button"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40"
+            >
+              <Trash2 size={14} aria-hidden="true" />
+              {t('sections.settings.delete')}
+            </button>
+          </DeleteEntityDialog>
+        </section>
+      )}
     </SectionShell>
   );
 }

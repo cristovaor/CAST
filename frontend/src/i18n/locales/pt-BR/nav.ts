@@ -21,7 +21,7 @@ const nav = {
     models: 'Modelos',
     reports: 'Relatórios',
     governance: 'Governança',
-    audit: 'Auditoria',
+    audit: 'Logs e auditoria',
     settings: 'Administração',
   },
   keywords: {
@@ -32,7 +32,7 @@ const nav = {
     annotations: 'rotulagem labels',
     models: 'lstm treino inferencia',
     governance: 'lgpd privacidade consentimento',
-    audit: 'logs trilha',
+    audit: 'logs trilha api requisições exclusões acessos',
     settings: 'configuracoes usuarios',
   },
   breadcrumbs: {
@@ -45,7 +45,7 @@ const nav = {
     models: 'Modelos',
     annotations: 'Anotações',
     reports: 'Relatórios',
-    audit: 'Auditoria',
+    audit: 'Logs e auditoria',
     settings: 'Administração',
     analysis: 'Análises',
     new: 'Novo',

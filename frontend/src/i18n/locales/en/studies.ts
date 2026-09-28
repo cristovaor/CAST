@@ -260,6 +260,9 @@ const studies = {
     settings: {
       title: 'Study settings',
       subtitle: 'Governance, retention and owners.',
+      dangerTitle: 'Danger zone',
+      dangerBody: 'Deleting the study permanently erases its participants, sessions, videos, EEG, annotations and stored files.',
+      delete: 'Delete study',
     },
   },
   variables: {
