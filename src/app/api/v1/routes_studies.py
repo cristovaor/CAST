@@ -265,7 +265,9 @@ def get_study_dashboard(
 
     participants_count = db.query(Participant).filter(Participant.study_id == study_id).count()
 
-    predictions = (
+    from app.services.heuristic_suggestion_service import model_predictions
+
+    predictions = model_predictions(
         db.query(Prediction)
         .join(VideoAsset, Prediction.video_asset_id == VideoAsset.id)
         .join(DBSession, VideoAsset.session_id == DBSession.id)

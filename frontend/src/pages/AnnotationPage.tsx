@@ -177,6 +177,13 @@ export function AnnotationPage() {
     setEvents(annotationsQuery.data ?? []);
   }, [annotationsQuery.data, setEvents]);
 
+  // The context polls while jobs run; a new prediction id means new suggestions.
+  const contextPredictionId = context?.prediction?.id;
+  const refetchSuggestions = suggestionsQuery.refetch;
+  useEffect(() => {
+    if (contextPredictionId) void refetchSuggestions();
+  }, [contextPredictionId, refetchSuggestions]);
+
   useEffect(() => {
     const saved = localStorage.getItem(draftStorageKey);
     if (saved && !useAnnotationStore.getState().draft) {
@@ -591,6 +598,16 @@ export function AnnotationPage() {
       job.type === 'extract_landmarks'
       && (job.status === 'queued' || job.status === 'running'),
   );
+  const inferring = context.processing.some(
+    (job) =>
+      job.type === 'infer'
+      && (job.status === 'queued' || job.status === 'running'),
+  );
+  const runProcessing = () =>
+    processVideo.mutate(videoId, {
+      onSuccess: () => void contextQuery.refetch(),
+      onError: (error) => setMessage(error.message),
+    });
 
   const extractionError = context.landmarkArtifact?.errorMessage
     || context.processing.find(
@@ -650,15 +667,24 @@ export function AnnotationPage() {
             <Download className="mr-2 h-4 w-4" aria-hidden="true" />
             {t('page.exportCsv')}
           </Button>
+          {artifact && !suggestionsQuery.data?.predictionId && (
+            <Button
+              disabled={inferring || processVideo.isPending}
+              onClick={runProcessing}
+              title={t('page.suggestTitle')}
+            >
+              {inferring ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              {inferring ? t('page.suggesting') : t('page.suggest')}
+            </Button>
+          )}
           {!artifact && (
             <Button
               disabled={extracting || processVideo.isPending}
-              onClick={() =>
-                processVideo.mutate(videoId, {
-                  onSuccess: () => void contextQuery.refetch(),
-                  onError: (error) => setMessage(error.message),
-                })
-              }
+              onClick={runProcessing}
             >
               {extracting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

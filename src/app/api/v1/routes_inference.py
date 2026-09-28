@@ -10,11 +10,12 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.api.ownership import get_job, get_video
 from app.db.models import (
-    User, VideoAsset, ProcessingJob, JobStatus, JobType, Prediction
+    User, VideoAsset, ProcessingJob, JobStatus, JobType
 )
 from app.schemas.inference import (
     InferenceRequest, InferenceJobStatus, PredictionResult, VideoDescriptors,
 )
+from app.services.heuristic_suggestion_service import latest_model_prediction
 from app.workers.tasks_video import process_video_task
 
 router = APIRouter()
@@ -96,8 +97,7 @@ def get_video_predictions(
     """
     get_video(db, current_user, video_id)
 
-    query = db.query(Prediction).filter(Prediction.video_asset_id == video_id)
-    prediction = query.order_by(Prediction.created_at.desc()).first()
+    prediction = latest_model_prediction(db, video_id)
 
     if not prediction:
         raise HTTPException(
@@ -126,12 +126,7 @@ def get_video_descriptors(
     """Get high-level event descriptors per action for a video."""
     get_video(db, current_user, video_id)
 
-    prediction = (
-        db.query(Prediction)
-        .filter(Prediction.video_asset_id == video_id)
-        .order_by(Prediction.created_at.desc())
-        .first()
-    )
+    prediction = latest_model_prediction(db, video_id)
 
     if not prediction or not prediction.summary:
         return VideoDescriptors(video_id=str(video_id), actions={})
