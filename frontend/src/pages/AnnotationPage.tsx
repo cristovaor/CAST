@@ -590,6 +590,18 @@ export function AnnotationPage() {
       && (job.status === 'queued' || job.status === 'running'),
   );
 
+  const extractionError = context.landmarkArtifact?.errorMessage
+    || context.processing.find(
+      (job) => job.type === 'extract_landmarks' && job.status === 'failed',
+    )?.error;
+  const landmarkNotice = artifact
+    ? null
+    : extracting || context.landmarkArtifact?.status === 'processing'
+      ? 'A malha facial ficará disponível quando a extração de landmarks terminar. Se o processamento não avançar, confira a tarefa na fila de processamento.'
+      : extractionError
+        ? `Falha na extração de landmarks: ${extractionError}. Corrija a falha do worker e clique em Processar landmarks para tentar novamente.`
+        : 'Este vídeo ainda não tem landmarks prontos. Clique em Processar landmarks para habilitar Pontos, Área e Malha.';
+
   return (
     <div className="flex h-[calc(100vh-theme(spacing.16))] flex-col bg-app-bg text-text-primary">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
@@ -656,6 +668,12 @@ export function AnnotationPage() {
           )}
         </div>
       </header>
+
+      {landmarkNotice && (
+        <div role="status" className="border-b border-warning-border bg-warning-light px-5 py-2 text-xs text-warning">
+          {landmarkNotice}
+        </div>
+      )}
 
       {message && (
         <div className="flex items-center justify-between border-b border-warning-border bg-warning-light px-5 py-2 text-xs text-warning">
