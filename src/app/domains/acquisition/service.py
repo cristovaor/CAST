@@ -19,13 +19,34 @@ from app.domains.acquisition.schemas import (
     VideoCaptureComplete,
     VideoCaptureCreate,
 )
-from app.db.models import JobStatus, JobType, ProcessingJob
+from app.db.models import JobStatus, JobType, ProcessingJob, VideoAsset
 from app.services.storage_service import storage_service
 
 
 def create_capture(
     db: Session, *, session_id: UUID, user_id: UUID, payload: VideoCaptureCreate
 ) -> VideoCaptureRun:
+    # A session owns exactly one VideoAsset. Refuse up front instead of letting
+    # the recording upload and fail in finalization.
+    if db.query(VideoAsset).filter(VideoAsset.session_id == session_id).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Session already has a video asset",
+        )
+    finalizing = (
+        db.query(VideoCaptureRun)
+        .filter(
+            VideoCaptureRun.session_id == session_id,
+            VideoCaptureRun.status.in_(("completing", "completed", "validating")),
+        )
+        .first()
+    )
+    if finalizing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Another capture for this session is being finalized",
+        )
+
     capture_id = uuid.uuid4()
     suffix = ".webm" if payload.mime_type == "video/webm" else ".mp4"
     object_key = f"live-captures/{session_id}/{capture_id}/raw{suffix}"
