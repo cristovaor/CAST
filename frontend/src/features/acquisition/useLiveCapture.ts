@@ -120,8 +120,9 @@ export function useLiveCapture(sessionId: string | null) {
     if (!sessionId) return;
     setPhase('requesting');
     setError(null);
+    let media: MediaStream | null = null;
     try {
-      const media = await navigator.mediaDevices.getUserMedia({
+      media = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
         audio: false,
       });
@@ -168,6 +169,10 @@ export function useLiveCapture(sessionId: string | null) {
       recorder.start(1000);
       setPhase('recording');
     } catch (cause) {
+      // The server can refuse the capture (e.g. the session already has a video)
+      // after the camera was opened; release it.
+      media?.getTracks().forEach((track) => track.stop());
+      setStream(null);
       setError(errorMessage(cause));
       setPhase('error');
     }
