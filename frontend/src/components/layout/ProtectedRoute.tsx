@@ -1,7 +1,9 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useMe } from '@/features/auth/useAuth';
 
 export function ProtectedRoute({ children }: { children?: React.ReactNode }) {
+  const { t } = useTranslation('nav');
   const token = localStorage.getItem('cast_token');
   const { isLoading, isError } = useMe();
 
@@ -12,7 +14,11 @@ export function ProtectedRoute({ children }: { children?: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-app-bg">
-        <div className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin" />
+        <div
+          role="status"
+          aria-label={t('loading')}
+          className="w-8 h-8 rounded-full border-4 border-border border-t-blue-600 animate-spin"
+        />
       </div>
     );
   }

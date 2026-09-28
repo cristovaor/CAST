@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -19,34 +19,41 @@ import {
   Settings,
   CornerDownLeft,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import i18n from '@/i18n';
+import { translate } from '@/i18n/labels';
+import type { ptBR } from '@/i18n/locales/pt-BR';
+
+type ItemKey = keyof typeof ptBR.nav.items;
+type GroupKey = keyof typeof ptBR.nav.groups;
 
 interface Command {
-  label: string;
-  hint: string;
+  key: ItemKey;
+  group: GroupKey;
   path: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
-  keywords?: string;
 }
 
 // Destinations mirror the sidebar so ⌘K reaches every top-level section.
+// Labels, group hints and search keywords come from the `nav` namespace.
 const COMMANDS: Command[] = [
-  { label: 'Visão geral',   hint: 'Dashboard',            path: '/app',             icon: LayoutDashboard, keywords: 'home inicio dashboard' },
-  { label: 'Projetos',      hint: 'Pesquisa',             path: '/app/projects',    icon: FolderKanban },
-  { label: 'Estudos',       hint: 'Pesquisa',             path: '/app/studies',     icon: FlaskConical },
-  { label: 'Participantes', hint: 'Pesquisa',             path: '/app/participants', icon: Users, keywords: 'sujeitos voluntarios' },
-  { label: 'Sessões',       hint: 'Pesquisa',             path: '/app/sessions',    icon: CalendarClock },
-  { label: 'Aquisição',     hint: 'Dados multimodais',    path: '/app/acquisition', icon: Video, keywords: 'upload video eeg' },
-  { label: 'Vídeos',        hint: 'Dados multimodais',    path: '/app/videos',      icon: Video },
-  { label: 'Processamento', hint: 'Dados multimodais',    path: '/app/processing',  icon: Cpu, keywords: 'fila jobs' },
-  { label: 'Anotação',      hint: 'Dados multimodais',    path: '/app/annotations', icon: PenLine, keywords: 'rotulagem labels' },
-  { label: 'Análises',      hint: 'Dados multimodais',    path: '/app/analysis',    icon: LineChart },
-  { label: 'Datasets',      hint: 'Ciência & modelos',    path: '/app/datasets',    icon: Database },
-  { label: 'Modelos',       hint: 'Ciência & modelos',    path: '/app/models',      icon: Brain, keywords: 'lstm treino inferencia' },
-  { label: 'Relatórios',    hint: 'Ciência & modelos',    path: '/app/reports',     icon: BarChart3 },
-  { label: 'Governança',    hint: 'Governança',           path: '/app/governance',  icon: ShieldCheck, keywords: 'lgpd privacidade consentimento' },
-  { label: 'Auditoria',     hint: 'Governança',           path: '/app/audit',       icon: ShieldCheck, keywords: 'logs trilha' },
-  { label: 'Administração', hint: 'Governança',           path: '/app/settings',    icon: Settings, keywords: 'configuracoes usuarios' },
+  { key: 'overview',     group: 'overview',   path: '/app',              icon: LayoutDashboard },
+  { key: 'projects',     group: 'research',   path: '/app/projects',     icon: FolderKanban },
+  { key: 'studies',      group: 'research',   path: '/app/studies',      icon: FlaskConical },
+  { key: 'participants', group: 'research',   path: '/app/participants', icon: Users },
+  { key: 'sessions',     group: 'research',   path: '/app/sessions',     icon: CalendarClock },
+  { key: 'acquisition',  group: 'multimodal', path: '/app/acquisition',  icon: Video },
+  { key: 'videos',       group: 'multimodal', path: '/app/videos',       icon: Video },
+  { key: 'processing',   group: 'multimodal', path: '/app/processing',   icon: Cpu },
+  { key: 'annotations',  group: 'multimodal', path: '/app/annotations',  icon: PenLine },
+  { key: 'analysis',     group: 'multimodal', path: '/app/analysis',     icon: LineChart },
+  { key: 'datasets',     group: 'science',    path: '/app/datasets',     icon: Database },
+  { key: 'models',       group: 'science',    path: '/app/models',       icon: Brain },
+  { key: 'reports',      group: 'science',    path: '/app/reports',      icon: BarChart3 },
+  { key: 'governance',   group: 'governance', path: '/app/governance',   icon: ShieldCheck },
+  { key: 'audit',        group: 'governance', path: '/app/audit',        icon: ShieldCheck },
+  { key: 'settings',     group: 'governance', path: '/app/settings',     icon: Settings },
 ];
 
 // Accent-insensitive matching so "anotacao" finds "Anotação".
@@ -60,19 +67,25 @@ export function CommandPalette({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation('nav');
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const results = useMemo(() => {
-    const q = normalize(query.trim());
-    if (!q) return COMMANDS;
-    return COMMANDS.filter((c) =>
-      normalize(`${c.label} ${c.hint} ${c.keywords ?? ''}`).includes(q),
-    );
-  }, [query]);
+  // Sixteen entries: cheap enough to resolve on every render, which also
+  // keeps the labels in step with the active language.
+  const q = normalize(query.trim());
+  const results = COMMANDS.map((command) => {
+    const keywordsKey = `nav:keywords.${command.key}`;
+    return {
+      ...command,
+      label: translate(`nav:items.${command.key}`),
+      hint: translate(`nav:groups.${command.group}`),
+      keywords: i18n.exists(keywordsKey) ? translate(keywordsKey) : '',
+    };
+  }).filter((c) => !q || normalize(`${c.label} ${c.hint} ${c.keywords}`).includes(q));
 
   // Focus the input once the portal has painted. Query/highlight state needs no
   // reset effect: the parent remounts this component per open via `key`.
@@ -125,7 +138,7 @@ export function CommandPalette({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Busca global"
+        aria-label={t('palette.label')}
         onKeyDown={onKeyDown}
         className={cn(
           'relative w-full max-w-lg overflow-hidden rounded-xl border border-border',
@@ -138,8 +151,8 @@ export function CommandPalette({
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar seções da plataforma..."
-            aria-label="Buscar seções da plataforma"
+            placeholder={t('palette.placeholder')}
+            aria-label={t('palette.inputLabel')}
             aria-controls="command-palette-list"
             aria-activedescendant={results[activeIndex] ? `command-${activeIndex}` : undefined}
             className={cn(
@@ -156,12 +169,12 @@ export function CommandPalette({
           id="command-palette-list"
           ref={listRef}
           role="listbox"
-          aria-label="Resultados"
+          aria-label={t('palette.results')}
           className="max-h-[min(22rem,50vh)] overflow-y-auto p-1.5"
         >
           {results.length === 0 && (
             <p className="px-3 py-8 text-center text-[13px] text-text-muted">
-              Nenhuma seção encontrada para “{query}”.
+              {t('palette.empty', { query })}
             </p>
           )}
 

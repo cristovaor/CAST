@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -44,9 +45,11 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   );
 }
 
-const ALL_STUDIES = 'Todos os estudos';
+// Sentinel for "no study filter"; its label is translated at render time.
+const ALL_STUDIES = '__all__';
 
 export function MicroActionsChart({ data, isLoading }: MicroActionsChartProps) {
+  const { t } = useTranslation('dashboard');
   const [filter, setFilter] = useState(ALL_STUDIES);
 
   // Study options come from the data itself, so the filter always matches
@@ -91,8 +94,8 @@ export function MicroActionsChart({ data, isLoading }: MicroActionsChartProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 gap-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">Distribuição de microações</h2>
-          <p className="text-[13px] text-text-secondary mt-1">Eventos detectados por estudo e tipo de ação facial</p>
+          <h2 className="text-[15px] font-semibold text-text-primary tracking-tight">{t('microActions.title')}</h2>
+          <p className="text-[13px] text-text-secondary mt-1">{t('microActions.subtitle')}</p>
         </div>
         <div className="shrink-0 relative">
           <Filter
@@ -103,7 +106,7 @@ export function MicroActionsChart({ data, isLoading }: MicroActionsChartProps) {
           <select
             value={activeFilter}
             onChange={(e) => setFilter(e.target.value)}
-            aria-label="Filtrar por estudo"
+            aria-label={t('microActions.filter')}
             className={
               'appearance-none text-xs font-medium text-text-secondary bg-surface-muted border border-border ' +
               'pl-7 pr-2.5 py-1.5 rounded-md hover:bg-surface-hover transition-colors cursor-pointer ' +
@@ -111,7 +114,7 @@ export function MicroActionsChart({ data, isLoading }: MicroActionsChartProps) {
             }
           >
             {studies.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>{s === ALL_STUDIES ? t('microActions.allStudies') : s}</option>
             ))}
           </select>
         </div>

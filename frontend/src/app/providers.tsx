@@ -3,6 +3,7 @@ import { type ReactNode, useState } from 'react';
 import { useApplyTheme } from '@/app/hooks/useApplyTheme';
 import { Toaster } from '@/components/feedback/Toaster';
 import { toast, toErrorMessage } from '@/app/stores/useToastStore';
+import i18n from '@/i18n';
 
 export function Providers({ children }: { children: ReactNode }) {
   useApplyTheme();
@@ -17,7 +18,7 @@ export function Providers({ children }: { children: ReactNode }) {
           onError: (error, _vars, _ctx, mutation) => {
             if (mutation.options.meta?.skipGlobalErrorToast) return;
             if (mutation.options.onError) return;
-            toast.error('Não foi possível concluir a ação', toErrorMessage(error));
+            toast.error(i18n.t('common:errors.actionFailed'), toErrorMessage(error));
           },
         }),
         defaultOptions: {

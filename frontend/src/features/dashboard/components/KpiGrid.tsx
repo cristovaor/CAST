@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { MetricCard } from '@/components/data-display/MetricCard';
 import type { KPICardData } from '@/types/domain';
 
@@ -6,13 +7,14 @@ interface KpiGridProps {
 }
 
 export function KpiGrid({ kpis }: KpiGridProps) {
+  const { t } = useTranslation('dashboard');
   if (!kpis || kpis.length === 0) return null;
 
   // Destaca o primeiro KPI como Hero
   const [heroKpi, ...secondaryKpis] = kpis;
 
   return (
-    <section aria-label="Indicadores principais" className="flex flex-col gap-4">
+    <section aria-label={t('kpis.label')} className="flex flex-col gap-4">
       <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {/* Hero KPI occupies more space on large screens */}
         <div className="lg:col-span-4 xl:col-span-2 flex">

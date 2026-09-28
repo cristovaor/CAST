@@ -1,9 +1,14 @@
-import type { MicroAction, StatusVariant, QualityLevel, JobStatus, StudyStatus, VideoStatus, ConsentStatus } from '@/types/domain';
+import type { MicroAction, StatusVariant, QualityLevel } from '@/types/domain';
+import i18n, { currentLanguage } from '@/i18n';
+import { translate } from '@/i18n/labels';
 
 // ─── Date / Time ──────────────────────────────────────────────
+// Every formatter reads the active UI language at call time. Components that
+// render these without a `t()` of their own call `useLocale()` so they
+// re-render on a language switch.
 
 export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('pt-BR', {
+  return new Date(dateStr).toLocaleDateString(currentLanguage(), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -11,7 +16,7 @@ export function formatDate(dateStr: string): string {
 }
 
 export function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('pt-BR', {
+  return new Date(dateStr).toLocaleString(currentLanguage(), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -26,12 +31,13 @@ export function formatRelativeTime(dateStr: string): string {
   const hours = Math.floor(diff / 3_600_000);
   const days = Math.floor(diff / 86_400_000);
 
-  if (minutes < 1) return 'agora mesmo';
-  if (minutes < 60) return `há ${minutes} min`;
-  if (hours < 24) return `há ${hours}h`;
-  if (days === 1) return 'ontem';
-  if (days < 7) return `há ${days} dias`;
-  return formatDate(dateStr);
+  if (minutes < 1) return i18n.t('domain:relativeTime.justNow');
+  if (days >= 7) return formatDate(dateStr);
+
+  const rtf = new Intl.RelativeTimeFormat(currentLanguage(), { numeric: 'auto', style: 'short' });
+  if (minutes < 60) return rtf.format(-minutes, 'minute');
+  if (hours < 24) return rtf.format(-hours, 'hour');
+  return rtf.format(-days, 'day');
 }
 
 export function formatDuration(seconds: number): string {
@@ -53,7 +59,7 @@ export function formatMs(ms: number): string {
 // ─── Numbers ──────────────────────────────────────────────────
 
 export function formatNumber(value: number): string {
-  return new Intl.NumberFormat('pt-BR').format(value);
+  return new Intl.NumberFormat(currentLanguage()).format(value);
 }
 
 export function formatPercentage(value: number, decimals = 1): string {
@@ -75,83 +81,35 @@ export function formatFPS(fps: number): string {
   return `${Math.round(fps)} fps`;
 }
 
-// ─── Status Labels (Portuguese) ───────────────────────────────
+// ─── Enum labels (see the `domain` locale namespace) ─────────
 
-const studyStatusLabels: Record<StudyStatus, string> = {
-  draft:     'Rascunho',
-  active:    'Ativo',
-  completed: 'Concluído',
-  archived:  'Arquivado',
-};
+export function statusLabel(status: StatusVariant | (string & {})): string {
+  const key = `domain:status.${status}`;
+  return i18n.exists(key) ? translate(key) : status;
+}
 
-const jobStatusLabels: Record<JobStatus, string> = {
-  queued:    'Na fila',
-  running:   'Processando',
-  succeeded: 'Concluído',
-  failed:    'Falhou',
-  canceled:  'Cancelado',
-};
-
-const videoStatusLabels: Record<VideoStatus, string> = {
-  uploaded:  'Enviado',
-  validated: 'Validado',
-  rejected:  'Rejeitado',
-  processed: 'Processado',
-};
-
-const consentStatusLabels: Record<ConsentStatus, string> = {
-  pending:  'Pendente',
-  accepted: 'Aceito',
-  revoked:  'Revogado',
-};
-
-export function statusLabel(status: StatusVariant): string {
-  if (status in studyStatusLabels) return studyStatusLabels[status as StudyStatus];
-  if (status in jobStatusLabels) return jobStatusLabels[status as JobStatus];
-  if (status in videoStatusLabels) return videoStatusLabels[status as VideoStatus];
-  if (status in consentStatusLabels) return consentStatusLabels[status as ConsentStatus];
-  if (status === 'review_required') return 'Revisão necessária';
-  return status;
+/** Translated user role; unknown roles read as the least-privileged one. */
+export function roleLabel(role?: string): string {
+  const key = `domain:role.${role ?? 'viewer'}`;
+  return translate(i18n.exists(key) ? key : 'domain:role.viewer');
 }
 
 // ─── Micro-action Labels ──────────────────────────────────────
 
-const microActionLabels: Record<MicroAction, string> = {
-  OLHO_FECHADO:  'Olho Fechado',
-  OLHANDO_CANTO: 'Olhando para Canto',
-  MEXEU_LABIOS:  'Mexeu Lábios',
-  VIROU_ROSTO:   'Virou Rosto',
-  MEXEU_SOBRANCELHA: 'Mexeu Sobrancelha',
-  NEUTRAL:       'Neutro',
-};
-
 export function microActionLabel(action: MicroAction): string {
-  return microActionLabels[action] ?? action;
+  const key = `domain:microAction.${action}`;
+  return i18n.exists(key) ? translate(key) : action;
 }
 
 export function microActionShortLabel(action: MicroAction): string {
-  const map: Record<MicroAction, string> = {
-    OLHO_FECHADO:  'OF',
-    OLHANDO_CANTO: 'OC',
-    MEXEU_LABIOS:  'ML',
-    VIROU_ROSTO:   'VR',
-    MEXEU_SOBRANCELHA: 'MSO',
-    NEUTRAL:       'N',
-  };
-  return map[action] ?? action;
+  const key = `domain:microActionShort.${action}`;
+  return i18n.exists(key) ? translate(key) : action;
 }
 
 // ─── Quality level labels ─────────────────────────────────────
 
 export function qualityLabel(level: QualityLevel): string {
-  const map: Record<QualityLevel, string> = {
-    excellent: 'Excelente',
-    good:      'Bom',
-    warning:   'Atenção',
-    poor:      'Fraco',
-    rejected:  'Rejeitado',
-  };
-  return map[level];
+  return i18n.t(`domain:quality.${level}`);
 }
 
 // ─── ID Shortener ─────────────────────────────────────────────

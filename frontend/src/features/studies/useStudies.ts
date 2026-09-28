@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { toast } from '@/app/stores/useToastStore';
@@ -50,7 +51,7 @@ export function useCreateStudy() {
     mutationFn: (data: StudyCreate) => apiClient.post<Study>('/studies', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['studies'] });
-      toast.success('Estudo criado');
+      toast.success(i18n.t('studies:toasts.created'));
     },
   });
 }
@@ -66,7 +67,7 @@ export function useUpdateStudy() {
       queryClient.invalidateQueries({ queryKey: ['studies', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'study', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['audit', 'history', 'all'] });
-      toast.success('Estudo atualizado');
+      toast.success(i18n.t('studies:toasts.updated'));
     },
   });
 }
@@ -79,7 +80,7 @@ export function useBatchInfer() {
     onSuccess: (_, studyId) => {
       queryClient.invalidateQueries({ queryKey: ['studies', studyId] });
       queryClient.invalidateQueries({ queryKey: ['videos'] });
-      toast.success('Inferência em lote iniciada', 'Acompanhe o progresso na fila de processamento.');
+      toast.success(i18n.t('studies:toasts.batchStarted'), i18n.t('studies:toasts.batchStartedDetail'));
     },
   });
 }
@@ -95,7 +96,7 @@ export function useExportStudy() {
       
       return fetch(`${BASE_URL}/studies/${studyId}/export`, { headers })
         .then(async (res) => {
-          if (!res.ok) throw new Error('Erro na exportação');
+          if (!res.ok) throw new Error(i18n.t('studies:toasts.exportFailed'));
           const blob = await res.blob();
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');

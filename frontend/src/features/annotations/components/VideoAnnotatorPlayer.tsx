@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef } from 'react';
 import { useAnnotationStore } from '../store/useAnnotationStore';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
@@ -40,6 +41,7 @@ export function VideoAnnotatorPlayer({
   pointSize,
   opacity,
 }: VideoAnnotatorPlayerProps) {
+  const { t } = useTranslation('annotations');
   const videoRef = useRef<HTMLVideoElement>(null);
   const draft = useAnnotationStore((state) => state.draft);
   const {
@@ -126,7 +128,7 @@ export function VideoAnnotatorPlayer({
           />
         </>
       ) : (
-        <div className="text-sm text-text-muted">Vídeo indisponível</div>
+        <div className="text-sm text-text-muted">{t('player.unavailable')}</div>
       )}
       {draft && (
         <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full bg-danger px-3 py-1.5 text-sm font-semibold text-white shadow-lg">

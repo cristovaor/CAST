@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Stepper } from '@/components/ui/Stepper';
 import { ScientificCaveat } from '@/components/ui/ScientificCaveat';
 import {
@@ -15,14 +16,7 @@ import { useCreateStudy } from './useStudies';
 // open (observational … replication … custom) and modalities are chosen freely,
 // with video + EEG as the methodological core.
 
-const STEPS = [
-  { id: 'general', name: 'Informações gerais' },
-  { id: 'question', name: 'Questão & hipóteses' },
-  { id: 'design', name: 'Desenho' },
-  { id: 'modalities', name: 'Modalidades' },
-  { id: 'governance', name: 'Governança' },
-  { id: 'review', name: 'Revisão' },
-];
+const STEP_IDS = ['general', 'question', 'design', 'modalities', 'governance', 'review'] as const;
 
 // Collected fields persisted into Study.config (docs §3, §7). Kept flat and
 // simple; the backend stores the whole object as JSONB so the platform stays
@@ -50,6 +44,8 @@ const EMPTY: WizardState = {
 };
 
 export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projectId?: string }) {
+  const { t } = useTranslation('studies');
+  const STEPS = STEP_IDS.map((id) => ({ id, name: t(`wizard.steps.${id}`) }));
   const [step, setStep] = useState(0);
   const [design, setDesign] = useState<ExperimentalDesign>('experimental');
   const [modalities, setModalities] = useState<Modality[]>(['video', 'eeg', 'events']);
@@ -71,8 +67,8 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
     if (step === 0 && !selectedProject) {
       setValidationError(
         selectedProjectId
-          ? 'O projeto informado não está disponível para sua organização.'
-          : 'Selecione o projeto ao qual este estudo pertence.',
+          ? t('wizard.projectUnavailable')
+          : t('wizard.selectProject'),
       );
       return;
     }
@@ -85,8 +81,8 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
     if (!selectedProject) {
       setValidationError(
         selectedProjectId
-          ? 'O projeto informado não está disponível para sua organização.'
-          : 'Selecione um projeto antes de ativar o estudo.',
+          ? t('wizard.projectUnavailable')
+          : t('wizard.selectProjectBeforeActivate'),
       );
       setStep(0);
       return;
@@ -109,7 +105,7 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
     };
     createStudy.mutate(
       {
-        name: form.name || 'Novo estudo',
+        name: form.name || t('wizard.defaultName'),
         description: form.description,
         project_id: selectedProjectId,
         config,
@@ -124,10 +120,10 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
 
       <div className="rounded-xl border border-border bg-surface p-6 md:p-8 shadow-sm">
         {step === 0 && (
-          <Section title="Informações gerais">
+          <Section title={t('wizard.general.title')}>
             <div className="space-y-1.5">
               <label htmlFor="study-project" className="text-sm font-medium text-text-secondary">
-                Projeto <span className="text-red-500" aria-hidden="true">*</span>
+                {t('wizard.general.project')} <span className="text-red-500" aria-hidden="true">*</span>
               </label>
               <select
                 id="study-project"
@@ -142,102 +138,106 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
                 className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-app-bg disabled:text-text-secondary"
               >
                 <option value="">
-                  {projectsQuery.isLoading ? 'Carregando projetos…' : 'Selecione um projeto'}
+                  {projectsQuery.isLoading ? t('wizard.general.loadingProjects') : t('wizard.general.selectProjectOption')}
                 </option>
                 {projects.map((project) => (
                   <option key={project.id} value={project.id}>{project.name}</option>
                 ))}
               </select>
               {projectId && selectedProject && (
-                <p className="text-xs text-text-muted">Projeto definido pela página de origem.</p>
+                <p className="text-xs text-text-muted">{t('wizard.general.projectFromOrigin')}</p>
               )}
               {projectsQuery.isError && (
-                <p className="text-xs text-red-600" role="alert">
-                  Não foi possível carregar os projetos. Tente novamente.
+                <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+                  {t('wizard.general.projectsFailed')}
                 </p>
               )}
               {!projectsQuery.isLoading && !projectsQuery.isError && projects.length === 0 && (
-                <p className="text-xs text-amber-700">
-                  Nenhum projeto disponível.{' '}
-                  <Link to="/app/projects" className="font-medium text-blue-600 hover:text-blue-700">
-                    Crie um projeto primeiro
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  {t('wizard.general.noProjects')}{' '}
+                  <Link to="/app/projects" className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                    {t('wizard.general.createProjectFirst')}
                   </Link>.
                 </p>
               )}
               {!projectsQuery.isLoading && selectedProjectId && !selectedProject && (
-                <p className="text-xs text-red-600" role="alert">
-                  O projeto informado não está disponível para sua organização.
+                <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+                  {t('wizard.projectUnavailable')}
                 </p>
               )}
             </div>
-            <Text label="Nome do estudo" placeholder="Ex: Fadiga em operadores — neuroergonomia" value={form.name} onChange={set('name')} />
-            <Textarea label="Descrição" placeholder="Contexto, população e escopo (sem assumir um objetivo educacional)…" value={form.description} onChange={set('description')} />
+            <Text label={t('wizard.general.name')} placeholder={t('wizard.general.namePlaceholder')} value={form.name} onChange={set('name')} />
+            <Textarea label={t('wizard.general.description')} placeholder={t('wizard.general.descriptionPlaceholder')} value={form.description} onChange={set('description')} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Text label="Programa / linha de pesquisa" placeholder="Ex: Neuroergonomia 2026" value={form.program} onChange={set('program')} />
-              <Text label="Responsável" placeholder="Pesquisador principal" value={form.responsible} onChange={set('responsible')} />
+              <Text label={t('wizard.general.program')} placeholder={t('wizard.general.programPlaceholder')} value={form.program} onChange={set('program')} />
+              <Text label={t('wizard.general.responsible')} placeholder={t('wizard.general.responsiblePlaceholder')} value={form.responsible} onChange={set('responsible')} />
             </div>
           </Section>
         )}
 
         {step === 1 && (
-          <Section title="Questão de pesquisa & hipóteses">
-            <Text label="Questão de pesquisa" placeholder="O que se investiga?" value={form.researchQuestion} onChange={set('researchQuestion')} />
-            <Textarea label="Objetivo geral" placeholder="Objetivo amplo do estudo…" value={form.generalObjective} onChange={set('generalObjective')} />
-            <Textarea label="Objetivos específicos" placeholder="Um por linha…" value={form.specificObjectives} onChange={set('specificObjectives')} />
-            <div className="rounded-lg border border-border p-3">
-              <label className="text-xs font-semibold uppercase tracking-wide text-text-muted">Hipóteses (opcionais)</label>
-              <div className="mt-2 space-y-2">
-                <Text label="H1" placeholder="Direcional, não-direcional, nula ou exploratória" value={form.hypothesis1} onChange={set('hypothesis1')} />
+          <Section title={t('wizard.question.title')}>
+            <Text label={t('wizard.question.researchQuestion')} placeholder={t('wizard.question.researchQuestionPlaceholder')} value={form.researchQuestion} onChange={set('researchQuestion')} />
+            <Textarea label={t('wizard.question.generalObjective')} placeholder={t('wizard.question.generalObjectivePlaceholder')} value={form.generalObjective} onChange={set('generalObjective')} />
+            <Textarea label={t('wizard.question.specificObjectives')} placeholder={t('wizard.question.specificObjectivesPlaceholder')} value={form.specificObjectives} onChange={set('specificObjectives')} />
+            <fieldset className="rounded-lg border border-border p-3">
+              <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-text-muted">{t('wizard.question.hypotheses')}</legend>
+              <div className="space-y-2">
+                <Text label="H1" placeholder={t('wizard.question.h1Placeholder')} value={form.hypothesis1} onChange={set('hypothesis1')} />
               </div>
-            </div>
+            </fieldset>
             <ScientificCaveat variant="association" compact />
           </Section>
         )}
 
         {step === 2 && (
-          <Section title="Desenho experimental">
-            <p className="text-[13px] text-text-muted -mt-1">O desenho não se limita a pré-teste e pós-teste. Escolha o mais adequado à sua pergunta.</p>
+          <Section title={t('wizard.design.title')}>
+            <p className="text-[13px] text-text-muted -mt-1">{t('wizard.design.hint')}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {EXPERIMENTAL_DESIGNS.map((d) => (
                 <button
                   key={d.value}
+                  type="button"
+                  aria-pressed={design === d.value}
                   onClick={() => setDesign(d.value)}
-                  className={`text-left rounded-lg border p-3 transition-colors ${design === d.value ? 'border-blue-400 bg-blue-50/60' : 'border-border hover:border-border-strong'}`}
+                  className={`text-left rounded-lg border p-3 transition-colors ${design === d.value ? 'border-blue-400 bg-blue-50/60 dark:border-blue-700 dark:bg-blue-950/40' : 'border-border hover:border-border-strong'}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-text-primary">{d.label}</span>
-                    {design === d.value && <Check size={15} className="text-blue-600" />}
+                    {design === d.value && <Check size={15} className="text-blue-600" aria-hidden="true" />}
                   </div>
                   <p className="text-[11px] text-text-muted mt-0.5">{d.hint}</p>
                 </button>
               ))}
             </div>
             <div className="grid gap-4 sm:grid-cols-2 pt-2">
-              <Textarea label="Grupos / condições" placeholder="Ex: baseline, carga alta…" value={form.groups} onChange={set('groups')} />
-              <Textarea label="Variáveis & desfechos" placeholder="Independentes, dependentes, covariáveis…" value={form.variables} onChange={set('variables')} />
+              <Textarea label={t('wizard.design.groups')} placeholder={t('wizard.design.groupsPlaceholder')} value={form.groups} onChange={set('groups')} />
+              <Textarea label={t('wizard.design.variables')} placeholder={t('wizard.design.variablesPlaceholder')} value={form.variables} onChange={set('variables')} />
             </div>
           </Section>
         )}
 
         {step === 3 && (
-          <Section title="Modalidades coletadas">
-            <p className="text-[13px] text-text-muted -mt-1">Vídeo e EEG são o núcleo metodológico. Testes e questionários são complementares e opcionais.</p>
+          <Section title={t('wizard.modalities.title')}>
+            <p className="text-[13px] text-text-muted -mt-1">{t('wizard.modalities.hint')}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {MODALITIES.map((m) => {
                 const on = modalities.includes(m.value);
                 return (
                   <button
                     key={m.value}
+                    type="button"
+                    aria-pressed={on}
                     onClick={() => toggle(m.value)}
-                    className={`text-left rounded-lg border p-3 transition-colors ${on ? 'border-blue-400 bg-blue-50/60' : 'border-border hover:border-border-strong'}`}
+                    className={`text-left rounded-lg border p-3 transition-colors ${on ? 'border-blue-400 bg-blue-50/60 dark:border-blue-700 dark:bg-blue-950/40' : 'border-border hover:border-border-strong'}`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-text-primary">
                         {m.label}
-                        {m.core && <span className="ml-2 text-[9px] uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-200 rounded px-1 py-0.5">núcleo</span>}
+                        {m.core && <span className="ml-2 text-[9px] uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-200 rounded px-1 py-0.5 dark:bg-blue-950/50 dark:border-blue-800 dark:text-blue-300">{t('wizard.modalities.core')}</span>}
                       </span>
                       <span className={`w-4 h-4 rounded border flex items-center justify-center ${on ? 'bg-blue-600 border-blue-600' : 'border-border-strong'}`}>
-                        {on && <Check size={11} className="text-white" />}
+                        {on && <Check size={11} className="text-white" aria-hidden="true" />}
                       </span>
                     </div>
                     <p className="text-[11px] text-text-muted mt-0.5">{m.description}</p>
@@ -249,61 +249,64 @@ export function StudyWizard({ onDone, projectId }: { onDone?: () => void; projec
         )}
 
         {step === 4 && (
-          <Section title="Governança & consentimento">
+          <Section title={t('wizard.governance.title')}>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Text label="Política de retenção" placeholder="Ex: descarte de vídeo bruto após 24 meses" value={form.retentionPolicy} onChange={set('retentionPolicy')} />
-              <Text label="Referência de aprovação ética" placeholder="Ex: CAAE / IRB nº" value={form.ethicsApprovalRef} onChange={set('ethicsApprovalRef')} />
+              <Text label={t('wizard.governance.retention')} placeholder={t('wizard.governance.retentionPlaceholder')} value={form.retentionPolicy} onChange={set('retentionPolicy')} />
+              <Text label={t('wizard.governance.ethics')} placeholder={t('wizard.governance.ethicsPlaceholder')} value={form.ethicsApprovalRef} onChange={set('ethicsApprovalRef')} />
             </div>
-            <Textarea label="Finalidade do uso dos dados" placeholder="Descreva a finalidade consentida…" value={form.purpose} onChange={set('purpose')} />
+            <Textarea label={t('wizard.governance.purpose')} placeholder={t('wizard.governance.purposePlaceholder')} value={form.purpose} onChange={set('purpose')} />
             <ScientificCaveat variant="privacy" />
           </Section>
         )}
 
         {step === 5 && (
-          <Section title="Revisão & ativação">
+          <Section title={t('wizard.review.title')}>
             <div className="rounded-lg border border-border p-4 space-y-2 text-[13px]">
-              <Line k="Nome" v={form.name || '—'} />
-              <Line k="Projeto" v={selectedProject?.name || 'Projeto indisponível'} />
-              <Line k="Questão" v={form.researchQuestion || '—'} />
-              <Line k="Desenho" v={EXPERIMENTAL_DESIGNS.find((d) => d.value === design)?.label} />
-              <Line k="Modalidades" v={modalities.map((m) => MODALITIES.find((x) => x.value === m)?.label).join(', ')} />
-              <Line k="Núcleo" v="Vídeo + EEG sincronizados" />
+              <Line k={t('wizard.review.name')} v={form.name || '—'} />
+              <Line k={t('wizard.review.project')} v={selectedProject?.name || t('wizard.review.projectUnavailable')} />
+              <Line k={t('wizard.review.question')} v={form.researchQuestion || '—'} />
+              <Line k={t('wizard.review.design')} v={EXPERIMENTAL_DESIGNS.find((d) => d.value === design)?.label} />
+              <Line k={t('wizard.review.modalities')} v={modalities.map((m) => MODALITIES.find((x) => x.value === m)?.label).join(', ')} />
+              <Line k={t('wizard.review.core')} v={t('wizard.review.coreValue')} />
             </div>
             <ScientificCaveat variant="association" compact>
-              O estudo será ativado sem inferir automaticamente estados cognitivos. Análises distinguem dados observados, features e estimativas de modelo.
+              {t('wizard.review.caveat')}
             </ScientificCaveat>
           </Section>
         )}
 
         {(validationError || createStudy.isError) && (
-          <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-            {validationError ?? `Não foi possível criar o estudo: ${(createStudy.error as Error).message}`}
+          <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300" role="alert">
+            {validationError ?? t('wizard.createFailed', { message: (createStudy.error as Error).message })}
           </div>
         )}
 
         <div className="mt-8 flex justify-between border-t border-border pt-5">
           <button
+            type="button"
             onClick={back}
             disabled={step === 0}
             className="px-4 py-2 rounded-md border border-border text-sm font-medium text-text-secondary hover:bg-app-bg disabled:opacity-40"
           >
-            Voltar
+            {t('wizard.back')}
           </button>
           {step < STEPS.length - 1 ? (
             <button
+              type="button"
               onClick={next}
               disabled={step === 0 && (projectsQuery.isLoading || projects.length === 0)}
               className="px-5 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Próximo
+              {t('wizard.next')}
             </button>
           ) : (
             <button
+              type="button"
               onClick={submit}
               disabled={createStudy.isPending || !selectedProject}
               className="px-5 py-2 rounded-md bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              {createStudy.isPending ? 'Ativando…' : 'Ativar estudo'}
+              {createStudy.isPending ? t('wizard.activating') : t('wizard.activate')}
             </button>
           )}
         </div>
@@ -321,18 +324,20 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 function Text({ label, placeholder, value, onChange }: { label: string; placeholder?: string; value?: string; onChange?: React.ChangeEventHandler<HTMLInputElement> }) {
+  const id = useId();
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-text-secondary">{label}</label>
-      <input value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded-md border border-border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+      <label htmlFor={id} className="text-sm font-medium text-text-secondary">{label}</label>
+      <input id={id} value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded-md border border-border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
     </div>
   );
 }
 function Textarea({ label, placeholder, value, onChange }: { label: string; placeholder?: string; value?: string; onChange?: React.ChangeEventHandler<HTMLTextAreaElement> }) {
+  const id = useId();
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-text-secondary">{label}</label>
-      <textarea rows={2} value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded-md border border-border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+      <label htmlFor={id} className="text-sm font-medium text-text-secondary">{label}</label>
+      <textarea id={id} rows={2} value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded-md border border-border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
     </div>
   );
 }

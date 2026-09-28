@@ -1,16 +1,10 @@
+import { useTranslation } from 'react-i18next';
 import { useMemo, useRef } from 'react';
 import { useAnnotationStore } from '../store/useAnnotationStore';
 import { usePlaybackStore } from '@/features/playback/usePlaybackStore';
 import type { AnnotationEvent, AnnotationSuggestion } from '@/types/annotation';
 
-const GROUP_LABELS: Record<string, string> = {
-  eyes: 'Olhos',
-  gaze: 'Olhar',
-  head: 'Cabeça',
-  mouth: 'Boca',
-  brows: 'Sobrancelhas',
-  custom: 'Outros',
-};
+// Group names come from `annotations:timeline.groups.<group>`.
 const GROUP_ORDER = ['eyes', 'gaze', 'head', 'mouth', 'brows', 'custom'];
 
 function groupFor(actionCode: string) {
@@ -33,6 +27,7 @@ export function AnnotationTimeline({
   suggestions,
   showSuggestions,
 }: AnnotationTimelineProps) {
+  const { t } = useTranslation('annotations');
   const { events, draft } = useAnnotationStore();
   const { durationMs, currentTimeMs, requestSeek } = usePlaybackStore();
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -88,7 +83,7 @@ export function AnnotationTimeline({
           <div key={actionCode} className="group flex h-8 items-center gap-4">
             <div className="w-28 truncate text-xs text-text-muted">
               <span className="block text-[9px] uppercase tracking-wide text-text-disabled">
-                {GROUP_LABELS[groupFor(actionCode)]}
+                {t(`timeline.groups.${groupFor(actionCode) as 'eyes'}`)}
               </span>
               {actionCode}
             </div>
@@ -111,11 +106,11 @@ export function AnnotationTimeline({
                       suggestion.endTime - suggestion.startTime,
                     )})`,
                   }}
-                  title={`Sugestão ${Math.round(suggestion.confidence * 100)}%${
+                  title={t('timeline.suggestion', { value: Math.round(suggestion.confidence * 100) }) + (
                     suggestion.direction?.horizontal
                       ? ` · ${suggestion.direction.horizontal}`
                       : ''
-                  }`}
+                  )}
                 />
               ))}
               {track.events.map((event) =>
@@ -124,7 +119,7 @@ export function AnnotationTimeline({
                     key={event.id}
                     className="absolute bottom-0 top-0 w-0.5 bg-amber-300"
                     style={{ left: position(event.startTime) }}
-                    title={`${event.actionLabel} · ponto`}
+                    title={t('timeline.point', { label: event.actionLabel })}
                   />
                 ) : (
                   <div
@@ -162,7 +157,7 @@ export function AnnotationTimeline({
         ))}
         {tracks.length === 0 && (
           <div className="flex h-full items-center justify-center text-sm italic text-text-muted">
-            Nenhuma anotação. Use 1–9 para marcar.
+            {t('timeline.empty')}
           </div>
         )}
       </div>

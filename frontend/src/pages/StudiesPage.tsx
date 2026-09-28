@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '@/i18n/useLocale';
+import { statusLabel } from '@/lib/formatters';
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, CalendarClock, CheckCircle2, FlaskConical, Plus, Users, Video } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -12,10 +15,14 @@ import { useStudies } from '@/features/studies/useStudies';
 import type { Study } from '@/types/domain';
 import { EXPERIMENTAL_DESIGNS, MODALITIES } from '@/types/research';
 
-const DESIGN_LABEL = Object.fromEntries(EXPERIMENTAL_DESIGNS.map((design) => [design.value, design.label]));
-const MODALITY_LABEL = Object.fromEntries(MODALITIES.map((modality) => [modality.value, modality.label]));
+const designLabel = (value: string) =>
+  EXPERIMENTAL_DESIGNS.find((design) => design.value === value)?.label;
+const modalityLabel = (value: string) =>
+  MODALITIES.find((modality) => modality.value === value)?.label ?? value;
 
 export function StudiesPage() {
+  const { t } = useTranslation('studies');
+  const locale = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     data: studies = [],
@@ -31,7 +38,7 @@ export function StudiesPage() {
   const [sort, setSort] = useState(() => searchParams.get('sort') ?? '');
 
   const filteredStudies = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase('pt-BR');
+    const term = search.trim().toLocaleLowerCase(locale);
     return studies.filter((study) => {
       const matchesSearch = !term || [
         study.name,
@@ -39,17 +46,17 @@ export function StudiesPage() {
         study.config?.researchQuestion,
         study.config?.program,
         study.config?.responsible,
-      ].some((value) => value?.toLocaleLowerCase('pt-BR').includes(term));
+      ].some((value) => value?.toLocaleLowerCase(locale).includes(term));
       const matchesProject = !projectId || study.project_id === projectId;
       const matchesStatus = !status || study.status === status;
       const matchesModality = !modality || study.config?.modalities?.includes(modality);
       return matchesSearch && matchesProject && matchesStatus && matchesModality;
     }).sort((a, b) => {
-      if (sort === 'name') return a.name.localeCompare(b.name, 'pt-BR');
+      if (sort === 'name') return a.name.localeCompare(b.name, locale);
       if (sort === 'oldest') return Date.parse(a.created_at) - Date.parse(b.created_at);
       return Date.parse(b.created_at) - Date.parse(a.created_at);
     });
-  }, [modality, projectId, search, sort, status, studies]);
+  }, [locale, modality, projectId, search, sort, status, studies]);
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -68,15 +75,15 @@ export function StudiesPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="Estudos"
-        description="Ambientes científicos configuráveis para análise multimodal sincronizada (vídeo + EEG). Cada estudo define seu próprio desenho, hipóteses e modalidades."
+        title={t('list.title')}
+        description={t('list.description')}
         actions={
           <Link
             to="/app/studies/new"
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
           >
-            <Plus size={16} />
-            Novo estudo
+            <Plus size={16} aria-hidden="true" />
+            {t('list.newStudy')}
           </Link>
         }
       />
@@ -86,77 +93,77 @@ export function StudiesPage() {
           <LoadingState variant="skeleton-cards" rows={3} />
         ) : isError ? (
           <ErrorState
-            title="Não foi possível carregar os estudos"
-            message="Confira a conexão e tente novamente."
+            title={t('list.loadFailed')}
+            message={t('list.loadFailedHint')}
             onRetry={() => { void refetch(); }}
           />
         ) : studies.length === 0 ? (
           <EmptyState
             variant="empty"
-            title="Nenhum estudo ainda"
-            description="Crie um estudo configurável: defina a questão de pesquisa, o desenho experimental e as modalidades coletadas."
+            title={t('list.emptyTitle')}
+            description={t('list.emptyDescription')}
             icon={<FlaskConical size={40} className="text-text-disabled" />}
           />
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <StudyMetric icon={FlaskConical} label="Estudos" value={studies.length} />
-              <StudyMetric icon={CheckCircle2} label="Ativos" value={activeStudies} tone="success" />
-              <StudyMetric icon={Users} label="Participantes" value={totalParticipants} tone="info" />
-              <StudyMetric icon={CalendarClock} label="Sessões" value={totalSessions} tone="accent" />
+              <StudyMetric icon={FlaskConical} label={t('list.metrics.studies')} value={studies.length} />
+              <StudyMetric icon={CheckCircle2} label={t('list.metrics.active')} value={activeStudies} tone="success" />
+              <StudyMetric icon={Users} label={t('list.metrics.participants')} value={totalParticipants} tone="info" />
+              <StudyMetric icon={CalendarClock} label={t('list.metrics.sessions')} value={totalSessions} tone="accent" />
             </div>
 
             <ListFilterBar
               searchValue={search}
               onSearchChange={setSearch}
-              searchPlaceholder="Buscar por nome, pergunta, programa ou responsável..."
+              searchPlaceholder={t('list.searchPlaceholder')}
               resultCount={filteredStudies.length}
               totalCount={studies.length}
-              resultLabel="estudo"
-              resultLabelPlural="estudos"
+              resultLabel={t('list.resultSingular')}
+              resultLabelPlural={t('list.resultPlural')}
               filters={[
                 {
                   id: 'project',
-                  label: 'Filtrar por projeto',
+                  label: t('list.filters.project'),
                   value: projectId,
                   onChange: setProjectId,
                   options: [
-                    { value: '', label: 'Todos os projetos' },
+                    { value: '', label: t('list.filters.allProjects') },
                     ...projects.map((project) => ({ value: project.id, label: project.name })),
                   ],
                 },
                 {
                   id: 'status',
-                  label: 'Filtrar por status',
+                  label: t('list.filters.status'),
                   value: status,
                   onChange: setStatus,
                   options: [
-                    { value: '', label: 'Todos os status' },
-                    { value: 'draft', label: 'Rascunho' },
-                    { value: 'active', label: 'Ativo' },
-                    { value: 'completed', label: 'Concluído' },
-                    { value: 'archived', label: 'Arquivado' },
+                    { value: '', label: t('list.filters.allStatuses') },
+                    { value: 'draft', label: statusLabel('draft') },
+                    { value: 'active', label: statusLabel('active') },
+                    { value: 'completed', label: statusLabel('completed') },
+                    { value: 'archived', label: statusLabel('archived') },
                   ],
                 },
                 {
                   id: 'modality',
-                  label: 'Filtrar por modalidade',
+                  label: t('list.filters.modality'),
                   value: modality,
                   onChange: setModality,
                   options: [
-                    { value: '', label: 'Todas as modalidades' },
+                    { value: '', label: t('list.filters.allModalities') },
                     ...MODALITIES.map((item) => ({ value: item.value, label: item.label })),
                   ],
                 },
                 {
                   id: 'sort',
-                  label: 'Ordenar estudos',
+                  label: t('list.filters.sort'),
                   value: sort,
                   onChange: setSort,
                   options: [
-                    { value: '', label: 'Mais recentes' },
-                    { value: 'oldest', label: 'Mais antigos' },
-                    { value: 'name', label: 'Nome A–Z' },
+                    { value: '', label: t('list.filters.newest') },
+                    { value: 'oldest', label: t('list.filters.oldest') },
+                    { value: 'name', label: t('list.filters.name') },
                   ],
                 },
               ]}
@@ -165,8 +172,8 @@ export function StudiesPage() {
             {filteredStudies.length === 0 ? (
               <EmptyState
                 variant="empty"
-                title="Nenhum estudo corresponde aos filtros"
-                description="Ajuste a busca ou limpe os filtros para ver outros estudos."
+                title={t('list.noMatchTitle')}
+                description={t('list.noMatchDescription')}
                 icon={<FlaskConical size={40} className="text-text-disabled" />}
               />
             ) : (
@@ -184,8 +191,9 @@ export function StudiesPage() {
 }
 
 function StudyCard({ study }: { study: Study }) {
+  const { t } = useTranslation('studies');
   const config = study.config;
-  const design = config?.design ? DESIGN_LABEL[config.design] : undefined;
+  const design = config?.design ? designLabel(config.design) : undefined;
   const modalities = config?.modalities ?? [];
 
   return (
@@ -201,7 +209,7 @@ function StudyCard({ study }: { study: Study }) {
       {config?.researchQuestion ? (
         <p className="line-clamp-2 min-h-[40px] text-sm text-text-secondary">{config.researchQuestion}</p>
       ) : (
-        <p className="line-clamp-2 min-h-[40px] text-sm text-text-muted">{study.description || 'Sem descrição'}</p>
+        <p className="line-clamp-2 min-h-[40px] text-sm text-text-muted">{study.description || t('list.noDescription')}</p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -211,33 +219,33 @@ function StudyCard({ study }: { study: Study }) {
           </span>
         )}
         {modalities.includes('video') && (
-          <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10.5px] font-medium text-blue-700">
-            <Video size={11} /> Vídeo
+          <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10.5px] font-medium text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+            <Video size={11} aria-hidden="true" /> {modalityLabel('video')}
           </span>
         )}
         {modalities.includes('eeg') && (
-          <span className="inline-flex items-center gap-1 rounded-md border border-cyan-200 bg-cyan-50 px-1.5 py-0.5 text-[10.5px] font-medium text-cyan-700">
-            <Activity size={11} /> EEG
+          <span className="inline-flex items-center gap-1 rounded-md border border-cyan-200 bg-cyan-50 px-1.5 py-0.5 text-[10.5px] font-medium text-cyan-700 dark:border-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-300">
+            <Activity size={11} aria-hidden="true" /> EEG
           </span>
         )}
         {modalities.filter((item) => item !== 'video' && item !== 'eeg').slice(0, 2).map((item) => (
           <span key={item} className="rounded-md border border-border bg-surface-muted px-1.5 py-0.5 text-[10.5px] font-medium text-text-secondary">
-            {MODALITY_LABEL[item] ?? item}
+            {modalityLabel(item)}
           </span>
         ))}
       </div>
 
       {config?.responsible && (
         <p className="mt-3 text-xs text-text-muted">
-          Responsável: <span className="font-medium text-text-secondary">{config.responsible}</span>
+          {t('list.responsible')} <span className="font-medium text-text-secondary">{config.responsible}</span>
         </p>
       )}
 
       <StudyReadiness study={study} />
 
       <div className="mt-4 flex items-center gap-4 border-t border-border pt-3 text-[11px] text-text-muted">
-        <span className="inline-flex items-center gap-1"><Users size={12} /> {study.participant_count ?? 0}</span>
-        <span className="inline-flex items-center gap-1"><CalendarClock size={12} /> {study.session_count ?? 0} sessões</span>
+        <span className="inline-flex items-center gap-1"><Users size={12} aria-hidden="true" /> {t('list.participants', { count: study.participant_count ?? 0 })}</span>
+        <span className="inline-flex items-center gap-1"><CalendarClock size={12} aria-hidden="true" /> {t('list.sessions', { count: study.session_count ?? 0 })}</span>
       </div>
     </Link>
   );
@@ -255,10 +263,10 @@ function StudyMetric({
   tone?: 'default' | 'success' | 'info' | 'accent';
 }) {
   const toneClass = {
-    default: 'bg-blue-50 text-blue-700',
-    success: 'bg-emerald-50 text-emerald-700',
-    info: 'bg-cyan-50 text-cyan-700',
-    accent: 'bg-violet-50 text-violet-700',
+    default: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+    success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+    info: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300',
+    accent: 'bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300',
   }[tone];
 
   return (
@@ -275,6 +283,7 @@ function StudyMetric({
 }
 
 function StudyReadiness({ study }: { study: Study }) {
+  const { t } = useTranslation('studies');
   const config = study.config;
   const checks = [
     !!config?.researchQuestion,
@@ -286,9 +295,9 @@ function StudyReadiness({ study }: { study: Study }) {
   const percent = Math.round((completed / checks.length) * 100);
 
   return (
-    <div className="mt-4" aria-label={`Configuração científica ${percent}% concluída`}>
+    <div className="mt-4" aria-label={t('list.readinessLabel', { percent })}>
       <div className="mb-1.5 flex items-center justify-between text-[11px]">
-        <span className="text-text-muted">Configuração científica</span>
+        <span className="text-text-muted">{t('list.readiness')}</span>
         <span className="font-medium text-text-secondary">{percent}%</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-surface-muted">

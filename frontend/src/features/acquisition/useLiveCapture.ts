@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/api';
 import {
@@ -52,7 +53,7 @@ async function sha256(blob: Blob): Promise<string> {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Falha inesperada na captura.';
+  return error instanceof Error ? error.message : i18n.t('acquisition:capture.errors.unexpected');
 }
 
 export function useLiveCapture(sessionId: string | null) {
@@ -73,7 +74,7 @@ export function useLiveCapture(sessionId: string | null) {
     setPhase('uploading');
     setError(null);
     const chunks = await listCaptureChunks(capture.captureId);
-    if (chunks.length === 0) throw new Error('Nenhum fragmento local foi encontrado para retomar.');
+    if (chunks.length === 0) throw new Error(i18n.t('acquisition:capture.errors.noChunks'));
     const completeBlob = new Blob(chunks.map((chunk) => chunk.blob), { type: capture.mimeType });
     const partCount = Math.ceil(completeBlob.size / PART_SIZE_BYTES);
     const parts: CompletedPart[] = [];
@@ -89,9 +90,9 @@ export function useLiveCapture(sessionId: string | null) {
         { part_number: partNumber },
       );
       const response = await fetch(signed.upload_url, { method: 'PUT', body: part });
-      if (!response.ok) throw new Error(`Falha ao enviar a parte ${partNumber}.`);
+      if (!response.ok) throw new Error(i18n.t('acquisition:capture.errors.partFailed', { part: partNumber }));
       const etag = response.headers.get('ETag');
-      if (!etag) throw new Error('O armazenamento não expôs o ETag necessário para concluir o upload.');
+      if (!etag) throw new Error(i18n.t('acquisition:capture.errors.noEtag'));
       parts.push({
         part_number: partNumber,
         etag,

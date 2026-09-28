@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 export type ImportRow = Record<string, unknown>;
 
 export function parseContextFile(text: string): ImportRow[] {
@@ -38,6 +39,6 @@ function splitCsvLine(line: string): string[] {
 
 export function numeric(value: unknown, column: string): number {
   const parsed = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(parsed)) throw new Error(`Valor inválido na coluna ${column}.`);
+  if (!Number.isFinite(parsed)) throw new Error(i18n.t('acquisition:imports.invalidColumn', { column }));
   return parsed;
 }

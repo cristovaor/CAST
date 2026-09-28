@@ -2,7 +2,13 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
+import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
+
+function CloseLabel() {
+  const { t } = useTranslation("ui")
+  return <span className="sr-only">{t("dialog.close")}</span>
+}
 
 const Dialog = DialogPrimitive.Root
 
@@ -44,7 +50,7 @@ const DialogContent = React.forwardRef<
       {children}
       <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-surface transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-surface-muted data-[state=open]:text-text-secondary">
         <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+        <CloseLabel />
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>

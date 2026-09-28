@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { QualityLevel, StatusVariant, MicroAction } from '@/types/domain';
+import { microActionLabel, microActionShortLabel } from '@/lib/formatters';
 
 // ─── Tailwind class merge helper ──────────────────────────────
 export function cn(...inputs: ClassValue[]) {
@@ -69,15 +70,21 @@ export function getMicroActionConfig(action: MicroAction): {
   bgColor: string;
   textColor: string;
 } {
-  const map: Record<MicroAction, { label: string; shortLabel: string; color: string; bgColor: string; textColor: string }> = {
-    OLHO_FECHADO:   { label: 'Olho Fechado',       shortLabel: 'OF', color: '#7C3AED', bgColor: 'bg-violet-100', textColor: 'text-violet-700' },
-    OLHANDO_CANTO:  { label: 'Olhando para Canto', shortLabel: 'OC', color: '#2563EB', bgColor: 'bg-blue-100',   textColor: 'text-blue-700'   },
-    MEXEU_LABIOS:   { label: 'Mexeu Lábios',       shortLabel: 'ML', color: '#059669', bgColor: 'bg-emerald-100',textColor: 'text-emerald-700' },
-    VIROU_ROSTO:    { label: 'Virou Rosto',         shortLabel: 'VR', color: '#D97706', bgColor: 'bg-amber-100',  textColor: 'text-amber-700'  },
-    MEXEU_SOBRANCELHA: { label: 'Mexeu Sobrancelha', shortLabel: 'MSO', color: '#DB2777', bgColor: 'bg-pink-100', textColor: 'text-pink-700' },
-    NEUTRAL:        { label: 'Neutro',              shortLabel: 'N',  color: '#64748B', bgColor: 'bg-slate-100',  textColor: 'text-slate-600'  },
+  // Labels come from the `domain` locale namespace; colours are fixed.
+  const map: Record<MicroAction, { color: string; bgColor: string; textColor: string }> = {
+    OLHO_FECHADO:   { color: '#7C3AED', bgColor: 'bg-violet-100', textColor: 'text-violet-700' },
+    OLHANDO_CANTO:  { color: '#2563EB', bgColor: 'bg-blue-100',   textColor: 'text-blue-700'   },
+    MEXEU_LABIOS:   { color: '#059669', bgColor: 'bg-emerald-100',textColor: 'text-emerald-700' },
+    VIROU_ROSTO:    { color: '#D97706', bgColor: 'bg-amber-100',  textColor: 'text-amber-700'  },
+    MEXEU_SOBRANCELHA: { color: '#DB2777', bgColor: 'bg-pink-100', textColor: 'text-pink-700' },
+    NEUTRAL:        { color: '#64748B', bgColor: 'bg-slate-100',  textColor: 'text-slate-600'  },
   };
-  return map[action] ?? map.NEUTRAL;
+  const key = action in map ? action : 'NEUTRAL';
+  return {
+    ...map[key],
+    label: microActionLabel(key),
+    shortLabel: microActionShortLabel(key),
+  };
 }
 
 // ─── Misc helpers ─────────────────────────────────────────────

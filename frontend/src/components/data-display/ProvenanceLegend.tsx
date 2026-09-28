@@ -1,3 +1,4 @@
+import { useLocale } from '@/i18n/useLocale';
 import { PROVENANCE_META, type ProvenanceKind } from '@/types/research';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,7 @@ const DEFAULT_KINDS: ProvenanceKind[] = [
 ];
 
 export function ProvenanceLegend({ kinds = DEFAULT_KINDS, className }: ProvenanceLegendProps) {
+  useLocale();
   return (
     <div className={cn('flex flex-wrap gap-x-4 gap-y-1.5', className)}>
       {kinds.map((k) => {
@@ -35,6 +37,7 @@ export function ProvenanceLegend({ kinds = DEFAULT_KINDS, className }: Provenanc
 }
 
 export function ProvenanceDot({ kind }: { kind: ProvenanceKind }) {
+  useLocale();
   const m = PROVENANCE_META[kind];
   return (
     <span

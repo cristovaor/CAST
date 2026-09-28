@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/Dialog';
 import { useCreateProject } from './useProjects';
@@ -14,6 +15,7 @@ export function CreateProjectDialog({
   open: controlledOpen,
   onOpenChange,
 }: CreateProjectDialogProps) {
+  const { t } = useTranslation('projects');
   const [internalOpen, setInternalOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -44,42 +46,42 @@ export function CreateProjectDialog({
       {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Novo Projeto</DialogTitle>
+          <DialogTitle>{t('form.createTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-text-primary" htmlFor="name">Nome do Projeto</label>
+            <label className="text-sm font-medium text-text-primary" htmlFor="name">{t('form.name')}</label>
             <input 
               id="name"
               required
               value={name}
               onChange={e => setName(e.target.value)}
               className="w-full px-3 py-2 border border-border bg-surface text-text-primary rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              placeholder="Ex: Carga Cognitiva 2026"
+              placeholder={t('form.namePlaceholder')}
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-text-primary" htmlFor="description">Descrição</label>
+            <label className="text-sm font-medium text-text-primary" htmlFor="description">{t('form.description')}</label>
             <textarea 
               id="description"
               rows={3}
               value={description}
               onChange={e => setDescription(e.target.value)}
               className="w-full px-3 py-2 border border-border bg-surface text-text-primary rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              placeholder="Descreva os objetivos deste projeto..."
+              placeholder={t('form.descriptionPlaceholder')}
             />
           </div>
           <DialogFooter>
             <ActionButton variant="ghost" onClick={() => setOpen(false)} type="button">
-              Cancelar
+              {t('form.cancel')}
             </ActionButton>
             <ActionButton
               variant="primary"
               type="submit"
               isLoading={createProject.isPending}
-              loadingText="Criando..."
+              loadingText={t('form.creating')}
             >
-              Criar Projeto
+              {t('form.create')}
             </ActionButton>
           </DialogFooter>
         </form>

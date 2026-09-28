@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { useLocale } from '@/i18n/useLocale';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -22,45 +25,18 @@ import { EEGAnalysisWorkspace } from '@/features/eeg/components/EEGAnalysisWorks
 
 type AnalysisRequirement = 'session' | 'video' | 'eeg' | 'multimodal';
 
+// Titles and item lists come from `analysis:index.categories.<key>`.
 const CATEGORIES = [
-  {
-    key: 'temporal',
-    icon: Clock,
-    title: 'Temporal',
-    requirement: 'session' as AnalysisRequirement,
-    items: ['Eventos por intervalo', 'Latência', 'Janelas pré/pós-evento', 'Séries alinhadas por evento'],
-  },
-  {
-    key: 'video',
-    icon: Video,
-    title: 'Vídeo',
-    requirement: 'video' as AnalysisRequirement,
-    items: ['Landmarks', 'Unidades de ação', 'Pose da cabeça', 'Frequência de piscadas'],
-  },
-  {
-    key: 'eeg',
-    icon: Activity,
-    title: 'EEG',
-    requirement: 'eeg' as AnalysisRequirement,
-    items: ['Potência espectral', 'Bandas de frequência', 'ERP', 'Conectividade / coerência'],
-  },
-  {
-    key: 'multimodal',
-    icon: Layers,
-    title: 'Multimodal',
-    requirement: 'multimodal' as AnalysisRequirement,
-    items: ['Coocorrência temporal', 'Correlação cruzada', 'Atraso entre sinais', 'Fusão de features'],
-  },
-  {
-    key: 'statistics',
-    icon: Sigma,
-    title: 'Estatística',
-    requirement: 'session' as AnalysisRequirement,
-    items: ['Descritiva', 'Testes de hipótese', 'Modelos mistos', 'Tamanho de efeito'],
-  },
-];
+  { key: 'temporal', icon: Clock, requirement: 'session' as AnalysisRequirement },
+  { key: 'video', icon: Video, requirement: 'video' as AnalysisRequirement },
+  { key: 'eeg', icon: Activity, requirement: 'eeg' as AnalysisRequirement },
+  { key: 'multimodal', icon: Layers, requirement: 'multimodal' as AnalysisRequirement },
+  { key: 'statistics', icon: Sigma, requirement: 'session' as AnalysisRequirement },
+] as const;
 
 export function AnalysisIndexPage() {
+  const { t } = useTranslation('analysis');
+  const locale = useLocale();
   const sessionsQuery = useSessions();
   const studiesQuery = useStudies();
   const sessions = useMemo(() => sessionsQuery.data ?? [], [sessionsQuery.data]);
@@ -95,22 +71,22 @@ export function AnalysisIndexPage() {
   return (
     <div className="min-h-full bg-app-bg pb-12">
       <PageHeader
-        title="Análises"
-        description="Escolha um estudo e uma sessão para acessar apenas as análises compatíveis com os dados disponíveis."
+        title={t('index.title')}
+        description={t('index.description')}
         actions={selectedSession ? (
           <Link
             to={`/app/sessions/${selectedSession.id}/explorer`}
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
           >
-            Abrir workspace
-            <ArrowRight size={15} />
+            {t('index.openWorkspace')}
+            <ArrowRight size={15} aria-hidden="true" />
           </Link>
         ) : (
           <a
             href="#analysis-selection"
             className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-text-secondary hover:bg-surface-muted"
           >
-            Escolher sessão
+            {t('index.chooseSession')}
           </a>
         )}
       />
@@ -120,8 +96,8 @@ export function AnalysisIndexPage() {
           <LoadingState variant="skeleton-cards" rows={3} />
         ) : isError ? (
           <ErrorState
-            title="Não foi possível preparar o workspace"
-            message="As sessões ou os estudos não puderam ser carregados."
+            title={t('index.loadFailed')}
+            message={t('index.loadFailedHint')}
             onRetry={() => {
               void sessionsQuery.refetch();
               void studiesQuery.refetch();
@@ -133,10 +109,10 @@ export function AnalysisIndexPage() {
               <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
                 <div>
                   <h2 id="analysis-selection-title" className="text-base font-semibold text-text-primary">
-                    Preparar workspace
+                    {t('index.prepare')}
                   </h2>
                   <p className="mt-1 text-sm text-text-secondary">
-                    A disponibilidade abaixo é calculada a partir das modalidades anexadas à sessão.
+                    {t('index.prepareHint')}
                   </p>
                 </div>
                 {selectedSession && <SessionReadiness session={selectedSession} hasEEGResult={!!validEEGRun} />}
@@ -144,13 +120,13 @@ export function AnalysisIndexPage() {
 
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="text-sm font-medium text-text-primary">
-                  Estudo
+                  {t('index.study')}
                   <select
                     value={studyId}
                     onChange={(event) => handleStudyChange(event.target.value)}
                     className="mt-1.5 h-11 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm text-text-primary"
                   >
-                    <option value="">Selecione um estudo</option>
+                    <option value="">{t('index.selectStudy')}</option>
                     {studies.map((study) => (
                       <option key={study.id} value={study.id}>{study.name}</option>
                     ))}
@@ -158,17 +134,17 @@ export function AnalysisIndexPage() {
                 </label>
 
                 <label className="text-sm font-medium text-text-primary">
-                  Sessão
+                  {t('index.session')}
                   <select
                     value={sessionId}
                     disabled={!studyId}
                     onChange={(event) => setSessionId(event.target.value)}
                     className="mt-1.5 h-11 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm text-text-primary disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-disabled"
                   >
-                    <option value="">{studyId ? 'Selecione uma sessão' : 'Selecione primeiro o estudo'}</option>
+                    <option value="">{studyId ? t('index.selectSession') : t('index.selectStudyFirst')}</option>
                     {availableSessions.map((session) => (
                       <option key={session.id} value={session.id}>
-                        {formatSessionOption(session)}
+                        {formatSessionOption(session, t, locale)}
                       </option>
                     ))}
                   </select>
@@ -176,30 +152,30 @@ export function AnalysisIndexPage() {
               </div>
 
               {studyId && availableSessions.length === 0 && (
-                <p className="mt-3 inline-flex items-center gap-2 rounded-lg border border-warning-border bg-warning-light px-3 py-2 text-sm text-amber-800">
-                  <AlertTriangle size={15} />
-                  Este estudo ainda não possui sessões disponíveis para análise.
+                <p className="mt-3 inline-flex items-center gap-2 rounded-lg border border-warning-border bg-warning-light px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+                  <AlertTriangle size={15} aria-hidden="true" />
+                  {t('index.noSessions')}
                 </p>
               )}
 
               {selectedSession && (
                 <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border pt-3 text-xs text-text-muted">
-                  <span>Estudo: <strong className="font-medium text-text-secondary">{studyNames.get(selectedSession.study_id) ?? selectedSession.study_id.slice(0, 8)}</strong></span>
-                  <span>Sessão: <strong className="font-medium text-text-secondary">S-{selectedSession.id.slice(0, 8)}</strong></span>
-                  {selectedSession.condition && <span>Condição: <strong className="font-medium text-text-secondary">{selectedSession.condition}</strong></span>}
+                  <span>{t('index.studyLabel')} <strong className="font-medium text-text-secondary">{studyNames.get(selectedSession.study_id) ?? selectedSession.study_id.slice(0, 8)}</strong></span>
+                  <span>{t('index.sessionLabel')} <strong className="font-medium text-text-secondary">S-{selectedSession.id.slice(0, 8)}</strong></span>
+                  {selectedSession.condition && <span>{t('index.conditionLabel')} <strong className="font-medium text-text-secondary">{selectedSession.condition}</strong></span>}
                 </div>
               )}
             </section>
 
             {studyId && (
-              <section className="rounded-xl border border-border bg-surface p-4" aria-label="Análise EEG do estudo">
+              <section className="rounded-xl border border-border bg-surface p-4" aria-label={t('index.studyEeg')}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-sm font-semibold text-text-primary">EEG agregado do estudo</h2>
-                    <p className="mt-1 text-xs text-text-muted">Executa e compara resultados no escopo do estudo selecionado.</p>
+                    <h2 className="text-sm font-semibold text-text-primary">{t('index.studyEegTitle')}</h2>
+                    <p className="mt-1 text-xs text-text-muted">{t('index.studyEegHint')}</p>
                   </div>
-                  <button type="button" onClick={() => setShowStudyAnalysis((current) => !current)} aria-expanded={showStudyAnalysis} className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50">
-                    {showStudyAnalysis ? 'Recolher análise do estudo' : 'Abrir análise do estudo'}
+                  <button type="button" onClick={() => setShowStudyAnalysis((current) => !current)} aria-expanded={showStudyAnalysis} className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/40">
+                    {showStudyAnalysis ? t('index.collapseStudy') : t('index.openStudy')}
                   </button>
                 </div>
                 {showStudyAnalysis && <div className="mt-4"><EEGAnalysisWorkspace studyId={studyId} /></div>}
@@ -211,46 +187,47 @@ export function AnalysisIndexPage() {
             <section aria-labelledby="analysis-categories-title">
               <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <h2 id="analysis-categories-title" className="text-base font-semibold text-text-primary">Análises da sessão</h2>
+                  <h2 id="analysis-categories-title" className="text-base font-semibold text-text-primary">{t('index.sessionAnalyses')}</h2>
                   <p className="mt-1 text-sm text-text-secondary">
-                    {selectedSession ? 'Escolha uma pergunta que os dados desta sessão permitem explorar.' : 'Selecione uma sessão acima para ver as análises possíveis.'}
+                    {selectedSession ? t('index.chooseQuestion') : t('index.selectAbove')}
                   </p>
                 </div>
                 {selectedSession && unavailableCount > 0 && <button type="button" onClick={() => setShowUnavailable((current) => !current)} aria-expanded={showUnavailable} className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-text-secondary hover:bg-surface-muted">
-                  {showUnavailable ? 'Ocultar requisitos pendentes' : `Ver ${unavailableCount} análise(s) com requisitos pendentes`}
+                  {showUnavailable ? t('index.hidePending') : t('index.showPending', { count: unavailableCount })}
                 </button>}
               </div>
 
               {selectedSession && <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {CATEGORIES.filter((category) => showUnavailable || getCategoryAvailability(category.requirement, selectedSession, !!validEEGRun).available).map((category) => {
                   const availability = getCategoryAvailability(category.requirement, selectedSession, !!validEEGRun);
+                  const items = t(`index.categories.${category.key}.items`, { returnObjects: true }) as unknown as string[];
                   const content = (
                     <>
                       <div className="mb-3 flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-muted text-text-secondary">
-                            <category.icon size={16} />
+                            <category.icon size={16} aria-hidden="true" />
                           </div>
-                          <h3 className="text-sm font-semibold text-text-primary">Análise {category.title.toLowerCase()}</h3>
+                          <h3 className="text-sm font-semibold text-text-primary">{t(`index.categories.${category.key}.title`)}</h3>
                         </div>
                         {availability.available ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-                            <CheckCircle2 size={13} /> {availability.reason || 'Disponível'}
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 size={13} aria-hidden="true" /> {t(`index.availability.${availability.reason || 'available'}`)}
                           </span>
                         ) : (
-                          <span className="text-right text-[11px] font-medium text-text-muted">{availability.reason}</span>
+                          <span className="text-right text-[11px] font-medium text-text-muted">{t(`index.availability.${availability.reason || 'available'}`)}</span>
                         )}
                       </div>
                       <ul className="space-y-1.5">
-                        {category.items.map((item) => (
+                        {items.map((item) => (
                           <li key={item} className="flex items-center gap-2 text-[13px] text-text-secondary">
                             <span className="h-1 w-1 rounded-full bg-text-muted" />{item}
                           </li>
                         ))}
                       </ul>
                       {availability.available && (
-                        <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600">
-                          Configurar análise <ArrowRight size={13} />
+                        <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                          {t('index.configure')} <ArrowRight size={13} aria-hidden="true" />
                         </span>
                       )}
                     </>
@@ -260,7 +237,7 @@ export function AnalysisIndexPage() {
                     <Link
                       key={category.key}
                       to={`/app/sessions/${selectedSession.id}/explorer?category=${category.key}`}
-                      className="rounded-xl border border-border bg-surface p-4 transition hover:border-blue-300 hover:shadow-card"
+                      className="rounded-xl border border-border bg-surface p-4 transition hover:border-blue-300 hover:shadow-card dark:hover:border-blue-800"
                     >
                       {content}
                     </Link>
@@ -274,15 +251,15 @@ export function AnalysisIndexPage() {
             </section>
 
             <div className="rounded-xl border border-border bg-surface p-4">
-              <h2 className="mb-2 text-sm font-semibold text-text-primary">Como os dados são distinguidos</h2>
+              <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('index.provenanceTitle')}</h2>
               <p className="mb-3 text-[12px] text-text-secondary">
-                Todos os resultados diferenciam visualmente a natureza do dado — observado, detectado, derivado, estimado por modelo, excluído, ausente ou imputado.
+                {t('index.provenanceBody')}
               </p>
               <ProvenanceLegend className="[&_span]:text-text-secondary" />
             </div>
 
             <p className="text-[12px] text-text-muted">
-              A interface não recomenda automaticamente um teste estatístico sem apresentar as premissas necessárias (normalidade, independência, homocedasticidade, correção para múltiplas comparações e análise de poder).
+              {t('index.statsNote')}
             </p>
           </>
         )}
@@ -292,23 +269,25 @@ export function AnalysisIndexPage() {
 }
 
 function SessionReadiness({ session, hasEEGResult }: { session: SessionListItem; hasEEGResult: boolean }) {
+  const { t } = useTranslation('analysis');
   return (
-    <div className="flex flex-wrap gap-2" aria-label="Modalidades disponíveis">
-      <ReadinessChip label="Vídeo" ready={!!session.video_asset_id} />
-      <ReadinessChip label={hasEEGResult ? 'EEG analisado' : 'EEG bruto'} ready={!!session.eeg_asset_id} />
+    <div className="flex flex-wrap gap-2" aria-label={t('index.readiness')}>
+      <ReadinessChip label={t('index.video')} ready={!!session.video_asset_id} />
+      <ReadinessChip label={hasEEGResult ? t('index.eegAnalysed') : t('index.eegRaw')} ready={!!session.eeg_asset_id} />
     </div>
   );
 }
 
 function ReadinessChip({ label, ready }: { label: string; ready: boolean }) {
+  const { t } = useTranslation('analysis');
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium ${
       ready
-        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'
         : 'border-border bg-surface-muted text-text-muted'
     }`}>
-      {ready ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
-      {label} {ready ? 'disponível' : 'ausente'}
+      {ready ? <CheckCircle2 size={13} aria-hidden="true" /> : <AlertTriangle size={13} aria-hidden="true" />}
+      {ready ? t('index.chipAvailable', { label }) : t('index.chipMissing', { label })}
     </span>
   );
 }
@@ -318,20 +297,21 @@ function getCategoryAvailability(
   session?: SessionListItem,
   hasEEGResult = false,
 ) {
-  if (!session) return { available: false, reason: 'Selecione uma sessão' };
-  if (requirement === 'video' && !session.video_asset_id) return { available: false, reason: 'Requer vídeo' };
-  if (requirement === 'eeg' && !session.eeg_asset_id) return { available: false, reason: 'Requer EEG' };
-  if (requirement === 'eeg' && !hasEEGResult) return { available: true, reason: 'Pronto para executar' };
+  // `reason` is a key of `analysis:index.availability`.
+  if (!session) return { available: false, reason: 'selectSession' as const };
+  if (requirement === 'video' && !session.video_asset_id) return { available: false, reason: 'needsVideo' as const };
+  if (requirement === 'eeg' && !session.eeg_asset_id) return { available: false, reason: 'needsEeg' as const };
+  if (requirement === 'eeg' && !hasEEGResult) return { available: true, reason: 'readyToRun' as const };
   if (requirement === 'multimodal' && (!session.video_asset_id || !session.eeg_asset_id)) {
-    return { available: false, reason: 'Requer vídeo + EEG' };
+    return { available: false, reason: 'needsBoth' as const };
   }
   if (requirement === 'multimodal' && !hasEEGResult) {
-    return { available: true, reason: 'Requer executar EEG' };
+    return { available: true, reason: 'runEegFirst' as const };
   }
-  return { available: true, reason: '' };
+  return { available: true, reason: null };
 }
 
-function formatSessionOption(session: SessionListItem) {
-  const date = new Date(session.created_at).toLocaleDateString('pt-BR');
-  return `S-${session.id.slice(0, 8)} · ${session.condition || 'Sem condição'} · ${date}`;
+function formatSessionOption(session: SessionListItem, t: TFunction<'analysis'>, locale: string) {
+  const date = new Date(session.created_at).toLocaleDateString(locale);
+  return `S-${session.id.slice(0, 8)} · ${session.condition || t('index.noCondition')} · ${date}`;
 }

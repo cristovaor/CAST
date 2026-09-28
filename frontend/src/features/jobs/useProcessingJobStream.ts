@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { useEffect, useState } from "react";
 import type { JobStatus } from "@/types/domain";
 
@@ -77,7 +78,7 @@ export function useProcessingJobStream(
       } catch (streamError) {
         if (controller.signal.aborted) return;
         console.error("SSE Error:", streamError);
-        setError("Falha ao acompanhar o processamento. Tente novamente.");
+        setError(i18n.t("processing:job.streamFailed"));
       }
     }
 

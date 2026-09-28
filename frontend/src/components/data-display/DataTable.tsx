@@ -1,5 +1,7 @@
 import { type ReactNode, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/useLocale';
 import {
   ChevronUp, ChevronDown, MoreHorizontal,
   ChevronLeft, ChevronRight,
@@ -39,6 +41,8 @@ export function DataTable<T extends { id: string }>({
   className,
   onRowClick,
 }: DataTableProps<T>) {
+  const { t } = useTranslation('ui');
+  const locale = useLocale();
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
@@ -49,7 +53,7 @@ export function DataTable<T extends { id: string }>({
     ? [...data].sort((a, b) => {
         const av = (a as Record<string, unknown>)[sortKey];
         const bv = (b as Record<string, unknown>)[sortKey];
-        const cmp = String(av ?? '').localeCompare(String(bv ?? ''), 'pt-BR');
+        const cmp = String(av ?? '').localeCompare(String(bv ?? ''), locale);
         return sortDir === 'asc' ? cmp : -cmp;
       })
     : data;
@@ -76,7 +80,7 @@ export function DataTable<T extends { id: string }>({
     <div className={cn('flex flex-col', className)}>
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="data-table w-full" aria-label="Tabela de dados">
+        <table className="data-table w-full" aria-label={t('dataTable.label')}>
           <thead>
             <tr>
               {columns.map((col) => (
@@ -114,7 +118,7 @@ export function DataTable<T extends { id: string }>({
               <tr>
                 <td colSpan={columns.length + (rowActions ? 1 : 0)} className="py-12 text-center">
                   {emptyState ?? (
-                    <span className="text-sm text-text-muted">Nenhum resultado encontrado</span>
+                    <span className="text-sm text-text-muted">{t('dataTable.empty')}</span>
                   )}
                 </td>
               </tr>
@@ -163,13 +167,17 @@ export function DataTable<T extends { id: string }>({
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-border">
           <span className="text-xs text-text-muted">
-            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, sorted.length)} de {sorted.length}
+            {t('dataTable.range', {
+              from: (page - 1) * pageSize + 1,
+              to: Math.min(page * pageSize, sorted.length),
+              total: sorted.length,
+            })}
           </span>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              aria-label="Página anterior"
+              aria-label={t('dataTable.previous')}
               className="p-1.5 rounded hover:bg-surface-muted disabled:opacity-40 transition-colors"
             >
               <ChevronLeft size={14} className="text-text-secondary" />
@@ -180,7 +188,7 @@ export function DataTable<T extends { id: string }>({
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              aria-label="Próxima página"
+              aria-label={t('dataTable.next')}
               className="p-1.5 rounded hover:bg-surface-muted disabled:opacity-40 transition-colors"
             >
               <ChevronRight size={14} className="text-text-secondary" />
@@ -207,11 +215,12 @@ function RowActionsMenu({
   onToggle: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation('ui');
   return (
     <div className="relative inline-block">
       <button
         onClick={onToggle}
-        aria-label={`Ações para linha ${rowId}`}
+        aria-label={t('dataTable.rowActions', { id: rowId })}
         aria-expanded={open}
         className="p-1.5 rounded hover:bg-surface-muted text-text-muted hover:text-text-primary transition-colors"
       >
@@ -233,7 +242,7 @@ function RowActionsMenu({
                 className={cn(
                   'flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors text-left',
                   action.destructive
-                    ? 'text-red-600 hover:bg-red-50'
+                    ? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40'
                     : 'text-text-secondary hover:bg-surface-hover',
                 )}
               >

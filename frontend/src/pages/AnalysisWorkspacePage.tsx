@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '@/i18n/useLocale';
 import { useEffect, useMemo } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
@@ -33,6 +35,8 @@ type Lane = {
 };
 
 export function AnalysisWorkspacePage() {
+  const { t } = useTranslation('analysis');
+  const locale = useLocale();
   const { sessionId: sessionReference } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -107,7 +111,7 @@ export function AnalysisWorkspacePage() {
     if (session?.video_asset_id) {
       built.push({
         key: 'video',
-        label: 'Vídeo observado',
+        label: t('workspace.lanes.video'),
         kind: 'video_observed',
         segments: [[0, 100]],
       });
@@ -127,7 +131,7 @@ export function AnalysisWorkspacePage() {
       const isManual = origin === 'annotator';
       built.push({
         key: `event-${action}-${origin}`,
-        label: isManual ? `${config.label} (manual)` : config.label,
+        label: isManual ? t('workspace.lanes.manual', { label: config.label }) : config.label,
         kind: isManual ? 'human_annotation' : 'detected_event',
         segments,
       });
@@ -140,14 +144,14 @@ export function AnalysisWorkspacePage() {
       const end = toPercent(Math.max(0, eegToVideoMs(lastEegMs, eeg.sync_transform) / 1000));
       built.push({
         key: 'eeg',
-        label: `EEG (${eeg.data.length.toLocaleString('pt-BR')})`,
+        label: `EEG (${eeg.data.length.toLocaleString(locale)})`,
         kind: 'eeg_observed',
         segments: [[start, end]],
       });
     }
 
     return built;
-  }, [durationSeconds, eeg, session?.video_asset_id, timeline?.events]);
+  }, [durationSeconds, eeg, locale, session?.video_asset_id, t, timeline?.events]);
 
   const eventStats = useMemo(() => {
     const events = timeline?.events ?? [];
@@ -164,8 +168,8 @@ export function AnalysisWorkspacePage() {
   if (sessionQuery.isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center bg-app-bg text-text-secondary">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-        Resolvendo sessão…
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
+        {t('workspace.resolving')}
       </div>
     );
   }
@@ -176,10 +180,10 @@ export function AnalysisWorkspacePage() {
         <div className="mx-auto max-w-2xl rounded-xl border border-border bg-surface">
           <EmptyState
             variant="error"
-            title="Sessão não encontrada"
-            description={`A referência “${sessionReference ?? ''}” não corresponde a uma sessão acessível. Use ao menos quatro caracteres do ID ou abra a sessão pela lista.`}
+            title={t('workspace.notFound')}
+            description={t('workspace.notFoundDetail', { reference: sessionReference ?? '' })}
             icon={<AlertTriangle size={40} className="text-warning" />}
-            action={{ label: 'Voltar para sessões', onClick: () => navigate('/app/sessions') }}
+            action={{ label: t('workspace.backToSessions'), onClick: () => navigate('/app/sessions') }}
           />
         </div>
       </div>
@@ -192,22 +196,21 @@ export function AnalysisWorkspacePage() {
 
       <div className="space-y-5 p-4 sm:p-6">
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Duração disponível" value={durationSeconds ? formatClock(durationSeconds) : '—'} />
-          <StatCard label="Eventos detectados" value={eventStats.count.toLocaleString('pt-BR')} />
-          <StatCard label="Amostras EEG" value={(eeg?.data.length ?? 0).toLocaleString('pt-BR')} />
+          <StatCard label={t('workspace.stats.duration')} value={durationSeconds ? formatClock(durationSeconds) : '—'} />
+          <StatCard label={t('workspace.stats.events')} value={eventStats.count.toLocaleString(locale)} />
+          <StatCard label={t('workspace.stats.eegSamples')} value={(eeg?.data.length ?? 0).toLocaleString(locale)} />
           <StatCard
-            label="Estado de sincronização"
-            value={SYNC_STATE_LABEL[sync?.state ?? 'not_synced'] ?? 'Desconhecido'}
+            label={t('workspace.stats.syncState')}
+            value={t(`workspace.syncStates.${(sync?.state ?? 'not_synced') as 'not_synced'}`, { defaultValue: t('workspace.syncStates.unknown') })}
           />
         </section>
 
-        <nav className="grid gap-2 rounded-xl border border-border bg-surface p-2 sm:grid-cols-2 xl:grid-cols-4" aria-label="Exploração da sessão">
-          {([
-            { key: 'overview', label: 'Visão sincronizada', detail: 'Player e linha do tempo' },
-            { key: 'events', label: 'Eventos e contexto', detail: 'Momentos e condições' },
-            { key: 'signal', label: 'EEG e coativação', detail: 'Qualidade, bandas e séries' },
-            { key: 'comparisons', label: 'Comparar sessões', detail: 'Diferenças entre coletas' },
-          ] as const).map((item) => (
+        <nav className="grid gap-2 rounded-xl border border-border bg-surface p-2 sm:grid-cols-2 xl:grid-cols-4" aria-label={t('workspace.nav')}>
+          {(['overview', 'events', 'signal', 'comparisons'] as const).map((key) => ({
+            key,
+            label: t(`workspace.views.${key}.label`),
+            detail: t(`workspace.views.${key}.detail`),
+          })).map((item) => (
             <button
               key={item.key}
               type="button"
@@ -215,7 +218,7 @@ export function AnalysisWorkspacePage() {
               aria-current={view === item.key ? 'page' : undefined}
               className={cn(
                 'rounded-lg px-3 py-3 text-left transition-colors',
-                view === item.key ? 'bg-blue-50 text-blue-800 ring-1 ring-blue-200' : 'text-text-secondary hover:bg-surface-muted',
+                view === item.key ? 'bg-blue-50 text-blue-800 ring-1 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-200 dark:ring-blue-900' : 'text-text-secondary hover:bg-surface-muted',
               )}
             >
               <span className="block text-sm font-semibold">{item.label}</span>
@@ -236,7 +239,7 @@ export function AnalysisWorkspacePage() {
           <div className="min-w-0 space-y-4">
             {playbackQuery.isError || timelineQuery.isError ? (
               <div role="alert" className="flex min-h-32 items-center justify-center rounded-xl border border-danger-border bg-danger-light px-4 text-center text-sm text-danger">
-                Não foi possível carregar o vídeo ou a timeline. Verifique o processamento e tente novamente.
+                {t('workspace.videoFailed')}
               </div>
             ) : playback?.url ? (
               <MultimodalPlayer
@@ -251,8 +254,8 @@ export function AnalysisWorkspacePage() {
             ) : (
               <div className="flex aspect-video items-center justify-center rounded-xl border border-border bg-black/90 px-6 text-center text-sm text-text-muted">
                 {session.video_asset_id
-                  ? 'O vídeo existe, mas ainda não possui URL de reprodução.'
-                  : 'Nenhum vídeo foi coletado nesta sessão.'}
+                  ? t('workspace.noPlayback')
+                  : t('workspace.noVideo')}
               </div>
             )}
           </div>
@@ -263,8 +266,8 @@ export function AnalysisWorkspacePage() {
         </section>
 
         <Panel
-          title="Timeline multimodal"
-          subtitle="Clique em qualquer faixa para mover o relógio compartilhado do player"
+          title={t('workspace.timeline.title')}
+          subtitle={t('workspace.timeline.subtitle')}
           loading={timelineQuery.isLoading && !!session.video_asset_id}
           error={timelineQuery.isError}
         >
@@ -286,7 +289,7 @@ export function AnalysisWorkspacePage() {
                   </span>
                   <button
                     type="button"
-                    aria-label={`Posicionar na faixa ${lane.label}`}
+                    aria-label={t('workspace.timeline.seekLane', { label: lane.label })}
                     className="relative h-7 flex-1 overflow-hidden rounded-md border border-border bg-surface-muted"
                     onClick={(event) => {
                       const rect = event.currentTarget.getBoundingClientRect();
@@ -318,8 +321,8 @@ export function AnalysisWorkspacePage() {
           ) : (
             <EmptyState
               variant="empty"
-              title="Sem fontes temporais processadas"
-              description="Adicione vídeo ou EEG à sessão e processe os arquivos para habilitar a timeline."
+              title={t('workspace.timeline.emptyTitle')}
+              description={t('workspace.timeline.emptyDescription')}
               className="py-10"
             />
           )}
@@ -346,7 +349,7 @@ export function AnalysisWorkspacePage() {
           />
         )}
 
-        <Panel title='Eventos detectados ("pontos")' subtitle="Predições e anotações no relógio compartilhado com a visão sincronizada">
+        <Panel title={t('workspace.events.title')} subtitle={t('workspace.events.subtitle')}>
           <EventTable events={timeline?.events ?? []} onSeek={(seconds) => { requestSeek(seconds * 1000); selectView('overview'); }} />
         </Panel>
         </>}
@@ -354,19 +357,19 @@ export function AnalysisWorkspacePage() {
         {view === 'signal' && <>
         {session.eeg_asset_id ? <EEGAnalysisWorkspace eegId={session.eeg_asset_id} /> : (
           <div className="rounded-xl border border-border bg-surface">
-            <EmptyState variant="empty" title="EEG ainda não disponível" description="Associe um arquivo EEG ou XDF a esta sessão para explorar qualidade, bandas e séries." className="py-10" />
-            <div className="flex justify-center pb-5"><Link to="/app/acquisition" className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Abrir aquisição</Link></div>
+            <EmptyState variant="empty" title={t('workspace.signal.noEegTitle')} description={t('workspace.signal.noEegDescription')} className="py-10" />
+            <div className="flex justify-center pb-5"><Link to="/app/acquisition" className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">{t('workspace.signal.openAcquisition')}</Link></div>
           </div>
         )}
 
         <section className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            <StatCard label="Eventos válidos" value={eventStats.count.toLocaleString('pt-BR')} />
+            <StatCard label={t('workspace.stats.validEvents')} value={eventStats.count.toLocaleString(locale)} />
             <StatCard
-              label="Confiança média"
+              label={t('workspace.stats.averageConfidence')}
               value={eventStats.confidence === null ? '—' : `${(eventStats.confidence * 100).toFixed(1)}%`}
             />
-            <StatCard label="Tempo em eventos" value={formatClock(eventStats.observedSeconds)} />
+            <StatCard label={t('workspace.stats.timeInEvents')} value={formatClock(eventStats.observedSeconds)} />
           </div>
           {session.eeg_asset_id ? (
             <CoactivationPanel eegId={session.eeg_asset_id} />
@@ -374,8 +377,8 @@ export function AnalysisWorkspacePage() {
             <div className="rounded-xl border border-border bg-surface">
               <EmptyState
                 variant="empty"
-                title="Coativação indisponível"
-                description="A análise estatística EEG × microações requer EEG e eventos processados na mesma sessão."
+                title={t('workspace.signal.noCoactivationTitle')}
+                description={t('workspace.signal.noCoactivationDescription')}
                 className="py-10"
               />
             </div>
@@ -390,23 +393,12 @@ export function AnalysisWorkspacePage() {
           compact
           className="!border-border !bg-surface-muted !text-text-primary"
         >
-          Coincidências temporais entre eventos faciais e EEG indicam associação no intervalo selecionado,
-          não causalidade. O backend aplica o offset persistido da sessão e os resultados requerem validação
-          pelo pesquisador.
+          {t('workspace.caveat')}
         </ScientificCaveat>
       </div>
     </div>
   );
 }
-
-const SYNC_STATE_LABEL: Record<string, string> = {
-  not_synced: 'Não sincronizado',
-  auto_available: 'Sugestão pronta',
-  in_review: 'Em revisão',
-  synced: 'Sincronizado',
-  synced_with_caveats: 'Com ressalvas',
-  sync_failed: 'Falhou',
-};
 
 function AnalysisHeader({
   session,
@@ -415,20 +407,21 @@ function AnalysisHeader({
   session: { id: string };
   resolvedSessionId?: string;
 }) {
+  const { t } = useTranslation('analysis');
   return (
     <header className="border-b border-border bg-surface px-4 py-4 sm:px-6">
       <div className="flex items-center gap-3">
         <Link
           to={`/app/sessions/${resolvedSessionId}`}
-          aria-label="Voltar para a sessão"
+          aria-label={t('workspace.backToSession')}
           className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
         >
-          <ArrowLeft size={17} />
+          <ArrowLeft size={17} aria-hidden="true" />
         </Link>
         <div>
           <h1 className="text-lg font-semibold">Multimodal Research Explorer</h1>
           <p className="mt-0.5 text-xs text-text-secondary">
-            Sessão {session.id.slice(0, 8).toUpperCase()} · vídeo, EEG e eventos no mesmo relógio compartilhado
+            {t('workspace.headerSubtitle', { id: session.id.slice(0, 8).toUpperCase() })}
           </p>
         </div>
       </div>
@@ -449,6 +442,7 @@ function Panel({
   loading?: boolean;
   error?: boolean;
 }) {
+  const { t } = useTranslation('analysis');
   return (
     <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
       <div className="mb-3">
@@ -457,12 +451,12 @@ function Panel({
       </div>
       {loading ? (
         <div className="flex min-h-40 items-center justify-center text-sm text-text-secondary">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Carregando dados…
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
+          {t('workspace.loadingData')}
         </div>
       ) : error ? (
         <div role="alert" className="flex min-h-32 items-center justify-center rounded-lg border border-danger-border bg-danger-light px-4 text-center text-sm text-danger">
-          Não foi possível carregar esta fonte. Verifique o processamento e tente novamente.
+          {t('workspace.sourceFailed')}
         </div>
       ) : children}
     </div>
@@ -485,12 +479,13 @@ function EventTable({
   events: TimelineEventDTO[];
   onSeek: (seconds: number) => void;
 }) {
+  const { t } = useTranslation('analysis');
   if (!events.length) {
     return (
       <EmptyState
         variant="empty"
-        title="Nenhum evento detectado"
-        description="O vídeo ainda não possui uma predição com eventos de microações."
+        title={t('workspace.events.emptyTitle')}
+        description={t('workspace.events.emptyDescription')}
         className="py-10"
       />
     );
@@ -501,12 +496,12 @@ function EventTable({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-border text-[11px] uppercase tracking-wide text-text-muted">
-            <th scope="col" className="px-3 py-2 font-semibold">Microação</th>
-            <th scope="col" className="px-3 py-2 font-semibold">Origem</th>
-            <th scope="col" className="px-3 py-2 font-semibold">Início</th>
-            <th scope="col" className="px-3 py-2 font-semibold">Fim</th>
-            <th scope="col" className="px-3 py-2 font-semibold">Confiança</th>
-            <th scope="col" className="px-3 py-2 text-right font-semibold">Ação</th>
+            <th scope="col" className="px-3 py-2 font-semibold">{t('workspace.events.columns.microAction')}</th>
+            <th scope="col" className="px-3 py-2 font-semibold">{t('workspace.events.columns.origin')}</th>
+            <th scope="col" className="px-3 py-2 font-semibold">{t('workspace.events.columns.start')}</th>
+            <th scope="col" className="px-3 py-2 font-semibold">{t('workspace.events.columns.end')}</th>
+            <th scope="col" className="px-3 py-2 font-semibold">{t('workspace.events.columns.confidence')}</th>
+            <th scope="col" className="px-3 py-2 text-right font-semibold">{t('workspace.events.columns.action')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -528,7 +523,7 @@ function EventTable({
                       isManual ? 'bg-violet-500/15 text-violet-600' : 'bg-amber-500/15 text-amber-600',
                     )}
                   >
-                    {isManual ? 'Manual' : 'Modelo'}
+                    {isManual ? t('workspace.events.manual') : t('workspace.events.model')}
                   </span>
                 </td>
                 <td className="px-3 py-2.5 font-mono text-xs">{formatClock(event.start_time)}</td>
@@ -540,7 +535,7 @@ function EventTable({
                     onClick={() => onSeek(event.start_time)}
                     className="text-xs font-semibold text-primary hover:text-primary-hover"
                   >
-                    Ir ao evento
+                    {t('workspace.events.goTo')}
                   </button>
                 </td>
               </tr>

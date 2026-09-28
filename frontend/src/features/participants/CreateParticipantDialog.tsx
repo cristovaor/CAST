@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next';
+import { AGE_RANGES, EDUCATION_LEVELS, GENDERS, HANDEDNESS } from './profileOptions';
+import { statusLabel } from '@/lib/formatters';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   BookOpenCheck,
@@ -26,10 +29,10 @@ import type { ConsentStatus, ParticipantCreate } from '@/types/domain';
 import { useCreateParticipant } from './useParticipants';
 
 const STEPS = [
-  { label: 'Vínculo', description: 'Estudo e código', icon: FlaskConical },
-  { label: 'Perfil', description: 'Variáveis descritivas', icon: UserRoundSearch },
-  { label: 'Ética', description: 'Elegibilidade e TCLE', icon: ShieldCheck },
-  { label: 'Revisão', description: 'Conferência final', icon: BookOpenCheck },
+  { key: 'link', icon: FlaskConical },
+  { key: 'profile', icon: UserRoundSearch },
+  { key: 'ethics', icon: ShieldCheck },
+  { key: 'review', icon: BookOpenCheck },
 ] as const;
 
 const INITIAL_FORM = {
@@ -88,6 +91,7 @@ function generateParticipantCode() {
 }
 
 export function CreateParticipantDialog({ children }: { children: ReactNode }) {
+  const { t } = useTranslation('participants');
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
@@ -150,24 +154,23 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
               <GraduationCap size={20} aria-hidden="true" />
             </div>
             <div>
-              <DialogTitle className="text-xl">Registro de participante</DialogTitle>
+              <DialogTitle className="text-xl">{t('create.title')}</DialogTitle>
               <DialogDescription className="mt-1 max-w-xl">
-                Inclusão pseudonimizada no protocolo de pesquisa, com rastreabilidade ética e
-                coleta mínima de dados.
+                {t('create.description')}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <div className="border-b border-border px-5 py-4 sm:px-7">
-          <ol className="grid grid-cols-4 gap-2" aria-label="Etapas do cadastro">
+          <ol className="grid grid-cols-4 gap-2" aria-label={t('create.stepsLabel')}>
             {STEPS.map((item, index) => {
               const Icon = item.icon;
               const isComplete = index < step;
               const isCurrent = index === step;
               return (
                 <li
-                  key={item.label}
+                  key={item.key}
                   aria-current={isCurrent ? 'step' : undefined}
                   className="min-w-0"
                 >
@@ -184,9 +187,9 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
                     </span>
                     <span className="hidden min-w-0 sm:block">
                       <span className={cn('block truncate text-xs font-semibold', isCurrent ? 'text-blue-700 dark:text-blue-300' : 'text-text-primary')}>
-                        {item.label}
+                        {t(`create.steps.${item.key}.label`)}
                       </span>
-                      <span className="block truncate text-[11px] text-text-muted">{item.description}</span>
+                      <span className="block truncate text-[11px] text-text-muted">{t(`create.steps.${item.key}.description`)}</span>
                     </span>
                   </div>
                 </li>
@@ -194,7 +197,12 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
             })}
           </ol>
           <p className="mt-3 text-xs font-medium text-text-secondary sm:hidden">
-            Etapa {step + 1} de {STEPS.length}: {STEPS[step].label} — {STEPS[step].description}
+            {t('create.stepOf', {
+              current: step + 1,
+              total: STEPS.length,
+              label: t(`create.steps.${STEPS[step].key}.label`),
+              description: t(`create.steps.${STEPS[step].key}.description`),
+            })}
           </p>
         </div>
 
@@ -204,12 +212,12 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
               <section aria-labelledby="participant-step-link" className="space-y-5">
                 <SectionHeading
                   id="participant-step-link"
-                  eyebrow="Contexto da pesquisa"
-                  title="Vincule o registro ao estudo"
-                  description="O participante será associado ao protocolo e identificado apenas por um código de pesquisa."
+                  eyebrow={t('create.link.eyebrow')}
+                  title={t('create.link.title')}
+                  description={t('create.link.description')}
                 />
 
-                <Field label="Estudo de destino" htmlFor="participant-study" required>
+                <Field label={t('create.link.study')} htmlFor="participant-study" required>
                   <select
                     id="participant-study"
                     required
@@ -219,10 +227,10 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
                     disabled={isLoadingStudies}
                     className={fieldClassName}
                   >
-                    <option value="">Selecione um estudo…</option>
+                    <option value="">{t('create.link.selectStudy')}</option>
                     {studies?.map((study) => (
                       <option key={study.id} value={study.id}>
-                        {study.name} · {study.status === 'active' ? 'Ativo' : study.status === 'draft' ? 'Rascunho' : study.status}
+                        {study.name} · {statusLabel(study.status)}
                       </option>
                     ))}
                   </select>
@@ -230,21 +238,21 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
 
                 {selectedStudy && (
                   <div className="grid gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-sm dark:border-blue-900 dark:bg-blue-950/30 sm:grid-cols-3">
-                    <StudyFact label="Estudo" value={selectedStudy.name} />
-                    <StudyFact label="Protocolo" value={selectedStudy.protocol_version || 'Não informado'} />
+                    <StudyFact label={t('create.link.factStudy')} value={selectedStudy.name} />
+                    <StudyFact label={t('create.link.factProtocol')} value={selectedStudy.protocol_version || t('create.link.notInformedMasc')} />
                     <StudyFact
-                      label="Aprovação ética"
-                      value={selectedStudy.config?.ethicsApprovalRef || 'Não informada'}
+                      label={t('create.link.factEthics')}
+                      value={selectedStudy.config?.ethicsApprovalRef || t('create.link.notInformedFem')}
                       warning={!selectedStudy.config?.ethicsApprovalRef}
                     />
                   </div>
                 )}
 
                 <Field
-                  label="Código pseudonimizado"
+                  label={t('create.link.code')}
                   htmlFor="participant-code"
                   required
-                  hint="Use somente o identificador definido no protocolo. Não informe nome, CPF, e-mail ou prontuário."
+                  hint={t('create.link.codeHint')}
                 >
                   <div className="flex gap-2">
                     <input
@@ -254,7 +262,7 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
                       maxLength={80}
                       value={form.external_code}
                       onChange={(event) => setField('external_code', event.target.value.toUpperCase())}
-                      placeholder="Ex.: P-0042"
+                      placeholder={t('create.link.codePlaceholder')}
                       className={cn(fieldClassName, 'font-mono uppercase tracking-wide')}
                     />
                     <button
@@ -263,8 +271,8 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
                       className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border-strong bg-surface px-3 text-sm font-medium text-text-secondary transition hover:bg-surface-muted hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <Dices size={16} aria-hidden="true" />
-                      <span className="hidden sm:inline">Gerar código</span>
-                      <span className="sm:hidden">Gerar</span>
+                      <span className="hidden sm:inline">{t('create.link.generate')}</span>
+                      <span className="sm:hidden">{t('create.link.generateShort')}</span>
                     </button>
                   </div>
                 </Field>
@@ -275,94 +283,87 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
               <section aria-labelledby="participant-step-profile" className="space-y-5">
                 <SectionHeading
                   id="participant-step-profile"
-                  eyebrow="Caracterização da amostra"
-                  title="Perfil acadêmico do participante"
-                  description="Registre apenas variáveis previstas no protocolo. Todos os campos desta etapa são opcionais."
+                  eyebrow={t('create.profile.eyebrow')}
+                  title={t('create.profile.title')}
+                  description={t('create.profile.description')}
                 />
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Grupo, braço ou coorte" htmlFor="participant-cohort">
+                  <Field label={t('profile.cohort')} htmlFor="participant-cohort">
                     <input
                       id="participant-cohort"
                       autoFocus
                       value={form.cohort}
                       onChange={(event) => setField('cohort', event.target.value)}
-                      placeholder="Ex.: Controle, intervenção A"
+                      placeholder={t('profile.cohortPlaceholder')}
                       className={fieldClassName}
                     />
                   </Field>
-                  <Field label="Faixa etária" htmlFor="participant-age-range">
+                  <Field label={t('profile.ageRange')} htmlFor="participant-age-range">
                     <select
                       id="participant-age-range"
                       value={form.age_range}
                       onChange={(event) => setField('age_range', event.target.value)}
                       className={fieldClassName}
                     >
-                      <option value="">Não informar</option>
-                      <option value="18-24">18–24 anos</option>
-                      <option value="25-34">25–34 anos</option>
-                      <option value="35-44">35–44 anos</option>
-                      <option value="45-54">45–54 anos</option>
-                      <option value="55-64">55–64 anos</option>
-                      <option value="65+">65 anos ou mais</option>
+                      <option value="">{t('profile.notInformed')}</option>
+                      {AGE_RANGES.map((value) => (
+                        <option key={value} value={value}>{t(`profile.ageRanges.${value}`)}</option>
+                      ))}
                     </select>
                   </Field>
-                  <Field label="Gênero autodeclarado" htmlFor="participant-gender">
+                  <Field label={t('profile.gender')} htmlFor="participant-gender">
                     <select
                       id="participant-gender"
                       value={form.gender}
                       onChange={(event) => setField('gender', event.target.value)}
                       className={fieldClassName}
                     >
-                      <option value="">Não informar</option>
-                      <option value="woman">Mulher</option>
-                      <option value="man">Homem</option>
-                      <option value="non_binary">Não binário</option>
-                      <option value="self_described">Outra autodescrição</option>
-                      <option value="not_disclosed">Prefere não declarar</option>
+                      <option value="">{t('profile.notInformed')}</option>
+                      {GENDERS.map((value) => (
+                        <option key={value} value={value}>{t(`profile.genders.${value}`)}</option>
+                      ))}
                     </select>
                   </Field>
-                  <Field label="Escolaridade" htmlFor="participant-education">
+                  <Field label={t('profile.education')} htmlFor="participant-education">
                     <select
                       id="participant-education"
                       value={form.education_level}
                       onChange={(event) => setField('education_level', event.target.value)}
                       className={fieldClassName}
                     >
-                      <option value="">Não informar</option>
-                      <option value="elementary">Ensino fundamental</option>
-                      <option value="high_school">Ensino médio</option>
-                      <option value="undergraduate">Graduação</option>
-                      <option value="postgraduate">Pós-graduação</option>
+                      <option value="">{t('profile.notInformed')}</option>
+                      {EDUCATION_LEVELS.map((value) => (
+                        <option key={value} value={value}>{t(`profile.educationLevels.${value}`)}</option>
+                      ))}
                     </select>
                   </Field>
-                  <Field label="Lateralidade" htmlFor="participant-handedness">
+                  <Field label={t('profile.handedness')} htmlFor="participant-handedness">
                     <select
                       id="participant-handedness"
                       value={form.handedness}
                       onChange={(event) => setField('handedness', event.target.value)}
                       className={fieldClassName}
                     >
-                      <option value="">Não informar</option>
-                      <option value="right">Destro</option>
-                      <option value="left">Canhoto</option>
-                      <option value="ambidextrous">Ambidestro</option>
+                      <option value="">{t('profile.notInformed')}</option>
+                      {HANDEDNESS.map((value) => (
+                        <option key={value} value={value}>{t(`profile.handednessOptions.${value}`)}</option>
+                      ))}
                     </select>
                   </Field>
-                  <Field label="Origem do recrutamento" htmlFor="participant-recruitment">
+                  <Field label={t('profile.recruitment')} htmlFor="participant-recruitment">
                     <input
                       id="participant-recruitment"
                       value={form.recruitment_source}
                       onChange={(event) => setField('recruitment_source', event.target.value)}
-                      placeholder="Ex.: Edital público, ambulatório"
+                      placeholder={t('profile.recruitmentPlaceholder')}
                       className={fieldClassName}
                     />
                   </Field>
                 </div>
 
                 <p className="rounded-lg border border-border bg-surface-muted px-4 py-3 text-xs leading-relaxed text-text-secondary">
-                  Princípio de minimização: não colete uma variável apenas por conveniência. Ela deve
-                  estar vinculada à hipótese, aos critérios amostrais ou ao plano de análise.
+                  {t('create.profile.minimization')}
                 </p>
               </section>
             )}
@@ -371,26 +372,26 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
               <section aria-labelledby="participant-step-ethics" className="space-y-5">
                 <SectionHeading
                   id="participant-step-ethics"
-                  eyebrow="Governança e ética"
-                  title="Documente a situação do consentimento"
-                  description="O registro de aceite deve corresponder ao TCLE aprovado e efetivamente apresentado ao participante."
+                  eyebrow={t('create.ethics.eyebrow')}
+                  title={t('create.ethics.title')}
+                  description={t('create.ethics.description')}
                 />
 
                 <fieldset className="space-y-3">
                   <legend className="text-sm font-semibold text-text-primary">
-                    Situação do consentimento <span className="text-red-600">*</span>
+                    {t('create.ethics.consentStatus')} <span className="text-red-600" aria-hidden="true">*</span>
                   </legend>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <ConsentOption
                       checked={form.consent_status === 'pending'}
-                      title="Pendente"
-                      description="Cadastrar para triagem, sem liberar uso dos dados."
+                      title={t('create.ethics.pending')}
+                      description={t('create.ethics.pendingDescription')}
                       onChange={() => setField('consent_status', 'pending')}
                     />
                     <ConsentOption
                       checked={form.consent_status === 'accepted'}
-                      title="Aceito"
-                      description="TCLE já obtido e pronto para registro auditável."
+                      title={t('create.ethics.accepted')}
+                      description={t('create.ethics.acceptedDescription')}
                       onChange={() => setField('consent_status', 'accepted')}
                     />
                   </div>
@@ -398,10 +399,10 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
 
                 {form.consent_status === 'accepted' && (
                   <Field
-                    label="Versão do TCLE"
+                    label={t('create.ethics.consentVersion')}
                     htmlFor="participant-consent-version"
                     required
-                    hint="Informe exatamente a versão aprovada e apresentada ao participante."
+                    hint={t('create.ethics.consentVersionHint')}
                   >
                     <input
                       id="participant-consent-version"
@@ -409,7 +410,7 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
                       autoFocus
                       value={form.consent_version}
                       onChange={(event) => setField('consent_version', event.target.value)}
-                      placeholder="Ex.: 2.1 — 15/03/2026"
+                      placeholder={t('create.ethics.consentVersionPlaceholder')}
                       className={fieldClassName}
                     />
                   </Field>
@@ -419,14 +420,14 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
                   <Attestation
                     checked={form.eligibility_confirmed}
                     onChange={(checked) => setField('eligibility_confirmed', checked)}
-                    title="Critérios de elegibilidade conferidos"
-                    description="Os critérios de inclusão e exclusão definidos no protocolo foram verificados."
+                    title={t('create.ethics.eligibility')}
+                    description={t('create.ethics.eligibilityDescription')}
                   />
                   <Attestation
                     checked={form.identifiers_excluded}
                     onChange={(checked) => setField('identifiers_excluded', checked)}
-                    title="Ausência de identificadores diretos"
-                    description="O código e os metadados não contêm nome, contato, documento ou prontuário."
+                    title={t('create.ethics.identifiers')}
+                    description={t('create.ethics.identifiersDescription')}
                   />
                 </div>
               </section>
@@ -436,37 +437,39 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
               <section aria-labelledby="participant-step-review" className="space-y-5">
                 <SectionHeading
                   id="participant-step-review"
-                  eyebrow="Revisão do registro"
-                  title="Confira antes de incluir na amostra"
-                  description="A criação será registrada na trilha de auditoria da organização."
+                  eyebrow={t('create.review.eyebrow')}
+                  title={t('create.review.title')}
+                  description={t('create.review.description')}
                 />
 
                 <dl className="overflow-hidden rounded-xl border border-border">
-                  <ReviewRow label="Estudo" value={selectedStudy?.name || '—'} />
+                  <ReviewRow label={t('create.review.study')} value={selectedStudy?.name || '—'} />
                   <ReviewRow
-                    label="Aprovação ética"
-                    value={selectedStudy?.config?.ethicsApprovalRef || 'Não informada no estudo'}
+                    label={t('create.review.ethics')}
+                    value={selectedStudy?.config?.ethicsApprovalRef || t('create.review.ethicsMissing')}
                     tone={selectedStudy?.config?.ethicsApprovalRef ? 'success' : 'warning'}
                   />
-                  <ReviewRow label="Código de pesquisa" value={form.external_code.trim().toUpperCase()} mono />
-                  <ReviewRow label="Grupo ou coorte" value={form.cohort || 'Não informado'} />
-                  <ReviewRow label="Faixa etária" value={form.age_range || 'Não informada'} />
+                  <ReviewRow label={t('create.review.code')} value={form.external_code.trim().toUpperCase()} mono />
+                  <ReviewRow label={t('create.review.cohort')} value={form.cohort || t('create.review.notInformedMasc')} />
                   <ReviewRow
-                    label="Consentimento"
+                    label={t('create.review.ageRange')}
+                    value={form.age_range ? t(`profile.ageRanges.${form.age_range as (typeof AGE_RANGES)[number]}`) : t('create.review.notInformedFem')}
+                  />
+                  <ReviewRow
+                    label={t('create.review.consent')}
                     value={form.consent_status === 'accepted'
-                      ? `Aceito · versão ${form.consent_version.trim()}`
-                      : 'Pendente'}
+                      ? t('create.review.acceptedVersion', { version: form.consent_version.trim() })
+                      : t('create.review.pending')}
                     tone={form.consent_status === 'accepted' ? 'success' : 'warning'}
                   />
-                  <ReviewRow label="Elegibilidade" value="Conferida" tone="success" />
-                  <ReviewRow label="Proteção de identidade" value="Confirmada" tone="success" />
+                  <ReviewRow label={t('create.review.eligibility')} value={t('create.review.checked')} tone="success" />
+                  <ReviewRow label={t('create.review.identity')} value={t('create.review.confirmed')} tone="success" />
                 </dl>
 
                 <div className="flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
                   <ShieldCheck className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
                   <p className="text-sm leading-relaxed">
-                    O registro será pseudonimizado. A chave de reidentificação, quando existir, deve
-                    permanecer em repositório separado e sob controle da equipe autorizada.
+                    {t('create.review.pseudonymised')}
                   </p>
                 </div>
               </section>
@@ -474,7 +477,7 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
 
             {createParticipant.isError && (
               <p className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300" role="alert">
-                Não foi possível registrar o participante: {(createParticipant.error as Error).message}
+                {t('create.failed', { message: (createParticipant.error as Error).message })}
               </p>
             )}
           </div>
@@ -484,22 +487,22 @@ export function CreateParticipantDialog({ children }: { children: ReactNode }) {
               {step > 0 && (
                 <ActionButton type="button" variant="ghost" onClick={() => setStep((current) => current - 1)}>
                   <ChevronLeft size={16} aria-hidden="true" />
-                  Voltar
+                  {t('create.back')}
                 </ActionButton>
               )}
             </div>
             <div className="flex items-center gap-2">
               <ActionButton type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
-                Cancelar
+                {t('create.cancel')}
               </ActionButton>
               {step < STEPS.length - 1 ? (
                 <ActionButton type="submit" variant="primary" disabled={!canContinue}>
-                  Continuar
+                  {t('create.continue')}
                   <ChevronRight size={16} aria-hidden="true" />
                 </ActionButton>
               ) : (
                 <ActionButton type="submit" variant="primary" disabled={createParticipant.isPending}>
-                  {createParticipant.isPending ? 'Registrando…' : 'Registrar participante'}
+                  {createParticipant.isPending ? t('create.submitting') : t('create.submit')}
                 </ActionButton>
               )}
             </div>
@@ -548,7 +551,7 @@ function Field({
   return (
     <div className="space-y-1.5">
       <label htmlFor={htmlFor} className="block text-sm font-semibold text-text-primary">
-        {label} {required && <span className="text-red-600">*</span>}
+        {label} {required && <span className="text-red-600" aria-hidden="true">*</span>}
       </label>
       {children}
       {hint && <p className="text-xs leading-relaxed text-text-muted">{hint}</p>}
@@ -616,7 +619,7 @@ function Attestation({
         className="mt-1 size-4 rounded accent-blue-600"
       />
       <span>
-        <span className="block text-sm font-semibold text-text-primary">{title} <span className="text-red-600">*</span></span>
+        <span className="block text-sm font-semibold text-text-primary">{title} <span className="text-red-600" aria-hidden="true">*</span></span>
         <span className="mt-0.5 block text-xs leading-relaxed text-text-secondary">{description}</span>
       </span>
     </label>

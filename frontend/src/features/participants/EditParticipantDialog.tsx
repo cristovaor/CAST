@@ -1,3 +1,6 @@
+import { Trans, useTranslation } from 'react-i18next';
+import { AGE_RANGES, EDUCATION_LEVELS, GENDERS, HANDEDNESS } from './profileOptions';
+import { useLocale } from '@/i18n/useLocale';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   AlertTriangle,
@@ -122,6 +125,8 @@ export function EditParticipantDialog({
   participant: Participant;
   children: ReactNode;
 }) {
+  const { t } = useTranslation('participants');
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'edit' | 'deactivate'>('edit');
   const [form, setForm] = useState<EditForm>(() => formFromParticipant(participant));
@@ -140,12 +145,12 @@ export function EditParticipantDialog({
     || deactivateParticipant.error
     || activateParticipant.error;
 
-  const statusLabel = participant.is_active ? 'Ativo na pesquisa' : 'Inativo';
+  const statusLabel = participant.is_active ? t('edit.statusActive') : t('edit.statusInactive');
   const deactivatedDate = useMemo(
     () => participant.deactivated_at
-      ? new Date(participant.deactivated_at).toLocaleDateString('pt-BR')
+      ? new Date(participant.deactivated_at).toLocaleDateString(locale)
       : null,
-    [participant.deactivated_at],
+    [locale, participant.deactivated_at],
   );
 
   const setField = <Key extends keyof EditForm>(key: Key, value: EditForm[Key]) => {
@@ -221,14 +226,14 @@ export function EditParticipantDialog({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <DialogTitle className="text-xl">
-                  {mode === 'deactivate' ? 'Desativar participante' : 'Editar participante'}
+                  {mode === 'deactivate' ? t('edit.titleDeactivate') : t('edit.titleEdit')}
                 </DialogTitle>
                 <StatusPill active={participant.is_active} label={statusLabel} />
               </div>
               <DialogDescription className="mt-1 max-w-2xl">
                 {mode === 'deactivate'
-                  ? `Interrompa novas coletas para ${participant.external_code}, preservando integralmente o histórico científico.`
-                  : 'Atualize a caracterização da amostra em campos estruturados. Toda alteração será registrada na trilha de auditoria.'}
+                  ? t('edit.descriptionDeactivate', { code: participant.external_code })
+                  : t('edit.descriptionEdit')}
               </DialogDescription>
             </div>
           </div>
@@ -264,10 +269,10 @@ export function EditParticipantDialog({
                     <FileClock className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
                     <div>
                       <p className="text-sm font-semibold">
-                        Participante inativo{deactivatedDate ? ` desde ${deactivatedDate}` : ''}
+                        {deactivatedDate ? t('edit.inactiveSince', { date: deactivatedDate }) : t('edit.inactive')}
                       </p>
                       <p className="mt-1 text-xs leading-relaxed">
-                        {participant.deactivation_reason || 'O motivo da desativação não foi informado.'}
+                        {participant.deactivation_reason || t('edit.noReason')}
                       </p>
                     </div>
                   </div>
@@ -276,23 +281,23 @@ export function EditParticipantDialog({
                     variant="secondary"
                     disabled={activateParticipant.isPending}
                     onClick={reactivate}
-                    className="shrink-0 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                    className="shrink-0 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
                   >
                     <RotateCcw size={15} aria-hidden="true" />
-                    {activateParticipant.isPending ? 'Reativando…' : 'Reativar participante'}
+                    {activateParticipant.isPending ? t('edit.reactivating') : t('edit.reactivate')}
                   </ActionButton>
                 </div>
               )}
 
               <FormSection
-                eyebrow="Identificação científica"
-                title="Código pseudonimizado"
-                description="O código é a referência operacional do participante. Não utilize identificadores pessoais diretos."
+                eyebrow={t('edit.identification.eyebrow')}
+                title={t('edit.identification.title')}
+                description={t('edit.identification.description')}
               >
                 <Field
-                  label="Código de pesquisa"
+                  label={t('edit.identification.code')}
                   htmlFor={`participant-code-${participant.id}`}
-                  hint="Alterações no código ficam disponíveis no histórico de auditoria."
+                  hint={t('edit.identification.codeHint')}
                 >
                   <input
                     id={`participant-code-${participant.id}`}
@@ -307,84 +312,78 @@ export function EditParticipantDialog({
               </FormSection>
 
               <FormSection
-                eyebrow="Caracterização da amostra"
-                title="Perfil sociodemográfico e amostral"
-                description="Preencha somente variáveis previstas no protocolo ou no plano de análise."
+                eyebrow={t('edit.sample.eyebrow')}
+                title={t('edit.sample.title')}
+                description={t('edit.sample.description')}
               >
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Grupo, braço ou coorte" htmlFor={`participant-cohort-${participant.id}`}>
+                  <Field label={t('profile.cohort')} htmlFor={`participant-cohort-${participant.id}`}>
                     <input
                       id={`participant-cohort-${participant.id}`}
                       value={form.cohort}
                       onChange={(event) => setField('cohort', event.target.value)}
-                      placeholder="Ex.: Controle, intervenção A"
+                      placeholder={t('profile.cohortPlaceholder')}
                       className={fieldClassName}
                     />
                   </Field>
-                  <Field label="Faixa etária" htmlFor={`participant-age-${participant.id}`}>
+                  <Field label={t('profile.ageRange')} htmlFor={`participant-age-${participant.id}`}>
                     <select
                       id={`participant-age-${participant.id}`}
                       value={form.age_range}
                       onChange={(event) => setField('age_range', event.target.value)}
                       className={fieldClassName}
                     >
-                      <option value="">Não informar</option>
-                      <option value="18-24">18–24 anos</option>
-                      <option value="25-34">25–34 anos</option>
-                      <option value="35-44">35–44 anos</option>
-                      <option value="45-54">45–54 anos</option>
-                      <option value="55-64">55–64 anos</option>
-                      <option value="65+">65 anos ou mais</option>
+                      <option value="">{t('profile.notInformed')}</option>
+                      {AGE_RANGES.map((value) => (
+                        <option key={value} value={value}>{t(`profile.ageRanges.${value}`)}</option>
+                      ))}
                     </select>
                   </Field>
-                  <Field label="Gênero autodeclarado" htmlFor={`participant-gender-${participant.id}`}>
+                  <Field label={t('profile.gender')} htmlFor={`participant-gender-${participant.id}`}>
                     <select
                       id={`participant-gender-${participant.id}`}
                       value={form.gender}
                       onChange={(event) => setField('gender', event.target.value)}
                       className={fieldClassName}
                     >
-                      <option value="">Não informar</option>
-                      <option value="woman">Mulher</option>
-                      <option value="man">Homem</option>
-                      <option value="non_binary">Não binário</option>
-                      <option value="self_described">Outra autodescrição</option>
-                      <option value="not_disclosed">Prefere não declarar</option>
+                      <option value="">{t('profile.notInformed')}</option>
+                      {GENDERS.map((value) => (
+                        <option key={value} value={value}>{t(`profile.genders.${value}`)}</option>
+                      ))}
                     </select>
                   </Field>
-                  <Field label="Escolaridade" htmlFor={`participant-education-${participant.id}`}>
+                  <Field label={t('profile.education')} htmlFor={`participant-education-${participant.id}`}>
                     <select
                       id={`participant-education-${participant.id}`}
                       value={form.education_level}
                       onChange={(event) => setField('education_level', event.target.value)}
                       className={fieldClassName}
                     >
-                      <option value="">Não informar</option>
-                      <option value="elementary">Ensino fundamental</option>
-                      <option value="high_school">Ensino médio</option>
-                      <option value="undergraduate">Graduação</option>
-                      <option value="postgraduate">Pós-graduação</option>
+                      <option value="">{t('profile.notInformed')}</option>
+                      {EDUCATION_LEVELS.map((value) => (
+                        <option key={value} value={value}>{t(`profile.educationLevels.${value}`)}</option>
+                      ))}
                     </select>
                   </Field>
-                  <Field label="Lateralidade" htmlFor={`participant-handedness-${participant.id}`}>
+                  <Field label={t('profile.handedness')} htmlFor={`participant-handedness-${participant.id}`}>
                     <select
                       id={`participant-handedness-${participant.id}`}
                       value={form.handedness}
                       onChange={(event) => setField('handedness', event.target.value)}
                       className={fieldClassName}
                     >
-                      <option value="">Não informar</option>
-                      <option value="right">Destro</option>
-                      <option value="left">Canhoto</option>
-                      <option value="ambidextrous">Ambidestro</option>
+                      <option value="">{t('profile.notInformed')}</option>
+                      {HANDEDNESS.map((value) => (
+                        <option key={value} value={value}>{t(`profile.handednessOptions.${value}`)}</option>
+                      ))}
                     </select>
                   </Field>
-                  <Field label="Origem do recrutamento" htmlFor={`participant-source-${participant.id}`}>
+                  <Field label={t('profile.recruitment')} htmlFor={`participant-source-${participant.id}`}>
                     <input
                       id={`participant-source-${participant.id}`}
                       value={form.recruitment_source}
                       onChange={(event) => setField('recruitment_source', event.target.value)}
-                      placeholder="Ex.: Edital público, ambulatório"
+                      placeholder={t('profile.recruitmentPlaceholder')}
                       className={fieldClassName}
                     />
                   </Field>
@@ -392,29 +391,29 @@ export function EditParticipantDialog({
               </FormSection>
 
               <FormSection
-                eyebrow="Governança e ética"
-                title="Elegibilidade e consentimento"
-                description="Consentimento e status operacional são independentes. Desativar não revoga automaticamente o TCLE."
+                eyebrow={t('edit.ethics.eyebrow')}
+                title={t('edit.ethics.title')}
+                description={t('edit.ethics.description')}
               >
                 <fieldset className="space-y-3">
-                  <legend className="text-sm font-semibold text-text-primary">Situação do consentimento</legend>
+                  <legend className="text-sm font-semibold text-text-primary">{t('edit.ethics.consentStatus')}</legend>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <ConsentCard
                       checked={form.consent_status === 'pending'}
-                      label="Pendente"
-                      description="Aguardando formalização."
+                      label={t('edit.ethics.pending')}
+                      description={t('edit.ethics.pendingDescription')}
                       onChange={() => setField('consent_status', 'pending')}
                     />
                     <ConsentCard
                       checked={form.consent_status === 'accepted'}
-                      label="Aceito"
-                      description="TCLE formalizado."
+                      label={t('edit.ethics.accepted')}
+                      description={t('edit.ethics.acceptedDescription')}
                       onChange={() => setField('consent_status', 'accepted')}
                     />
                     <ConsentCard
                       checked={form.consent_status === 'revoked'}
-                      label="Revogado"
-                      description="Retirada de consentimento."
+                      label={t('edit.ethics.revoked')}
+                      description={t('edit.ethics.revokedDescription')}
                       onChange={() => setField('consent_status', 'revoked')}
                     />
                   </div>
@@ -422,16 +421,16 @@ export function EditParticipantDialog({
 
                 {requiresConsentVersion && (
                   <Field
-                    label={form.consent_status === 'revoked' ? 'Versão do TCLE revogado' : 'Versão do TCLE aceito'}
+                    label={form.consent_status === 'revoked' ? t('edit.ethics.versionRevoked') : t('edit.ethics.versionAccepted')}
                     htmlFor={`participant-consent-version-${participant.id}`}
-                    hint="A mudança gera um termo e um evento de consentimento auditável."
+                    hint={t('edit.ethics.versionHint')}
                   >
                     <input
                       id={`participant-consent-version-${participant.id}`}
                       required
                       value={form.consent_version}
                       onChange={(event) => setField('consent_version', event.target.value)}
-                      placeholder="Ex.: TCLE 2.1 — 15/03/2026"
+                      placeholder={t('edit.ethics.versionPlaceholder')}
                       className={fieldClassName}
                     />
                   </Field>
@@ -441,14 +440,14 @@ export function EditParticipantDialog({
                   <Attestation
                     checked={form.eligibility_confirmed}
                     onChange={(checked) => setField('eligibility_confirmed', checked)}
-                    label="Elegibilidade conferida"
-                    description="Critérios de inclusão e exclusão verificados."
+                    label={t('edit.ethics.eligibility')}
+                    description={t('edit.ethics.eligibilityDescription')}
                   />
                   <Attestation
                     checked={form.identifiers_excluded}
                     onChange={(checked) => setField('identifiers_excluded', checked)}
-                    label="Sem identificadores diretos"
-                    description="Metadados sem nome, contato, documento ou prontuário."
+                    label={t('edit.ethics.identifiers')}
+                    description={t('edit.ethics.identifiersDescription')}
                   />
                 </div>
               </FormSection>
@@ -457,9 +456,9 @@ export function EditParticipantDialog({
                 <section className="rounded-xl border border-red-200 bg-red-50/60 p-4 dark:border-red-950 dark:bg-red-950/20">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-red-900 dark:text-red-200">Interromper participação operacional</p>
+                      <p className="text-sm font-semibold text-red-900 dark:text-red-200">{t('edit.stop.title')}</p>
                       <p className="mt-1 text-xs leading-relaxed text-red-800 dark:text-red-300">
-                        A desativação preserva os dados existentes e impede novas sessões.
+                        {t('edit.stop.description')}
                       </p>
                     </div>
                     <ActionButton
@@ -469,7 +468,7 @@ export function EditParticipantDialog({
                       className="shrink-0 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
                     >
                       <UserRoundX size={15} aria-hidden="true" />
-                      Desativar participante
+                      {t('edit.stop.action')}
                     </ActionButton>
                   </div>
                 </section>
@@ -477,17 +476,17 @@ export function EditParticipantDialog({
 
               {mutationError && (
                 <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-                  Não foi possível concluir a alteração: {(mutationError as Error).message}
+                  {t('edit.failed', { message: (mutationError as Error).message })}
                 </p>
               )}
             </div>
 
             <DialogFooter className="mt-0 flex-row items-center justify-end gap-2 border-t border-border bg-surface px-5 py-4 sm:px-7">
               <ActionButton type="button" variant="ghost" onClick={() => setOpen(false)}>
-                Cancelar
+                {t('edit.cancel')}
               </ActionButton>
               <ActionButton type="submit" variant="primary" disabled={isPending || !canSave}>
-                {updateParticipant.isPending ? 'Salvando…' : 'Salvar alterações'}
+                {updateParticipant.isPending ? t('edit.saving') : t('edit.save')}
               </ActionButton>
             </DialogFooter>
           </form>
@@ -520,30 +519,35 @@ function DeactivatePanel({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation('participants');
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
         <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-950 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100">
           <AlertTriangle className="mt-0.5 shrink-0" size={20} aria-hidden="true" />
           <div>
-            <p className="text-sm font-semibold">Esta ação altera a elegibilidade operacional</p>
+            <p className="text-sm font-semibold">{t('edit.deactivate.warningTitle')}</p>
             <p className="mt-1 text-sm leading-relaxed">
-              O participante <strong>{participant.external_code}</strong> continuará no banco para
-              preservar a integridade longitudinal, mas não poderá iniciar novas sessões.
+              <Trans
+                t={t}
+                i18nKey="edit.deactivate.warningBody"
+                values={{ code: participant.external_code }}
+                components={{ strong: <strong /> }}
+              />
             </p>
           </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <ImpactItem title="Dados existentes" description="Permanecem preservados" />
-          <ImpactItem title="Sessões anteriores" description="Continuam disponíveis" />
-          <ImpactItem title="Novas coletas" description="Ficam bloqueadas" warning />
+          <ImpactItem title={t('edit.deactivate.existingData')} description={t('edit.deactivate.existingDataDetail')} />
+          <ImpactItem title={t('edit.deactivate.previousSessions')} description={t('edit.deactivate.previousSessionsDetail')} />
+          <ImpactItem title={t('edit.deactivate.newCollections')} description={t('edit.deactivate.newCollectionsDetail')} warning />
         </div>
 
         <Field
-          label="Motivo da desativação"
+          label={t('edit.deactivate.reason')}
           htmlFor={`participant-deactivation-reason-${participant.id}`}
-          hint={`${reason.trim().length}/500 caracteres · mínimo de 10`}
+          hint={t('edit.deactivate.reasonHint', { count: reason.trim().length })}
         >
           <textarea
             id={`participant-deactivation-reason-${participant.id}`}
@@ -554,7 +558,7 @@ function DeactivatePanel({
             autoFocus
             value={reason}
             onChange={(event) => onReasonChange(event.target.value)}
-            placeholder="Ex.: participante concluiu o protocolo, desistiu da pesquisa ou deixou de atender aos critérios de elegibilidade."
+            placeholder={t('edit.deactivate.reasonPlaceholder')}
             className={cn(fieldClassName, 'h-auto min-h-28 resize-y py-3')}
           />
         </Field>
@@ -567,23 +571,23 @@ function DeactivatePanel({
             className="mt-1 size-4 rounded accent-red-600"
           />
           <span>
-            <span className="block text-sm font-semibold text-text-primary">Confirmo a interrupção de novas coletas</span>
+            <span className="block text-sm font-semibold text-text-primary">{t('edit.deactivate.confirm')}</span>
             <span className="mt-1 block text-xs leading-relaxed text-text-secondary">
-              O motivo e o responsável por esta decisão serão registrados na auditoria.
+              {t('edit.deactivate.confirmDetail')}
             </span>
           </span>
         </label>
 
         {error && (
-          <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Não foi possível desativar o participante: {error.message}
+          <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+            {t('edit.deactivate.failed', { message: error.message })}
           </p>
         )}
       </div>
 
       <DialogFooter className="mt-0 flex-row items-center justify-end gap-2 border-t border-border bg-surface px-5 py-4 sm:px-7">
         <ActionButton type="button" variant="ghost" onClick={onCancel}>
-          Voltar à edição
+          {t('edit.deactivate.back')}
         </ActionButton>
         <button
           type="button"
@@ -592,7 +596,7 @@ function DeactivatePanel({
           className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50"
         >
           <UserRoundX size={16} aria-hidden="true" />
-          {pending ? 'Desativando…' : 'Confirmar desativação'}
+          {pending ? t('edit.deactivate.submitting') : t('edit.deactivate.submit')}
         </button>
       </DialogFooter>
     </div>
@@ -730,10 +734,10 @@ function ImpactItem({
   return (
     <div className={cn(
       'rounded-xl border p-3',
-      warning ? 'border-red-200 bg-red-50' : 'border-border bg-surface-muted/60',
+      warning ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30' : 'border-border bg-surface-muted/60',
     )}>
-      <p className={cn('text-xs font-semibold', warning ? 'text-red-800' : 'text-text-primary')}>{title}</p>
-      <p className={cn('mt-1 text-xs', warning ? 'text-red-700' : 'text-text-secondary')}>{description}</p>
+      <p className={cn('text-xs font-semibold', warning ? 'text-red-800 dark:text-red-200' : 'text-text-primary')}>{title}</p>
+      <p className={cn('mt-1 text-xs', warning ? 'text-red-700 dark:text-red-300' : 'text-text-secondary')}>{description}</p>
     </div>
   );
 }

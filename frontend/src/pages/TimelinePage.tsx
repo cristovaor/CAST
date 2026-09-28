@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -27,6 +28,7 @@ function formatClock(ms: number): string {
 }
 
 export function TimelinePage() {
+  const { t } = useTranslation('analysis');
   const { videoId } = useParams<{ videoId: string }>();
   const videoQuery = useVideoDetails(videoId!);
   const timelineQuery = useVideoTimeline(videoId!);
@@ -84,10 +86,10 @@ export function TimelinePage() {
     return (
       <div className="min-h-full flex flex-col">
         <PageHeader
-          title="Timeline de Microações"
-          description="Microações faciais sincronizadas com o vídeo e o EEG."
+          title={t('timeline.title')}
+          description={t('timeline.description')}
         />
-        <LoadingState message="Carregando timeline do vídeo..." />
+        <LoadingState message={t('timeline.loading')} />
       </div>
     );
   }
@@ -96,15 +98,15 @@ export function TimelinePage() {
     return (
       <div className="min-h-full flex flex-col">
         <PageHeader
-          title="Timeline de Microações"
-          description="Microações faciais sincronizadas com o vídeo e o EEG."
+          title={t('timeline.title')}
+          description={t('timeline.description')}
         />
         <ErrorState
-          title="Não foi possível carregar a timeline"
+          title={t('timeline.loadFailed')}
           message={
             (videoQuery.error ?? timelineQuery.error) instanceof Error
               ? (videoQuery.error ?? timelineQuery.error)!.message
-              : 'Verifique se o vídeo existe e se a inferência já foi executada.'
+              : t('timeline.loadFailedHint')
           }
           onRetry={() => { void videoQuery.refetch(); void timelineQuery.refetch(); }}
         />
@@ -115,8 +117,8 @@ export function TimelinePage() {
   return (
     <div className="min-h-full flex flex-col">
       <PageHeader
-        title="Timeline de Microações"
-        description="Microações faciais sincronizadas com o vídeo e o EEG."
+        title={t('timeline.title')}
+        description={t('timeline.description')}
       />
 
       <div className="p-6 space-y-5">
@@ -132,7 +134,7 @@ export function TimelinePage() {
 
             <div className="card p-4">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                <h3 className="text-sm font-semibold text-text-primary">Trilhas sincronizadas</h3>
+                <h3 className="text-sm font-semibold text-text-primary">{t('timeline.tracks')}</h3>
 
                 {/* Action filters */}
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -142,6 +144,9 @@ export function TimelinePage() {
                     return (
                       <button
                         key={action}
+                        type="button"
+                        aria-pressed={on}
+                        title={cfg.label}
                         onClick={() => toggleFilter(action)}
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border transition-colors"
                         style={{
@@ -163,8 +168,9 @@ export function TimelinePage() {
 
               {/* Confidence filter */}
               <div className="flex items-center gap-3 mb-4 text-xs text-text-muted">
-                <span className="shrink-0">Confiança mínima</span>
+                <span className="shrink-0" id="timeline-min-confidence">{t('timeline.minConfidence')}</span>
                 <input
+                  aria-labelledby="timeline-min-confidence"
                   type="range"
                   min={0}
                   max={1}
@@ -186,14 +192,14 @@ export function TimelinePage() {
           <div className="card overflow-hidden self-start">
             <div className="px-4 py-3 border-b border-border">
               <h3 className="text-sm font-semibold text-text-primary">
-                Eventos ({filteredEvents.length})
+                {t('timeline.events', { count: filteredEvents.length })}
               </h3>
-              <p className="text-xs text-text-muted mt-0.5">Clique para saltar no vídeo</p>
+              <p className="text-xs text-text-muted mt-0.5">{t('timeline.clickToSeek')}</p>
             </div>
             <div className="max-h-[32rem] overflow-y-auto divide-y divide-border">
               {filteredEvents.length === 0 && (
                 <p className="px-4 py-8 text-center text-sm text-text-muted">
-                  Nenhum evento com os filtros atuais.
+                  {t('timeline.noEvents')}
                 </p>
               )}
               {filteredEvents
@@ -206,9 +212,10 @@ export function TimelinePage() {
                   return (
                     <button
                       key={ev.event_id}
+                      type="button"
                       onClick={() => requestSeek(startMs)}
                       className={`flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-app-bg transition-colors ${
-                        active ? 'bg-blue-50/60' : ''
+                        active ? 'bg-blue-50/60 dark:bg-blue-950/30' : ''
                       }`}
                     >
                       <span
@@ -226,7 +233,7 @@ export function TimelinePage() {
                       <span className="text-[11px] font-semibold text-text-muted tabular-nums">
                         {(ev.confidence_mean * 100).toFixed(0)}%
                       </span>
-                      {active && <Crosshair size={13} className="text-blue-500 shrink-0" />}
+                      {active && <Crosshair size={13} className="text-blue-500 shrink-0" aria-hidden="true" />}
                     </button>
                   );
                 })}

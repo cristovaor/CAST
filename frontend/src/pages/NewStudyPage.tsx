@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StudyWizard } from '@/features/studies/StudyWizard';
 
 export function NewStudyPage() {
+  const { t } = useTranslation('studies');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('projectId') ?? undefined;
@@ -10,8 +12,8 @@ export function NewStudyPage() {
   return (
     <div className="min-h-full bg-app-bg pb-12">
       <PageHeader
-        title="Novo estudo"
-        description="Configure um estudo científico reutilizável. O fluxo não obriga um objetivo educacional — o desenho e as modalidades são definidos livremente."
+        title={t('create.title')}
+        description={t('create.description')}
       />
       <div className="px-6 pt-8">
         <StudyWizard

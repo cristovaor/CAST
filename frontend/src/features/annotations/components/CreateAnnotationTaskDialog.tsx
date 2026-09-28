@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { roleLabel } from '@/lib/formatters';
 import { useState } from 'react';
 import {
   Dialog,
@@ -14,6 +16,7 @@ import { useAnnotationAssignees, useCreateAnnotationTask } from '../api/useAnnot
 const INITIAL_FORM = { video_id: '', assignee_id: '' };
 
 export function CreateAnnotationTaskDialog({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation('annotations');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(INITIAL_FORM);
   const { data: videos, isLoading: isLoadingVideos, isError: videosError } = useGlobalVideos();
@@ -35,13 +38,13 @@ export function CreateAnnotationTaskDialog({ children }: { children: React.React
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nova tarefa de anotação</DialogTitle>
+          <DialogTitle>{t('tasks.form.title')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
             <label htmlFor="annotation-video" className="text-xs font-medium text-text-secondary">
-              Vídeo
+              {t('tasks.form.video')}
             </label>
             <select
               id="annotation-video"
@@ -51,7 +54,7 @@ export function CreateAnnotationTaskDialog({ children }: { children: React.React
               disabled={isLoadingVideos}
               className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Selecione um vídeo…</option>
+              <option value="">{t('tasks.form.selectVideo')}</option>
               {videos?.map((video) => (
                 <option key={video.id} value={video.id}>
                   {video.filename} · {video.id.slice(0, 8)}
@@ -62,7 +65,7 @@ export function CreateAnnotationTaskDialog({ children }: { children: React.React
 
           <div className="space-y-1">
             <label htmlFor="annotation-assignee" className="text-xs font-medium text-text-secondary">
-              Anotador responsável
+              {t('tasks.form.assignee')}
             </label>
             <select
               id="annotation-assignee"
@@ -72,36 +75,38 @@ export function CreateAnnotationTaskDialog({ children }: { children: React.React
               disabled={isLoadingUsers}
               className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Selecione um usuário…</option>
+              <option value="">{t('tasks.form.selectUser')}</option>
               {users?.map((user) => (
                 <option key={user.id} value={user.id}>
-                  {user.name} · {user.role}
+                  {user.name} · {roleLabel(user.role)}
                 </option>
               ))}
             </select>
           </div>
 
           {(videosError || usersError) && (
-            <p role="alert" className="text-xs text-red-600">
-              Não foi possível carregar {videosError && usersError ? 'vídeos e usuários' : videosError ? 'os vídeos' : 'os usuários'}.
+            <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+              {videosError && usersError
+                ? t('tasks.form.loadBothFailed')
+                : videosError ? t('tasks.form.loadVideosFailed') : t('tasks.form.loadUsersFailed')}
             </p>
           )}
           {createTask.isError && (
-            <p role="alert" className="text-xs text-red-600">
-              Não foi possível criar a tarefa: {(createTask.error as Error).message}
+            <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+              {t('tasks.form.createFailed', { message: (createTask.error as Error).message })}
             </p>
           )}
 
           <DialogFooter>
             <ActionButton type="button" variant="ghost" onClick={() => setOpen(false)}>
-              Cancelar
+              {t('tasks.form.cancel')}
             </ActionButton>
             <ActionButton
               type="submit"
               variant="primary"
               disabled={createTask.isPending || !form.video_id || !form.assignee_id}
             >
-              {createTask.isPending ? 'Criando…' : 'Criar tarefa'}
+              {createTask.isPending ? t('tasks.form.creating') : t('tasks.form.create')}
             </ActionButton>
           </DialogFooter>
         </form>
