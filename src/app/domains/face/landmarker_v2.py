@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,6 +59,31 @@ class FaceLandmarkerV2:
         self.model_path = model_path
         self.model_checksum = verify_model(model_path, expected_sha256)
         self.min_confidence = min_confidence
+
+    def extract_isolated(self, python_path: str, video_path: str, video_id: str) -> FaceLandmarkerOutput:
+        import pandas as pd
+
+        with tempfile.TemporaryDirectory(prefix="cast-face-landmarker-") as output_dir:
+            try:
+                subprocess.run(
+                    [
+                        python_path, "-m", "app.domains.face.landmarker_v2",
+                        "--video", video_path, "--video-id", video_id,
+                        "--model", self.model_path, "--checksum", self.model_checksum,
+                        "--min-confidence", str(self.min_confidence), "--output-dir", output_dir,
+                    ],
+                    check=True, cwd=str(Path(__file__).resolve().parents[3]),
+                    capture_output=True, text=True,
+                )
+            except subprocess.CalledProcessError as error:
+                detail = (error.stderr or "").strip() or (error.stdout or "").strip() or str(error)
+                raise RuntimeError(f"Face Landmarker extraction failed: {detail}") from error
+            root = Path(output_dir)
+            return FaceLandmarkerOutput(
+                pd.read_pickle(root / "landmarks.pkl"),
+                pd.read_pickle(root / "features.pkl"),
+                pd.read_pickle(root / "quality.pkl"),
+            )
 
     def extract_from_video(self, video_path: str, video_id: str) -> FaceLandmarkerOutput:
         import cv2
@@ -146,3 +172,27 @@ class FaceLandmarkerV2:
                 frame_index += 1
         capture.release()
         return FaceLandmarkerOutput(pd.DataFrame(landmarks_rows), pd.DataFrame(feature_rows), pd.DataFrame(quality_rows))
+
+
+def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Extract Face Landmarker outputs in the isolated runtime")
+    parser.add_argument("--video", required=True)
+    parser.add_argument("--video-id", required=True)
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--checksum", required=True)
+    parser.add_argument("--min-confidence", type=float, default=0.5)
+    parser.add_argument("--output-dir", required=True)
+    args = parser.parse_args()
+    output = FaceLandmarkerV2(
+        args.model, expected_sha256=args.checksum, min_confidence=args.min_confidence,
+    ).extract_from_video(args.video, args.video_id)
+    root = Path(args.output_dir)
+    output.landmarks.to_pickle(root / "landmarks.pkl")
+    output.features.to_pickle(root / "features.pkl")
+    output.quality.to_pickle(root / "quality.pkl")
+
+
+if __name__ == "__main__":
+    main()
